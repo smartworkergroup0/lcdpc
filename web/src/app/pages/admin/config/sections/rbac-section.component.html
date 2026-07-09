@@ -4,6 +4,7 @@
     <p-tab value="roles">Roles</p-tab>
     <p-tab value="resources">Recursos</p-tab>
     <p-tab value="api-tokens">API Tokens</p-tab>
+    <p-tab value="service-accounts">Cuentas de Servicio</p-tab>
   </p-tablist>
   <p-tabpanels>
     <p-tabpanel value="profiles">
@@ -179,6 +180,63 @@
         </ng-template>
       </p-table>
     </p-tabpanel>
+
+    <p-tabpanel value="service-accounts">
+      <div class="tab-toolbar">
+        @if (canCreateSA()) {
+          <p-button label="Nueva Cuenta" icon="pi pi-plus" size="small" (onClick)="openSvcAccountCreate()"></p-button>
+        }
+      </div>
+      <p-table [value]="serviceAccounts()" [loading]="loading()" styleClass="admin-table">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nombre</th>
+            <th>Username</th>
+            <th>Perfil</th>
+            <th>Expiracion Token</th>
+            <th>Estado</th>
+            <th>Creado</th>
+            <th style="width: 140px">Acciones</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-sa>
+          <tr>
+            <td>{{ sa.name }}</td>
+            <td><code>{{ sa.username }}</code></td>
+            <td>{{ sa.profileName }}</td>
+            <td>{{ sa.tokenExpiryHours }}h</td>
+            <td>
+              @if (sa.isActive) {
+                <p-tag value="Activo" severity="success" />
+              } @else {
+                <p-tag value="Inactivo" severity="danger" />
+              }
+            </td>
+            <td>{{ sa.createdAtUtc | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td>
+              @if (canUpdateSA()) {
+                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                          (onClick)="openSvcAccountEdit(sa)" pTooltip="Editar"></p-button>
+                @if (sa.isActive) {
+                  <p-button icon="pi pi-ban" [text]="true" [rounded]="true" severity="warn"
+                            (onClick)="toggleSvcAccountActive(sa)" pTooltip="Desactivar"></p-button>
+                } @else {
+                  <p-button icon="pi pi-check-circle" [text]="true" [rounded]="true" severity="success"
+                            (onClick)="toggleSvcAccountActive(sa)" pTooltip="Activar"></p-button>
+                }
+              }
+              @if (canDeleteSA()) {
+                <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+                          (onClick)="confirmDeleteSvcAccount(sa)" pTooltip="Eliminar"></p-button>
+              }
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="7" class="empty-state">No hay cuentas de servicio registradas</td></tr>
+        </ng-template>
+      </p-table>
+    </p-tabpanel>
   </p-tabpanels>
 </p-tabs>
 
@@ -339,6 +397,75 @@
   </div>
   <ng-template pTemplate="footer">
     <p-button label="Cerrar" severity="secondary" (onClick)="createdTokenVisible.set(false)"></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- Service Account Dialog -->
+<p-dialog [header]="selectedSvcAccount() ? 'Editar Cuenta de Servicio' : 'Nueva Cuenta de Servicio'"
+          [visible]="svcAccountDialogVisible()" (visibleChange)="svcAccountDialogVisible.set($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(500px, 95vw)'}"
+          (onHide)="svcAccountSubmitted = false">
+  <div class="form-fields" [style]="{paddingTop: '20px'}">
+    <div class="field">
+      <p-floatlabel>
+        <input pInputText id="saName" [(ngModel)]="svcAccountForm.name"
+               [class.ng-invalid]="svcAccountSubmitted && !svcAccountForm.name" style="width: 100%" placeholder=" " />
+        <label for="saName">Nombre *</label>
+      </p-floatlabel>
+    </div>
+    @if (!selectedSvcAccount()) {
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="saUsername" [(ngModel)]="svcAccountForm.username"
+                 [class.ng-invalid]="svcAccountSubmitted && !svcAccountForm.username" style="width: 100%" placeholder=" " />
+          <label for="saUsername">Username *</label>
+        </p-floatlabel>
+      </div>
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="saPassword" type="password" [(ngModel)]="svcAccountForm.password"
+                 [class.ng-invalid]="svcAccountSubmitted && !svcAccountForm.password" style="width: 100%" placeholder=" " />
+          <label for="saPassword">Password *</label>
+        </p-floatlabel>
+      </div>
+    }
+    <div class="field">
+      <label class="field-label">Perfil *</label>
+      <p-select [options]="profileOptions()" [(ngModel)]="svcAccountForm.profile_id"
+                optionLabel="label" optionValue="value" placeholder="Seleccionar perfil"
+                [class.ng-invalid]="svcAccountSubmitted && !svcAccountForm.profile_id"
+                [style]="{'width':'100%'}" appendTo="body" />
+    </div>
+    <div class="field">
+      <label class="field-label">Expiracion Token (horas)</label>
+      <p-inputNumber [(ngModel)]="svcAccountForm.token_expiry_hours"
+                     [min]="1" [max]="8760" placeholder="12"
+                     [style]="{'width':'100%'}" />
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="svcAccountDialogVisible.set(false)"></p-button>
+    <p-button [label]="selectedSvcAccount() ? 'Guardar Cambios' : 'Crear Cuenta'"
+              icon="pi pi-check" [loading]="saving()" (onClick)="saveSvcAccount()"></p-button>
+  </ng-template>
+</p-dialog>
+
+<!-- Created Password Dialog -->
+<p-dialog header="Cuenta de Servicio Creada"
+          [visible]="createdPasswordVisible()" (visibleChange)="createdPasswordVisible.set($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(550px, 95vw)'}">
+  <div class="created-token-content">
+    <p class="warning-text">
+      <i class="pi pi-exclamation-triangle"></i>
+      Guarda esta contrasena ahora. No podras verla de nuevo.
+    </p>
+    <div class="token-display">
+      <code>{{ createdPasswordRaw }}</code>
+      <p-button icon="pi pi-copy" [text]="true" [rounded]="true" (onClick)="copyPassword()" pTooltip="Copiar"></p-button>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cerrar" severity="secondary" (onClick)="createdPasswordVisible.set(false)"></p-button>
   </ng-template>
 </p-dialog>
 

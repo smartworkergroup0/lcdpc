@@ -12,15 +12,22 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { TabsModule } from 'primeng/tabs';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { RbacApiService } from '../../../../core/services/rbac-api.service';
 import { ApiTokenApiService } from '../../../../core/services/api-token-api.service';
+import { ServiceAccountApiService } from '../../../../core/services/service-account-api.service';
 import {
   Resource, Role, Profile,
   CreateResourceRequest, CreateRoleRequest, CreateProfileRequest,
 } from '../../../../core/models/rbac.model';
 import { ApiToken, CreateApiTokenRequest } from '../../../../core/models/api-token.model';
+import {
+  ServiceAccount,
+  CreateServiceAccountRequest,
+  UpdateServiceAccountRequest,
+} from '../../../../core/models/service-account.model';
 
 @Component({
   selector: 'app-rbac-section',
@@ -29,7 +36,7 @@ import { ApiToken, CreateApiTokenRequest } from '../../../../core/models/api-tok
     CommonModule, FormsModule, ButtonModule, TableModule,
     TagModule, DialogModule, InputTextModule, FloatLabelModule,
     SelectModule, ConfirmDialogModule, ToastModule, TooltipModule,
-    TabsModule,
+    TabsModule, InputNumberModule,
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './rbac-section.component.html',
@@ -39,6 +46,7 @@ export class RbacSectionComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly rbacApi = inject(RbacApiService);
   private readonly apiTokenApi = inject(ApiTokenApiService);
+  private readonly svcAccountApi = inject(ServiceAccountApiService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
@@ -49,6 +57,10 @@ export class RbacSectionComponent implements OnInit {
   protected readonly canCreateToken = computed(() => this.authStore.hasPermission('api_token:create'));
   protected readonly canUpdateToken = computed(() => this.authStore.hasPermission('api_token:update'));
   protected readonly canDeleteToken = computed(() => this.authStore.hasPermission('api_token:delete'));
+
+  protected readonly canCreateSA = computed(() => this.authStore.hasPermission('service_account:create'));
+  protected readonly canUpdateSA = computed(() => this.authStore.hasPermission('service_account:update'));
+  protected readonly canDeleteSA = computed(() => this.authStore.hasPermission('service_account:delete'));
 
   // Resources
   protected readonly resources = signal<Resource[]>([]);
@@ -90,6 +102,15 @@ export class RbacSectionComponent implements OnInit {
   protected readonly createdTokenVisible = signal(false);
   protected createdTokenRaw = '';
 
+  // Service Accounts
+  protected readonly serviceAccounts = signal<ServiceAccount[]>([]);
+  protected readonly svcAccountDialogVisible = signal(false);
+  protected readonly selectedSvcAccount = signal<ServiceAccount | null>(null);
+  protected svcAccountForm: CreateServiceAccountRequest = { name: '', username: '', password: '', profile_id: '' };
+  protected svcAccountSubmitted = false;
+  protected readonly createdPasswordVisible = signal(false);
+  protected createdPasswordRaw = '';
+
   protected readonly saving = signal(false);
   protected readonly loading = signal(false);
 
@@ -120,7 +141,12 @@ export class RbacSectionComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.apiTokenApi.list().subscribe({ next: (d) => this.apiTokens.set(d) });
+    this.svcAccountApi.list().subscribe({ next: (d) => this.serviceAccounts.set(d) });
   }
+
+  protected readonly profileOptions = computed(() =>
+    this.profiles().map((p) => ({ label: `${p.name} (${p.code})`, value: p.id }))
+  );
 
   // ── Resources ──
 
@@ -389,6 +415,94 @@ export class RbacSectionComponent implements OnInit {
 
   copyToken(): void {
     navigator.clipboard.writeText(this.createdTokenRaw);
+    this.messageService.add({ severity: 'success', summary: 'Copiado' });
+  }
+
+  // ── Service Accounts ──
+
+  openSvcAccountCreate(): void {
+    this.selectedSvcAccount.set(null);
+    this.svcAccountForm = { name: '', username: '', password: '', profile_id: '' };
+    this.svcAccountSubmitted = false;
+    this.svcAccountDialogVisible.set(true);
+  }
+
+  openSvcAccountEdit(sa: ServiceAccount): void {
+    this.selectedSvcAccount.set(sa);
+    this.svcAccountForm = { name: sa.name, username: sa.username, password: '', profile_id: sa.profileId, token_expiry_hours: sa.tokenExpiryHours };
+    this.svcAccountSubmitted = false;
+    this.svcAccountDialogVisible.set(true);
+  }
+
+  saveSvcAccount(): void {
+    this.svcAccountSubmitted = true;
+    const isEdit = !!this.selectedSvcAccount();
+
+    if (!this.svcAccountForm.name) return;
+    if (!isEdit && (!this.svcAccountForm.username || !this.svcAccountForm.password)) return;
+    if (!this.svcAccountForm.profile_id) return;
+
+    this.saving.set(true);
+
+    if (isEdit) {
+      const req: UpdateServiceAccountRequest = {
+        name: this.svcAccountForm.name,
+        is_active: this.selectedSvcAccount()!.isActive,
+        profile_id: this.svcAccountForm.profile_id,
+        token_expiry_hours: this.svcAccountForm.token_expiry_hours,
+      };
+      this.svcAccountApi.update(this.selectedSvcAccount()!.id, req).subscribe({
+        next: () => { this.saving.set(false); this.svcAccountDialogVisible.set(false); this.loadAll(); },
+        error: () => this.saving.set(false),
+      });
+    } else {
+      this.svcAccountApi.create(this.svcAccountForm).subscribe({
+        next: (result) => {
+          this.saving.set(false);
+          this.svcAccountDialogVisible.set(false);
+          this.createdPasswordRaw = result.rawPassword;
+          this.createdPasswordVisible.set(true);
+          this.loadAll();
+        },
+        error: () => this.saving.set(false),
+      });
+    }
+  }
+
+  toggleSvcAccountActive(sa: ServiceAccount): void {
+    this.svcAccountApi.update(sa.id, {
+      name: sa.name,
+      is_active: !sa.isActive,
+      profile_id: sa.profileId,
+      token_expiry_hours: sa.tokenExpiryHours,
+    }).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Exito' });
+        this.loadAll();
+      },
+      error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
+    });
+  }
+
+  confirmDeleteSvcAccount(sa: ServiceAccount): void {
+    this.confirmationService.confirm({
+      message: `Eliminar la cuenta de servicio "${sa.name}"?`,
+      header: 'Confirmar',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.svcAccountApi.delete(sa.id).subscribe({
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.loadAll(); },
+          error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
+        });
+      },
+    });
+  }
+
+  copyPassword(): void {
+    navigator.clipboard.writeText(this.createdPasswordRaw);
     this.messageService.add({ severity: 'success', summary: 'Copiado' });
   }
 }

@@ -13,11 +13,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/o1egl/paseto"
 )
 
 type OAuth2Service struct {
 	pool    *pgxpool.Pool
 	keySvc  *KeyService
+	saKey   []byte
 	tokenCfg TokenConfig
 	accessTokenTTLMin    int
 	refreshTokenTTLDays  int
@@ -32,10 +34,11 @@ type OAuth2Config struct {
 	Audience             string
 }
 
-func NewOAuth2Service(pool *pgxpool.Pool, keySvc *KeyService, cfg OAuth2Config) *OAuth2Service {
+func NewOAuth2Service(pool *pgxpool.Pool, keySvc *KeyService, saKey []byte, cfg OAuth2Config) *OAuth2Service {
 	return &OAuth2Service{
-		pool: pool,
+		pool:  pool,
 		keySvc: keySvc,
+		saKey: saKey,
 		tokenCfg: TokenConfig{
 			Issuer:   cfg.Issuer,
 			Audience: cfg.Audience,
@@ -45,6 +48,65 @@ func NewOAuth2Service(pool *pgxpool.Pool, keySvc *KeyService, cfg OAuth2Config) 
 		refreshTokenTTLDays: cfg.RefreshTokenTTLDays,
 		authCodeTTLMinutes:  cfg.AuthCodeTTLMinutes,
 	}
+}
+
+// ClientCredentialsGrant (RFC 6749 §4.4)
+func (s *OAuth2Service) ClientCredentialsGrant(ctx context.Context, clientID, clientSecret string) (*TokenResponse, *TokenErrorResponse) {
+	if s.saKey == nil {
+		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Service account authentication is not configured."}
+	}
+
+	var sa struct {
+		ID               uuid.UUID
+		Username         string
+		PasswordHash     string
+		ProfileID        uuid.UUID
+		TokenExpiryHours int
+		IsActive         bool
+	}
+
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, username, password_hash, profile_id, token_expiry_hours, is_active
+		FROM service_accounts WHERE username = $1 AND deleted_at_utc IS NULL
+	`, clientID).Scan(&sa.ID, &sa.Username, &sa.PasswordHash, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid client credentials."}
+	}
+
+	if !sa.IsActive {
+		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Service account is inactive."}
+	}
+
+	if !VerifyPassword(clientSecret, sa.PasswordHash) {
+		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid client credentials."}
+	}
+
+	now := time.Now().UTC()
+	expires := now.Add(time.Duration(sa.TokenExpiryHours) * time.Hour)
+
+	claims := TokenClaims{
+		Iss:       s.tokenCfg.Issuer,
+		Aud:       s.tokenCfg.Audience,
+		Sub:       sa.ID.String(),
+		ProfileID: sa.ProfileID.String(),
+		ClientID:  clientID,
+		Email:     sa.Username,
+		Iat:       now.Unix(),
+		Exp:       expires.Unix(),
+		Jti:       uuid.New().String(),
+	}
+
+	token, err := paseto.NewV2().Encrypt(s.saKey, claims, nil)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Failed to generate access token."}
+	}
+
+	return &TokenResponse{
+		AccessToken: token,
+		TokenType:   "Bearer",
+		ExpiresIn:   sa.TokenExpiryHours * 3600,
+		Scope:       "",
+	}, nil
 }
 
 // OAuth2 Client validation

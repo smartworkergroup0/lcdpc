@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -79,7 +80,7 @@ func (ks *KeyService) loadFromFile(path, decryptionKeyHex string) error {
 		data = []byte(keyHex)
 	}
 
-	keyHex := string(data)
+	keyHex := strings.TrimSpace(string(data))
 	key, err := hex.DecodeString(keyHex)
 	if err != nil {
 		return fmt.Errorf("invalid hex key in %s: %w", path, err)

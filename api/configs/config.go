@@ -39,6 +39,10 @@ type Config struct {
 	PasetoKeyPath              string
 	PasetoDecryptionKey        string
 
+	// Service Account PASETO
+	PasetoSAKeyPath       string
+	PasetoSADecryptionKey string
+
 	// Email
 	EmailDriver  string
 	ResendAPIKey string
@@ -54,6 +58,8 @@ type Config struct {
 	// CORS
 	CORSAllowedOrigins []string
 
+	// Catalog
+	CatalogDomain string
 }
 
 func Load() *Config {
@@ -95,6 +101,8 @@ func Load() *Config {
 		OAuth2AuthCodeTTLMinutes:  getEnvInt("OAUTH2_AUTHORIZATION_CODE_TTL_MINUTES", 10),
 		PasetoKeyPath:             getEnv("PASETO_KEY_PATH", ""),
 		PasetoDecryptionKey:       getEnv("PASETO_DECRYPTION_KEY", ""),
+		PasetoSAKeyPath:           getEnv("PASETO_SA_KEY_PATH", "paseto_sa.key"),
+		PasetoSADecryptionKey:     getEnv("PASETO_SA_DECRYPTION_KEY", ""),
 
 		EmailDriver:  getEnv("EMAIL_DRIVER", "resend"),
 		ResendAPIKey: getEnv("RESEND_APITOKEN", ""),
@@ -112,6 +120,7 @@ func Load() *Config {
 			"http://localhost:5173",
 		}),
 
+		CatalogDomain: getEnv("CATALOG_DOMAIN", "https://tormesca.com"),
 	}
 }
 

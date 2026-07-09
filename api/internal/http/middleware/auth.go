@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -124,6 +125,35 @@ func GetBranchID(ctx context.Context) string {
 		return v
 	}
 	return ""
+}
+
+func ServiceAccountAuth(saKey []byte, issuer, audience string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			tokenString := extractToken(r)
+			if tokenString == "" {
+				slog.Warn("service account auth: no token provided", "path", r.URL.Path)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			claims, err := auth.ValidatePasetoToken(tokenString, saKey, issuer, audience)
+			if err != nil {
+				slog.Warn("service account auth: invalid token", "error", err, "path", r.URL.Path)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), UserIDKey, claims.Sub)
+			ctx = context.WithValue(ctx, ProfileIDKey, claims.ProfileID)
+			if claims.BranchID != "" {
+				ctx = context.WithValue(ctx, BranchIDKey, claims.BranchID)
+			}
+			ctx = context.WithValue(ctx, TokenKey, tokenString)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 func HasPermission(ctx context.Context, store *rbac.Store, resourceCode string) bool {

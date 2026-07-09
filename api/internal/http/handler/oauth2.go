@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -71,69 +72,40 @@ func (h *OAuth2Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OAuth2Handler) Token(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "invalid form data"})
+	var req struct {
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+	}
+
+	if err := response.Decode(r, &req); err != nil {
+		slog.Warn("oauth2 token: invalid JSON body", "error", err)
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "invalid JSON body"})
 		return
 	}
 
-	grantType := r.FormValue("grant_type")
-	clientID := r.FormValue("client_id")
-
-	if grantType == "" {
-		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "grant_type is required"})
+	if req.ClientID == "" {
+		slog.Warn("oauth2 token: missing client_id")
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "client_id is required"})
 		return
 	}
-	if clientID == "" {
-		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_client", "error_description": "client_id is required"})
+	if req.ClientSecret == "" {
+		slog.Warn("oauth2 token: missing client_secret", "client_id", req.ClientID)
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "client_secret is required"})
 		return
 	}
 
-	switch grantType {
-	case "authorization_code":
-		code := r.FormValue("code")
-		redirectURI := r.FormValue("redirect_uri")
-		codeVerifier := r.FormValue("code_verifier")
-
-		if code == "" || redirectURI == "" || codeVerifier == "" {
-			response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "code, redirect_uri, and code_verifier are required"})
-			return
-		}
-
-		result, errResp := h.oauth2Svc.ExchangeCode(r.Context(), code, codeVerifier, redirectURI, clientID)
-		if errResp != nil {
-			response.Fail(w, http.StatusBadRequest, errResp)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Pragma", "no-cache")
-		response.Success(w, result)
-
-	case "refresh_token":
-		refreshToken := r.FormValue("refresh_token")
-		if refreshToken == "" {
-			response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "refresh_token is required"})
-			return
-		}
-
-		result, errResp := h.oauth2Svc.RefreshToken(r.Context(), refreshToken, clientID)
-		if errResp != nil {
-			response.Fail(w, http.StatusBadRequest, errResp)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Pragma", "no-cache")
-		response.Success(w, result)
-
-	default:
-		response.Fail(w, http.StatusBadRequest, map[string]string{
-			"error":             "unsupported_grant_type",
-			"error_description": "Supported grant types: authorization_code, refresh_token",
-		})
+	result, errResp := h.oauth2Svc.ClientCredentialsGrant(r.Context(), req.ClientID, req.ClientSecret)
+	if errResp != nil {
+		slog.Warn("oauth2 token: authentication failed", "client_id", req.ClientID, "error", errResp.Error, "description", errResp.ErrorDescription)
+		response.Fail(w, http.StatusUnauthorized, errResp)
+		return
 	}
+
+	slog.Info("oauth2 token: authentication successful", "client_id", req.ClientID)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	response.Success(w, result)
 }
 
 func (h *OAuth2Handler) Introspect(w http.ResponseWriter, r *http.Request) {

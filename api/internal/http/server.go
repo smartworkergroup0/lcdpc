@@ -21,6 +21,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/person"
 	"github.com/lcdpc/lcdpc-go/internal/pricing"
 	"github.com/lcdpc/lcdpc-go/internal/rbac"
+	"github.com/lcdpc/lcdpc-go/internal/serviceaccount"
 	"github.com/lcdpc/lcdpc-go/internal/staff"
 	"github.com/lcdpc/lcdpc-go/internal/sync"
 	"github.com/lcdpc/lcdpc-go/internal/systemconfig"
@@ -33,6 +34,7 @@ func NewServer(
 	authSvc *auth.Service,
 	oauth2Svc *auth.OAuth2Service,
 	keySvc *auth.KeyService,
+	saKeySvc *auth.KeyService,
 	pricingSvc *pricing.Service,
 	branchSvc *branch.Service,
 	brandSvc *brand.Service,
@@ -47,6 +49,7 @@ func NewServer(
 	userSvc *user.Service,
 	dashboardSvc *dashboard.Service,
 	apiTokenSvc *apitoken.Service,
+	svcAccountSvc *serviceaccount.Service,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -82,6 +85,8 @@ func NewServer(
 	userH := handler.NewUserHandler(userSvc)
 	dashboardH := dashboard.NewHandler(dashboardSvc, rbacStore)
 	apiTokenH := apitoken.NewHandler(apiTokenSvc)
+	svcAccountH := serviceaccount.NewHandler(svcAccountSvc)
+	saPricingH := handler.NewSAPricingHandler(pricingSvc, rbacStore, cfg.CatalogDomain)
 
 	// Public
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +104,7 @@ func NewServer(
 			"introspection_endpoint":           cfg.OAuth2Issuer + "/oauth2/introspect",
 			"revocation_endpoint":              cfg.OAuth2Issuer + "/oauth2/revoke",
 			"response_types_supported":         []string{"code"},
-			"grant_types_supported":            []string{"authorization_code", "refresh_token"},
+			"grant_types_supported":            []string{"authorization_code", "refresh_token", "client_credentials"},
 			"code_challenge_methods_supported": []string{"S256"},
 			"subject_types_supported":          []string{"public"},
 		}
@@ -617,6 +622,39 @@ func NewServer(
 		r.Get("/top-products", dashboardH.TopProducts)
 		r.Get("/top-bundles", dashboardH.TopBundles)
 		r.Get("/stock-health", dashboardH.StockHealth)
+	})
+
+	// Service Accounts (regular user auth)
+	r.Route("/api/v1/service-accounts", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "service_account:view"))
+			r.Get("/", svcAccountH.List)
+			r.Get("/{id}", svcAccountH.GetByID)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "service_account:create"))
+			r.Post("/", svcAccountH.Create)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "service_account:update"))
+			r.Put("/{id}", svcAccountH.Update)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "service_account:delete"))
+			r.Delete("/{id}", svcAccountH.Delete)
+		})
+	})
+
+	// Service Account endpoints (SA PASETO key)
+	r.Route("/api/v1/sa", func(r chi.Router) {
+		r.Use(middleware.ServiceAccountAuth(saKeySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+
+		r.Get("/products", saPricingH.ListProducts)
+		r.Get("/bundles", saPricingH.ListBundles)
 	})
 
 	return r

@@ -25,6 +25,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/person"
 	"github.com/lcdpc/lcdpc-go/internal/pricing"
 	"github.com/lcdpc/lcdpc-go/internal/rbac"
+	"github.com/lcdpc/lcdpc-go/internal/serviceaccount"
 	"github.com/lcdpc/lcdpc-go/internal/staff"
 	"github.com/lcdpc/lcdpc-go/internal/sync"
 	"github.com/lcdpc/lcdpc-go/internal/systemconfig"
@@ -34,6 +35,7 @@ import (
 func main() {
 	_ = godotenv.Load()
 	encryptKey := flag.String("encrypt-paseto-key", "", "Encrypt paseto.key with the given master key (64 hex chars) and exit")
+	encryptSAKey := flag.String("encrypt-paseto-sa-key", "", "Encrypt paseto_sa.key with the given master key (64 hex chars) and exit")
 	flag.Parse()
 
 	if *encryptKey != "" {
@@ -42,6 +44,15 @@ func main() {
 			os.Exit(1)
 		}
 		slog.Info("paseto.key encrypted successfully")
+		return
+	}
+
+	if *encryptSAKey != "" {
+		if err := auth.EncryptKeyFile("paseto_sa.key", *encryptSAKey); err != nil {
+			slog.Error("failed to encrypt service account key file", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("paseto_sa.key encrypted successfully")
 		return
 	}
 
@@ -87,6 +98,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	saKeySvc, err := auth.NewKeyService(cfg.PasetoSAKeyPath, cfg.PasetoSADecryptionKey)
+	if err != nil {
+		slog.Error("failed to initialize service account key service", "error", err)
+		os.Exit(1)
+	}
+
 	rbacStore := rbac.NewStore()
 	if err := rbacStore.LoadFromDB(ctx, pool); err != nil {
 		slog.Error("failed to load RBAC store", "error", err)
@@ -119,7 +136,7 @@ func main() {
 		AccessTokenTTLMin:             cfg.OAuth2AccessTokenTTLMin,
 	}, rbacStore)
 
-	oauth2Svc := auth.NewOAuth2Service(pool, keySvc, auth.OAuth2Config{
+	oauth2Svc := auth.NewOAuth2Service(pool, keySvc, saKeySvc.Key(), auth.OAuth2Config{
 		AccessTokenTTLMin:   cfg.OAuth2AccessTokenTTLMin,
 		RefreshTokenTTLDays: cfg.OAuth2RefreshTokenTTLDays,
 		AuthCodeTTLMinutes:  cfg.OAuth2AuthCodeTTLMinutes,
@@ -140,8 +157,9 @@ func main() {
 	userSvc := user.NewService(pool)
 	dashboardSvc := dashboard.NewService(pool)
 	apiTokenSvc := apitoken.NewService(pool)
+	svcAccountSvc := serviceaccount.NewService(pool)
 
-	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc)
+	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc)
 
 	addr := ":" + cfg.Port
 	srv := &http.Server{
