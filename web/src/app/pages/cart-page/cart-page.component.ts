@@ -5,18 +5,19 @@ import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { FloatLabelModule } from 'primeng/floatlabel';
+import { InputGroupModule } from 'primeng/inputgroup';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { AuthStore } from '../../core/auth/auth.store';
-import { CartItem, CartStore } from '../../core/stores/cart.store';
 import { DOCUMENT_TYPE_OPTIONS } from '../../core/models/document-type.model';
-import { Person } from '../../core/models/person.model';
-import { SystemConfigStore } from '../../core/stores/system-config.store';
+import { CartItem, CartStore } from '../../core/stores/cart.store';
 import { OrderApiService } from '../../core/services/order-api.service';
 import { PersonApiService } from '../../core/services/person-api.service';
+import { SystemConfigStore } from '../../core/stores/system-config.store';
+import { Person } from '../../core/models/person.model';
 
 @Component({
   selector: 'app-cart-page',
@@ -26,9 +27,10 @@ import { PersonApiService } from '../../core/services/person-api.service';
     FormsModule,
     ButtonModule,
     DialogModule,
-    FloatLabelModule,
+    InputGroupModule,
     InputTextModule,
     SelectModule,
+    ToggleSwitchModule,
     TagModule,
     ToastModule,
   ],
@@ -44,10 +46,6 @@ export class CartPageComponent {
   private readonly personApi = inject(PersonApiService);
   private readonly router = inject(Router);
   private readonly messageService = inject(MessageService);
-  protected readonly personTypeOptions: { label: string; value: 'natural' | 'legal' }[] = [
-    { label: 'Natural', value: 'natural' },
-    { label: 'Legal', value: 'legal' },
-  ];
 
   protected readonly items = this.cartStore.items;
   protected readonly totalPrice = this.cartStore.totalPrice;
@@ -55,28 +53,27 @@ export class CartPageComponent {
   protected readonly buying = signal(false);
   protected readonly contactName = signal('');
   protected readonly phone = signal('');
-  protected readonly address = signal('');
-  protected readonly taxId = signal('');
   protected readonly orderNotes = signal('');
-  protected readonly personType = signal<'natural' | 'legal'>('natural');
+  protected readonly isLegalPerson = signal(false);
   protected readonly documentType = signal('V');
   protected readonly documentNumber = signal('');
   protected readonly searchingPerson = signal(false);
-  protected readonly personLoaded = signal(true);
+  protected readonly personLoaded = signal(false);
   protected readonly person = signal<Person | null>(null);
   protected readonly personSearchError = signal('');
   protected readonly DOCUMENT_TYPE_OPTIONS = DOCUMENT_TYPE_OPTIONS;
+
   protected readonly isEmpty = computed(() => this.items().length === 0);
   protected readonly hasStockIssues = computed(() =>
     !this.systemConfigStore.negativeStock() && this.items().some((item) => item.quantity > item.stockAvailable)
   );
-  protected readonly canUsePersonLookup = computed(() => this.authStore.isAuthenticated());
   protected readonly documentTypeOptions = computed(() =>
-    this.personType() === 'natural'
-      ? DOCUMENT_TYPE_OPTIONS.filter((opt) => opt.value === 'V' || opt.value === 'E')
-      : DOCUMENT_TYPE_OPTIONS
+    this.isLegalPerson()
+      ? DOCUMENT_TYPE_OPTIONS
+      : DOCUMENT_TYPE_OPTIONS.filter((opt) => opt.value === 'V' || opt.value === 'E')
   );
-  protected readonly personFieldsVisible = computed(() => true);
+  protected readonly personFieldsVisible = computed(() => this.personLoaded());
+  protected readonly showClearSearchButton = computed(() => this.personLoaded());
   protected readonly canSearchPerson = computed(() => this.documentNumber().trim().length > 0 && !this.searchingPerson());
   protected readonly canConfirm = computed(() =>
     this.isPersonFormValid() &&
@@ -94,10 +91,10 @@ export class CartPageComponent {
 
   protected readonly summaryLines = computed(() => {
     const lines = [
-      this.contactName().trim() ? `Person: ${this.contactName().trim()}` : '',
+      this.contactName().trim() ? `Persona: ${this.contactName().trim()}` : '',
+      this.documentNumber().trim() ? `Documento: ${this.documentType()}${this.documentNumber().trim()}` : '',
       this.phone().trim() ? `WhatsApp: ${this.phone().trim()}` : '',
-      this.address().trim() ? `Address: ${this.address().trim()}` : '',
-      this.orderNotes().trim() ? `Notes: ${this.orderNotes().trim()}` : '',
+      this.orderNotes().trim() ? `Notas: ${this.orderNotes().trim()}` : '',
     ].filter(Boolean);
 
     return lines.join('\n');
@@ -115,16 +112,46 @@ export class CartPageComponent {
     this.cartStore.removeItem(id);
   }
 
-  protected onPersonTypeChange(value: 'natural' | 'legal'): void {
-    this.personType.set(value);
+  protected onPersonTypeChange(value: boolean): void {
+    this.isLegalPerson.set(value);
     const allowed = this.documentTypeOptions().map((opt) => opt.value);
     if (!allowed.includes(this.documentType())) {
       this.documentType.set(allowed[0] ?? 'V');
     }
+    this.personLoaded.set(false);
+    this.personSearchError.set('');
+    this.person.set(null);
+    this.contactName.set('');
+    this.phone.set('');
+  }
+
+  protected onDocumentTypeChange(value: string): void {
+    this.documentType.set(value);
+    this.personLoaded.set(false);
+    this.personSearchError.set('');
+    this.person.set(null);
+    this.contactName.set('');
+    this.phone.set('');
+  }
+
+  protected clearPersonSearch(): void {
+    this.documentType.set(this.getDefaultDocumentType());
+    this.documentNumber.set('');
+    this.personSearchError.set('');
+    this.personLoaded.set(false);
+    this.person.set(null);
+    this.contactName.set('');
+    this.phone.set('');
+    this.searchingPerson.set(false);
   }
 
   protected updateDocumentNumber(value: string): void {
     this.documentNumber.set(this.normalizeDigits(value, 9));
+    this.personLoaded.set(false);
+    this.personSearchError.set('');
+    this.person.set(null);
+    this.contactName.set('');
+    this.phone.set('');
   }
 
   protected allowOnlyDigits(event: KeyboardEvent): void {
@@ -140,6 +167,11 @@ export class CartPageComponent {
       event.preventDefault();
     }
     this.documentNumber.set(digitsOnly);
+    this.personLoaded.set(false);
+    this.personSearchError.set('');
+    this.person.set(null);
+    this.contactName.set('');
+    this.phone.set('');
   }
 
   protected searchPerson(): void {
@@ -148,10 +180,7 @@ export class CartPageComponent {
 
     const document = `${this.documentType()}${documentNumber}`;
     this.personSearchError.set('');
-    if (!this.authStore.isAuthenticated()) {
-      this.personLoaded.set(true);
-      return;
-    }
+    this.personLoaded.set(false);
 
     this.searchingPerson.set(true);
 
@@ -166,17 +195,20 @@ export class CartPageComponent {
         this.person.set(null);
         this.contactName.set('');
         this.phone.set('');
-        this.address.set('');
-        this.taxId.set('');
         this.orderNotes.set('');
         this.searchingPerson.set(false);
+        this.personLoaded.set(true);
         if (typeof err === 'object' && err !== null && 'status' in err && (err as { status?: number }).status === 404) {
-          this.personSearchError.set('Person not found. Complete the form to create it.');
+          this.personSearchError.set('No se encontró la persona. Completá los datos para crearla.');
           return;
         }
-        this.personSearchError.set('Could not search the person.');
+        this.personSearchError.set('No se pudo buscar la persona.');
       },
     });
+  }
+
+  protected enableEditing(): void {
+    this.personLoaded.set(true);
   }
 
   protected onNameInput(value: string): void {
@@ -185,14 +217,6 @@ export class CartPageComponent {
 
   protected onPhoneInput(value: string): void {
     this.phone.set(this.normalizeDigits(value, 30));
-  }
-
-  protected onAddressInput(value: string): void {
-    this.address.set(value);
-  }
-
-  protected onTaxIdInput(value: string): void {
-    this.taxId.set(value);
   }
 
   protected onOrderNotesInput(value: string): void {
@@ -233,7 +257,7 @@ export class CartPageComponent {
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Search or complete the person data before confirming the order.',
+        detail: 'Buscá o completá los datos de la persona antes de confirmar el pedido.',
       });
       return;
     }
@@ -247,9 +271,7 @@ export class CartPageComponent {
       ...(currentUser ? { client_user_id: currentUser.id } : {}),
       person_name: personPayload.name,
       person_identity_document: personPayload.identityDocument,
-      person_tax_id: personPayload.taxId ?? undefined,
       person_whatsapp_phone: personPayload.whatsappPhone,
-      person_full_address: personPayload.fullAddress,
       notes: this.summaryLines(),
       items: this.items().map((item) => ({
         item_type: item.itemType,
@@ -264,13 +286,13 @@ export class CartPageComponent {
         this.buying.set(false);
         this.messageService.add({
           severity: 'success',
-          summary: 'Success',
-          detail: 'Order created successfully',
+          summary: 'Éxito',
+          detail: 'Pedido creado correctamente',
         });
       },
       error: (err) => {
         this.buying.set(false);
-        const msg = err?.error?.message || 'Error creating the order';
+        const msg = err?.error?.message || 'Error al crear el pedido';
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -288,35 +310,32 @@ export class CartPageComponent {
     this.person.set(person);
     this.contactName.set(person.name);
     this.phone.set(person.whatsappPhone);
-    this.address.set(person.fullAddress);
-    this.taxId.set(person.taxId ?? '');
     this.documentType.set(person.identityDocument.substring(0, 1) || 'V');
     this.documentNumber.set(person.identityDocument.substring(1));
-    this.personType.set(person.identityDocument.substring(0, 1) === 'V' || person.identityDocument.substring(0, 1) === 'E' ? 'natural' : 'legal');
+    this.isLegalPerson.set(!(person.identityDocument.substring(0, 1) === 'V' || person.identityDocument.substring(0, 1) === 'E'));
   }
 
   private normalizeDigits(value: string, maxLength: number): string {
     return value.replace(/\D/g, '').slice(0, maxLength);
   }
 
-  private personPayload() {
-    const taxId = this.personType() === 'legal' && this.taxId().trim().length > 0 ? this.taxId().trim() : null;
+  private getDefaultDocumentType(): string {
+    return this.isLegalPerson() ? 'J' : 'V';
+  }
 
+  private personPayload() {
     return {
       name: this.contactName().trim(),
       identityDocument: `${this.documentType()}${this.documentNumber().trim()}`,
-      taxId,
       whatsappPhone: this.phone().trim(),
-      fullAddress: this.address().trim(),
     };
   }
 
   protected isPersonFormValid(): boolean {
+    if (!this.personFieldsVisible()) return false;
     if (this.documentNumber().trim().length === 0) return false;
     if (this.contactName().trim().length === 0) return false;
     if (this.phone().trim().length === 0) return false;
-    if (this.address().trim().length === 0) return false;
-    if (this.personType() === 'legal' && this.documentType() === 'P' && this.taxId().trim().length === 0) return false;
     return true;
   }
 }

@@ -24,9 +24,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // Already refreshing — queue until done
       if (isRefreshing) {
         return refreshResult$.pipe(
-          filter((success) => success),
           take(1),
-          switchMap(() => next(req))
+          switchMap((success) => {
+            if (!success) {
+              return throwError(() => error);
+            }
+            return next(req);
+          })
         );
       }
 

@@ -3,14 +3,14 @@
 <section class="cart-page">
   <div class="cart-hero card-surface">
     <div>
-          <p class="eyebrow">Checkout</p>
-          <h1>Checkout</h1>
-      <p class="hero-copy">Revisa el pedido, ajusta cantidades y completa los datos para coordinar la entrega.</p>
+      <p class="eyebrow">Finalizar compra</p>
+      <h1>Carrito</h1>
+      <p class="hero-copy">Revisá el pedido, ajustá cantidades y completá los datos para confirmar la orden.</p>
     </div>
 
     <div class="hero-chip">
       <span class="pi pi-shopping-basket"></span>
-          <span>{{ totalQuantity() }} items</span>
+      <span>{{ totalQuantity() }} artículos</span>
     </div>
   </div>
 
@@ -18,50 +18,50 @@
     <div class="cart-panel order-summary">
       <div class="panel-header">
         <div>
-          <p class="panel-kicker">Your cart</p>
-          <h2>Order summary</h2>
+          <p class="panel-kicker">Resumen del carrito</p>
+          <h2>Detalle del pedido</h2>
         </div>
-        <span class="panel-badge">{{ items().length }} lines</span>
+        <span class="panel-badge">{{ items().length }} líneas</span>
       </div>
 
       @if (isEmpty()) {
-            <div class="empty-state">
-              <i class="pi pi-shopping-cart empty-icon"></i>
-              <p>Your cart is empty</p>
-              <span>Add products from the catalog to start.</span>
-            </div>
+        <div class="empty-state">
+          <i class="pi pi-shopping-cart empty-icon"></i>
+          <p>Tu carrito está vacío</p>
+          <span>Agregá productos desde el catálogo para comenzar.</span>
+        </div>
       } @else {
         <div class="cart-items">
           @for (item of items(); track item.id) {
-                <article class="cart-item" [class.over-stock]="isOverStock(item)">
-                  <img [src]="item.imageUrl" [alt]="item.name" loading="lazy" (error)="onImageError($event)" />
-                  <div class="item-body">
-                    <div class="item-topline">
-                      <h3>{{ item.name }}</h3>
-                      <strong>{{ item.price | currency:'USD' }}</strong>
-                    </div>
-                    <div class="item-tags">
-                      <span class="item-tag">{{ item.itemType === 'bundle' ? 'Bundle' : 'Product' }}</span>
-                      <span class="item-tag subtle">Qty {{ item.quantity }}</span>
-                    </div>
-                    @if (item.itemType === 'bundle' && item.items?.length) {
-                      <ul class="bundle-items">
-                        @for (bi of item.items; track $index) {
-                          <li>{{ bi.quantity }} {{ bi.name }}</li>
-                        }
+            <article class="cart-item" [class.over-stock]="isOverStock(item)">
+              <img [src]="item.imageUrl" [alt]="item.name" loading="lazy" (error)="onImageError($event)" />
+              <div class="item-body">
+                <div class="item-topline">
+                  <h3>{{ item.name }}</h3>
+                  <strong>{{ item.price | currency:'USD' }}</strong>
+                </div>
+                <div class="item-tags">
+                  <span class="item-tag">{{ item.itemType === 'bundle' ? 'Combo' : 'Producto' }}</span>
+                  <span class="item-tag subtle">Cant. {{ item.quantity }}</span>
+                </div>
+                @if (item.itemType === 'bundle' && item.items?.length) {
+                  <ul class="bundle-items">
+                    @for (bi of item.items; track $index) {
+                      <li>{{ bi.quantity }} x {{ bi.name }}</li>
+                    }
                   </ul>
                 }
                 <div class="item-meta">
-                  <span [class.stock-warning]="isOverStock(item)">Available stock: {{ item.stockAvailable }}</span>
-                  <span>{{ item.itemType === 'bundle' ? 'Bundle' : 'Product' }}</span>
+                  <span [class.stock-warning]="isOverStock(item)">Stock disponible: {{ item.stockAvailable }}</span>
+                  <span>{{ item.itemType === 'bundle' ? 'Combo' : 'Producto' }}</span>
                 </div>
               </div>
 
-                <div class="item-actions">
-                  <div class="stepper">
-                    <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small" (onClick)="decrement(item.id)"></p-button>
-                    <span>{{ item.quantity }}</span>
-                    <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small" [disabled]="item.quantity >= item.stockAvailable" (onClick)="increment(item.id)"></p-button>
+              <div class="item-actions">
+                <div class="stepper">
+                  <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small" (onClick)="decrement(item.id)"></p-button>
+                  <span>{{ item.quantity }}</span>
+                  <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small" [disabled]="item.quantity >= item.stockAvailable" (onClick)="increment(item.id)"></p-button>
                 </div>
                 <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" size="small" ariaLabel="Eliminar" (onClick)="removeItem(item.id)"></p-button>
               </div>
@@ -71,11 +71,11 @@
 
         <div class="summary-grid">
           <div class="summary-row">
-          <span>Items</span>
+            <span>Artículos</span>
             <strong>{{ items().length }}</strong>
           </div>
           <div class="summary-row">
-          <span>Total quantity</span>
+            <span>Cantidad total</span>
             <strong>{{ totalQuantity() }}</strong>
           </div>
           <div class="summary-row total">
@@ -87,60 +87,50 @@
 
       <div class="panel-actions">
         @if (!isEmpty()) {
-          <p-button label="Clear cart" icon="pi pi-trash" severity="danger" [text]="true" (onClick)="clearCart()"></p-button>
+          <p-button label="Vaciar carrito" icon="pi pi-trash" severity="danger" [text]="true" (onClick)="clearCart()"></p-button>
         }
         <div class="action-spacer"></div>
-        <p-button label="Continue shopping" severity="secondary" [text]="true" (onClick)="goBack()"></p-button>
+        <p-button label="Seguir comprando" severity="secondary" [text]="true" (onClick)="goBack()"></p-button>
       </div>
     </div>
 
     <aside class="cart-panel checkout-panel">
       <div class="panel-header">
         <div>
-          <p class="panel-kicker">Shipping details</p>
-          <h2>Complete your order</h2>
+          <p class="panel-kicker">Datos de compra</p>
+          <h2>Confirmación</h2>
         </div>
-        <span class="panel-badge accent">Checkout</span>
+        <span class="panel-badge accent">Pagar</span>
       </div>
 
       <div class="person-search-panel">
-        <div class="field-grid two-cols">
-          <div class="field-wrap">
-            <p-floatlabel variant="over">
-              <p-select
-                inputId="personType"
-                [options]="personTypeOptions"
-                [ngModel]="personType()"
-                (ngModelChange)="onPersonTypeChange($event)"
-                name="personType"
-                optionLabel="label"
-                optionValue="value"
-                appendTo="body"
-              ></p-select>
-              <label for="personType">Person type</label>
-            </p-floatlabel>
+        <div class="field-wrap person-toggle">
+          <div class="person-type-control">
+            <span [class.active]="!isLegalPerson()">Natural</span>
+            <p-toggleswitch
+              inputId="personType"
+              [ngModel]="isLegalPerson()"
+              (ngModelChange)="onPersonTypeChange($event)"
+              name="personType"
+            ></p-toggleswitch>
+            <span [class.active]="isLegalPerson()">Jurídico</span>
           </div>
+        </div>
 
-          <div class="field-wrap">
-            <p-floatlabel variant="over">
+        <div class="field-wrap document-block">
+          <label class="field-label">Documento</label>
+          <div class="document-search-row">
+            <p-inputgroup styleClass="document-group">
               <p-select
                 inputId="documentType"
                 [options]="documentTypeOptions()"
                 [ngModel]="documentType()"
-                (ngModelChange)="documentType.set($event)"
+                (ngModelChange)="onDocumentTypeChange($event)"
                 name="documentType"
                 optionLabel="label"
                 optionValue="value"
                 appendTo="body"
               ></p-select>
-              <label for="documentType">Document type</label>
-            </p-floatlabel>
-          </div>
-        </div>
-
-        <div class="field-grid search-row">
-          <div class="field-wrap">
-            <p-floatlabel variant="over">
               <input
                 id="documentNumber"
                 pInputText
@@ -152,66 +142,69 @@
                 (keydown)="allowOnlyDigits($event)"
                 (paste)="sanitizeDigitsPaste($event)"
                 name="documentNumber"
-                placeholder=" "
+                placeholder="Número de documento"
               />
-              <label for="documentNumber">Document number</label>
-            </p-floatlabel>
+            </p-inputgroup>
+
+            <div class="search-actions">
+              @if (showClearSearchButton()) {
+                <p-button
+                  label="Limpiar búsqueda"
+                  icon="pi pi-times"
+                  severity="secondary"
+                  styleClass="search-btn clear-search-btn"
+                  (onClick)="clearPersonSearch()"
+                ></p-button>
+              } @else {
+                <p-button
+                  label="Buscar"
+                  icon="pi pi-search"
+                  severity="secondary"
+                  styleClass="search-btn"
+                  [loading]="searchingPerson()"
+                  [disabled]="!canSearchPerson()"
+                  (onClick)="searchPerson()"
+                ></p-button>
+              }
+            </div>
           </div>
-          @if (canUsePersonLookup()) {
-            <p-button
-              label="Search"
-              icon="pi pi-search"
-              severity="secondary"
-              [loading]="searchingPerson()"
-              [disabled]="!canSearchPerson()"
-              (onClick)="searchPerson()"
-            ></p-button>
-          }
         </div>
 
         @if (personSearchError()) {
           <small class="field-error">{{ personSearchError() }}</small>
         }
-        @if (!canUsePersonLookup()) {
-          <p class="checkout-note">Guest checkout uses the contact data entered below.</p>
-        }
       </div>
 
       @if (personFieldsVisible()) {
         <form class="checkout-form">
-          <label>
-            <span>Full name</span>
-            <input pInputText [ngModel]="contactName()" (ngModelChange)="onNameInput($event)" name="contactName" placeholder="e.g. John Perez" />
+          <div class="checkout-form-header">
+            <p class="form-kicker">Datos de contacto</p>
+            <p class="checkout-note compact">Completá o ajustá estos datos antes de confirmar.</p>
+          </div>
+
+          <label class="form-field">
+            <span>Nombre completo</span>
+            <input pInputText [ngModel]="contactName()" (ngModelChange)="onNameInput($event)" name="contactName" placeholder="Ej. Juan Pérez" />
           </label>
-          <label>
-            <span>WhatsApp number</span>
-            <input pInputText [ngModel]="phone()" (ngModelChange)="onPhoneInput($event)" name="phone" placeholder="+1 555 123 4567" />
+
+          <label class="form-field">
+            <span>Número de WhatsApp</span>
+            <input pInputText [ngModel]="phone()" (ngModelChange)="onPhoneInput($event)" name="phone" placeholder="+58 412 1234567" />
           </label>
-          <label>
-            <span>Delivery address</span>
-            <textarea [ngModel]="address()" (ngModelChange)="onAddressInput($event)" name="address" rows="4" placeholder="Street, building, apartment, reference..."></textarea>
-          </label>
-          <label>
-            <span>Tax ID / RIF</span>
-            <input pInputText [ngModel]="taxId()" (ngModelChange)="onTaxIdInput($event)" name="taxId" placeholder="Optional" />
-          </label>
-          <label>
-            <span>Order notes</span>
-            <textarea [ngModel]="orderNotes()" (ngModelChange)="onOrderNotesInput($event)" name="notes" rows="3" placeholder="Additional instructions"></textarea>
+
+          <label class="form-field">
+            <span>Notas del pedido</span>
+            <textarea [ngModel]="orderNotes()" (ngModelChange)="onOrderNotesInput($event)" name="notes" rows="3" placeholder="Instrucciones adicionales"></textarea>
           </label>
         </form>
       } @else {
-        <p class="checkout-note">Search a person by document to load or create their checkout data.</p>
+        <p class="checkout-note">Buscá una persona por documento para cargar o crear sus datos.</p>
       }
 
       <div class="checkout-total">
         <div>
           <span>Subtotal</span>
           <strong>{{ totalPrice() | currency:'USD' }}</strong>
-        </div>
-        <div>
-          <span>Shipping</span>
-          <strong>To be calculated</strong>
         </div>
         <div class="final-total">
           <span>Total</span>
@@ -220,15 +213,14 @@
       </div>
 
       <p-button
-        label="Confirm order"
+        label="Confirmar pedido"
         icon="pi pi-check"
         [loading]="buying()"
-        [disabled]="isEmpty() || hasStockIssues() || !personFieldsVisible() || !isPersonFormValid()"
+        [disabled]="!canConfirm()"
         (onClick)="buy()"
       ></p-button>
 
-      <p class="checkout-note">Confirming creates the order with the current cart details.</p>
+      <p class="checkout-note">Al confirmar se crea la orden con los datos actuales del carrito.</p>
     </aside>
   </div>
 </section>
-

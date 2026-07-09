@@ -27,6 +27,12 @@ interface PersonLookupGoData {
   person?: PersonGoData | null;
 }
 
+type PersonLookupResponseData = PersonLookupGoData | PersonGoData;
+
+function isPersonLookupEnvelope(data: PersonLookupResponseData): data is PersonLookupGoData {
+  return 'exists' in data;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PersonApiService {
   private readonly baseUrl: string;
@@ -40,10 +46,18 @@ export class PersonApiService {
 
   getByDocument(document: string, withCredentials = true): Observable<Person> {
     return this.http
-      .get<JsendEnvelope<PersonLookupGoData>>(`${this.baseUrl}/api/v1/persons/by-document/${encodeURIComponent(document)}`, {
+      .get<JsendEnvelope<PersonLookupResponseData>>(`${this.baseUrl}/api/v1/persons/by-document/${encodeURIComponent(document)}`, {
         withCredentials,
       })
-      .pipe(map((res) => this.map(res.data.person ?? null)));
+      .pipe(
+        map((res) => {
+          const data = res.data as PersonLookupResponseData;
+          if (isPersonLookupEnvelope(data)) {
+            return this.map(data.person ?? null);
+          }
+          return this.map(data);
+        })
+      );
   }
 
   upsert(request: UpsertPersonRequest, withCredentials = true): Observable<Person> {

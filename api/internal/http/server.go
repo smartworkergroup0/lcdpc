@@ -542,9 +542,11 @@ func NewServer(
 	// Persons
 	r.Route("/api/v1/persons", func(r chi.Router) {
 		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
-		r.Use(middleware.RequireAuth())
 		r.Get("/by-document/{doc}", personH.GetByDocument)
-		r.Post("/upsert", personH.Upsert)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth())
+			r.Post("/upsert", personH.Upsert)
+		})
 	})
 
 	// Orders

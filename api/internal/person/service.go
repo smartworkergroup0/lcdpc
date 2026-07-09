@@ -72,18 +72,21 @@ func (s *Service) LookupByDocument(ctx context.Context, userID *uuid.UUID, docum
 		return &LookupResult{Exists: true, Person: &p}, nil
 	}
 
-	var exists bool
+	var p Person
 	err := s.pool.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1
-			FROM persons
-			WHERE identity_document = $1
-		)
-	`, document).Scan(&exists)
+		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		FROM persons
+		WHERE identity_document = $1
+	`, document).Scan(
+		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+	)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return &LookupResult{Exists: false}, nil
+		}
 		return nil, fmt.Errorf("lookup person: %w", err)
 	}
-	return &LookupResult{Exists: exists}, nil
+	return &LookupResult{Exists: true, Person: &p}, nil
 }
 
 func (s *Service) GetByDocument(ctx context.Context, userID *uuid.UUID, document string) (*Person, error) {
