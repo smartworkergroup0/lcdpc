@@ -1,0 +1,42 @@
+<div class="tab-toolbar">
+  @if (canCreate()) {
+    <p-button label="Nueva Sede" icon="pi pi-plus" size="small" (onClick)="openCreate()"></p-button>
+  }
+</div>
+
+<p-table [value]="items()" [loading]="loading()" styleClass="admin-table">
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Código</th>
+      <th>Nombre</th>
+      <th>RUC</th>
+      <th>Direccion</th>
+      <th>Telefono</th>
+      <th>Horario</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-item>
+    <tr>
+      <td><code>{{ item.code }}</code></td>
+      <td>{{ item.storeName }}</td>
+      <td><code>{{ item.taxId }}</code></td>
+      <td>{{ item.address }}</td>
+      <td>{{ item.contactPhone }}</td>
+      <td class="schedule-cell">{{ formatSchedules(item.schedules) }}</td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="6" class="empty-state">No hay sedes registradas</td>
+    </tr>
+  </ng-template>
+</p-table>
+
+<app-branch-form-dialog
+  [visible]="dialogVisible()"
+  (visibleChange)="dialogVisible.set($event)"
+  (saved)="onDialogClose(true)"
+  (closed)="onDialogClose(false)"
+/>
+
+<p-toast />

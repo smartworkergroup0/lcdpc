@@ -1,0 +1,9 @@
+-- Add stock fields to products
+ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN stock_available INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN stock_blocked INTEGER NOT NULL DEFAULT 0;
+
+-- Add stock fields to bundles
+ALTER TABLE bundles ADD COLUMN stock INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE bundles ADD COLUMN stock_available INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE bundles ADD COLUMN stock_blocked INTEGER NOT NULL DEFAULT 0;

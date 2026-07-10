@@ -20,7 +20,7 @@
       <p-card styleClass="product-card" [class.featured]="product.featured">
         <ng-template pTemplate="content">
           <div class="product-image-frame" [class.featured]="product.featured">
-            <img [src]="product.imageUrl" [alt]="product.alt" />
+            <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
 
             <div class="product-tags">
               <p-tag
@@ -33,25 +33,19 @@
               }
             </div>
 
-            @if (product.featured) {
-              <div class="price-float">{{ product.price }}</div>
-            }
           </div>
 
           <div class="product-copy">
             <div class="product-title-row">
               <h3>{{ product.name }}</h3>
-              @if (!product.featured) {
-                <span class="product-price">{{ product.price }}</span>
-              }
+              <span class="product-price">{{ product.price }}</span>
             </div>
 
             @if (product.featured) {
               <ul class="product-bullets">
-                <li>50 Panes Tradicionales</li>
-                <li>50 Salchichas Tipo Viena</li>
-                <li>1 Kg Papas Fritas</li>
-                <li>3 Salsas (Ketchup, Mayo, Mostaza)</li>
+                @for (item of product.items; track $index) {
+                  <li>{{ item.quantity }} {{ item.name }}</li>
+                }
               </ul>
             } @else {
               <p>{{ product.description }}</p>
@@ -59,14 +53,25 @@
 
             <div class="product-actions">
               <div class="quantity-control">
-                <p-button icon="pi pi-minus" [text]="true" (onClick)="decrement.emit()"></p-button>
+                <p-button icon="pi pi-minus" [text]="true"
+                          [disabled]="product.quantity <= 1"
+                          (onClick)="decrement.emit(product.id)"></p-button>
                 <span>{{ product.quantity }}</span>
-                <p-button icon="pi pi-plus" [text]="true" (onClick)="increment.emit()"></p-button>
+                <p-button icon="pi pi-plus" [text]="true"
+                          [disabled]="!negativeStock && (product.stockAvailable === 0 || (product.quantity >= product.stockAvailable))"
+                          (onClick)="increment.emit(product.id)"></p-button>
               </div>
+              @if (negativeStock || product.stockAvailable > 0) {
+                <span class="stock-info">{{ product.stockAvailable }} disponibles</span>
+              } @else {
+                <span class="stock-info out-of-stock">Sin stock</span>
+              }
               <p-button
-                [label]="product.featured ? 'Añadir al Carrito' : 'Agregar'"
+                label="Agregar"
                 icon="pi pi-shopping-cart"
                 [severity]="product.featured ? 'secondary' : 'primary'"
+                [disabled]="!negativeStock && product.stockAvailable === 0"
+                (onClick)="addToCart.emit(product.id)"
               ></p-button>
             </div>
           </div>

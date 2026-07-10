@@ -1,0 +1,212 @@
+:host ::ng-deep {
+  .p-dialog {
+    max-width: 95vw;
+  }
+}
+
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.field-label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin-bottom: 0.25rem;
+}
+
+.user-search {
+  position: relative;
+}
+
+.user-search-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-strong);
+
+  i {
+    color: #994700;
+  }
+}
+
+.items-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+
+  h3 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 60px 150px 80px 32px;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &.ng-invalid {
+    border-color: rgba(217, 37, 37, 0.3);
+  }
+
+  &.item-duplicate,
+  &.item-over-stock {
+    background: rgba(217, 37, 37, 0.06);
+    border-radius: 6px;
+    padding: 0.5rem;
+    border-color: rgba(217, 37, 37, 0.3);
+  }
+}
+
+.product-field {
+  grid-column: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.qty-field {
+  grid-column: 2;
+  width: 100%;
+}
+
+.price-field {
+  grid-column: 3;
+  width: 100%;
+}
+
+.item-subtotal {
+  grid-column: 4;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: right;
+}
+
+.remove-btn {
+  grid-column: 5;
+  justify-self: end;
+}
+
+:host ::ng-deep .item-row .p-select,
+:host ::ng-deep .item-row .p-inputnumber,
+:host ::ng-deep .item-row .p-inputtext {
+  width: 100% !important;
+}
+
+.item-stock-info {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  padding-left: 0.5rem;
+  margin-bottom: 0.5rem;
+  margin-top: -0.25rem;
+
+  &.stock-error {
+    color: #ba1a1a;
+    font-weight: 600;
+  }
+}
+
+.item-subtotal {
+  font-weight: 600;
+  font-size: 0.85rem;
+  min-width: 80px;
+  text-align: right;
+}
+
+.items-total {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 2px solid var(--border);
+  font-size: 1rem;
+
+  strong {
+    font-size: 1.1rem;
+  }
+}
+
+.empty-items {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.p-error {
+  color: #ba1a1a;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+@media (max-width: 700px) {
+  .item-row {
+    grid-template-columns: minmax(140px, 1fr) 60px 150px 80px 32px;
+  }
+
+  .product-field {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 500px) {
+  .item-row {
+    grid-template-columns: 60px 1fr 32px;
+  }
+
+  .product-field { grid-column: 1 / -1; }
+  .qty-field     { grid-column: 1; }
+  .price-field   { grid-column: 2; }
+  .item-subtotal { grid-column: 1 / -1; text-align: left; padding-top: 0.25rem; }
+  .remove-btn    { grid-column: 3; grid-row: 2; align-self: center; }
+}

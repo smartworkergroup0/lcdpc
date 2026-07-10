@@ -1,0 +1,53 @@
+<div class="tab-toolbar">
+  @if (canCreate()) {
+    <p-button label="Nueva Marca" icon="pi pi-plus" size="small" (onClick)="openCreate()"></p-button>
+  }
+</div>
+
+@if (canRead()) {
+<p-table [value]="items()" [loading]="loading()" styleClass="admin-table">
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Nombre</th>
+      <th>Codigo</th>
+      @if (canModify()) {
+        <th style="width: 120px">Acciones</th>
+      }
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-item>
+    <tr>
+      <td>{{ item.name }}</td>
+      <td><code>{{ item.code }}</code></td>
+      @if (canModify()) {
+      <td>
+        @if (canUpdate()) {
+          <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                    (onClick)="openEdit(item)" pTooltip="Editar"></p-button>
+        }
+        @if (canDelete()) {
+          <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+                    (onClick)="confirmDelete(item)" pTooltip="Eliminar"></p-button>
+        }
+      </td>
+      }
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td [attr.colspan]="canModify() ? 3 : 2" class="empty-state">No hay marcas registradas</td>
+    </tr>
+  </ng-template>
+</p-table>
+}
+
+<app-brand-form-dialog
+  [visible]="dialogVisible()"
+  [item]="selectedItem()"
+  (visibleChange)="dialogVisible.set($event)"
+  (saved)="onDialogClose(true)"
+  (closed)="onDialogClose(false)"
+/>
+
+<p-confirmDialog />
+<p-toast />

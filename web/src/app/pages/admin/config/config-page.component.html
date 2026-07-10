@@ -1,0 +1,12 @@
+<section class="config-page">
+  <div class="page-header">
+    <h1><span class="pi pi-cog"></span> {{ getSectionTitle() }}</h1>
+  </div>
+
+  @switch (activeSection()) {
+    @case ('rbac') { <app-rbac-section /> }
+    @case ('inventario') { <app-inventario-section /> }
+    @case ('administracion') { <app-administracion-section /> }
+    @case ('sistema') { <app-sistema-section /> }
+  }
+</section>

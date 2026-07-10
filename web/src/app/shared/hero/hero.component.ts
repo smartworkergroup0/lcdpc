@@ -39,4 +39,8 @@ export class HeroComponent {
   protected submitSearch(query: string): void {
     this.searchSubmit.emit(query);
   }
+
+  onImageError(event: Event): void {
+    (event.target as HTMLImageElement).src = '/not-found.png';
+  }
 }

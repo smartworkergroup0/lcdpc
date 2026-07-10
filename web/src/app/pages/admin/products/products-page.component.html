@@ -1,0 +1,86 @@
+<section class="products-page">
+  <div class="page-header">
+    <h1>Productos</h1>
+    @if (canCreate()) {
+      <p-button label="Nuevo Producto" icon="pi pi-plus" (onClick)="openCreateDialog()"></p-button>
+    }
+  </div>
+
+  <p-toolbar styleClass="admin-toolbar">
+    <ng-template pTemplate="start">
+      <p-iconfield>
+        <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+        <input pInputText type="text" placeholder="Buscar por nombre..." [(ngModel)]="filterName" (keyup.enter)="applyFilters()" />
+      </p-iconfield>
+    </ng-template>
+    <ng-template pTemplate="end">
+      <p-select [options]="categoryStore.categoryOptions()" [(ngModel)]="filterCategoryId" optionLabel="label" optionValue="value" placeholder="Todas las categorias" [showClear]="true" (onChange)="applyFilters()"></p-select>
+      <p-select [options]="activeOptions" [(ngModel)]="filterIsActive" optionLabel="label" optionValue="value" placeholder="Todos" [showClear]="true" (onChange)="applyFilters()"></p-select>
+    </ng-template>
+  </p-toolbar>
+
+  <p-table [value]="products()" [lazy]="true" [paginator]="true"
+           [rows]="pageSize" [totalRecords]="totalCount()" [loading]="loading()"
+           (onLazyLoad)="loadProducts($event)" styleClass="admin-table">
+    <ng-template pTemplate="header">
+      <tr>
+        <th style="width: 60px">Img</th>
+        <th>Nombre</th>
+        <th>SKU</th>
+        <th>Categoria</th>
+        <th style="width: 80px">Activo</th>
+        <th style="width: 120px">Acciones</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-product>
+      <tr>
+        <td>
+          <img [src]="resolveImage(product.img)" class="product-thumb"
+               loading="lazy" (error)="onImageError($event)" />
+        </td>
+        <td>{{ product.name }}</td>
+        <td><code>{{ product.sku }}</code></td>
+        <td>{{ getCategoryName(product.categoryId) }}</td>
+        <td>
+          <p-tag [value]="product.isActive ? 'Activo' : 'Inactivo'"
+                 [severity]="product.isActive ? 'success' : 'danger'" />
+        </td>
+        <td>
+          @if (canUpdate()) {
+            <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                      (onClick)="openEditDialog(product)" pTooltip="Editar"></p-button>
+          }
+          @if (canUpdate()) {
+            @if (product.isActive) {
+              <p-button icon="pi pi-eye-slash" [text]="true" [rounded]="true" severity="danger"
+                        (onClick)="toggleActive(product)" pTooltip="Desactivar"></p-button>
+            } @else {
+              <p-button icon="pi pi-eye" [text]="true" [rounded]="true" severity="success"
+                        (onClick)="toggleActive(product)" pTooltip="Activar"></p-button>
+            }
+          }
+          @if (canDelete()) {
+            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+                      (onClick)="confirmDelete(product)" pTooltip="Eliminar"></p-button>
+          }
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="6" class="empty-state">No hay productos registrados</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</section>
+
+<app-product-form-dialog
+  [visible]="dialogVisible()"
+  [product]="selectedProduct()"
+  (visibleChange)="dialogVisible.set($event)"
+  (saved)="onDialogClose(true)"
+  (closed)="onDialogClose(false)"
+></app-product-form-dialog>
+
+<p-confirmDialog />
+<p-toast />

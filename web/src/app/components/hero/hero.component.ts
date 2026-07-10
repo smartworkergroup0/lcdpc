@@ -29,4 +29,8 @@ export class HeroComponent {
   protected currentHero(): HeroSlide | null {
     return this.heroSlides[this.activeHeroIndex] ?? null;
   }
+
+  onImageError(event: Event): void {
+    (event.target as HTMLImageElement).src = '/not-found.png';
+  }
 }

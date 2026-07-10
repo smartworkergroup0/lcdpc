@@ -1,0 +1,150 @@
+:host ::ng-deep {
+  .p-dialog {
+    max-width: 95vw;
+  }
+}
+
+.order-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  .detail-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    .detail-id {
+      code {
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.04);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+      }
+    }
+  }
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.detail-item-items {
+  .detail-item-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.detail-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-soft);
+}
+
+.detail-value {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.detail-notes {
+  p {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text-soft);
+    margin: 0.25rem 0 0;
+  }
+}
+
+.section-title {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1rem;
+  margin: 0;
+}
+
+:host ::ng-deep .detail-table {
+  font-size: 0.85rem;
+
+  th {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-soft);
+  }
+
+  code {
+    font-size: 0.75rem;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+  }
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 6px;
+    transition: background 0.12s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  .history-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .history-date {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    color: var(--text-soft);
+  }
+
+  .history-notes {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

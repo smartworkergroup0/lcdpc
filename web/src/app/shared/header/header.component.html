@@ -1,23 +1,45 @@
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand-lockup" routerLink="/" aria-label="Ir al inicio">
-      <img
-        class="brand-logo"
-        src="https://lh3.googleusercontent.com/aida-public/AB6AXuClHorMf-3Ti1vNiAK2kWqdTHKuGf_IHnq5clehQbyiemx8J4-oasySwjQkjIhsAzYUX712NmcjYunh5CfpYRhEPZ18VPymlFyMFtjF_9-_kpvJT-hoUmZTUY8oKN-R67MHmJhoh6KsVwIMqsdaCJrbvwQJ1TbMLp9o_pSmNpi9bsx16MiHH8R0ZTfAgMYHABmOWHvQ_ml0wZCtMKbAXwym-JzLAPzNWTJz6PWgSoBaUMapWdeGXdTL_c9owQl7y7Qb3z8PRX6A0tI"
-        alt="La Casa del Perrocalentero"
-      />
-      <span class="brand-name">LA CASA DEL PERROCALENTERO</span>
+      @if (systemConfigStore.logoUrl()) {
+        <img
+          class="brand-logo"
+          [src]="systemConfigStore.logoUrl()"
+          [alt]="systemConfigStore.pageName()"
+          (error)="onLogoError($event)"
+        />
+      } @else {
+        <img
+          class="brand-logo"
+          src="/not-found.png"
+          [alt]="systemConfigStore.pageName()"
+        />
+      }
+      <span class="brand-name">{{ systemConfigStore.pageName() }}</span>
     </a>
 
-    <!-- <nav class="desktop-nav" aria-label="Secciones principales">
-      <p-button label="Combos" styleClass="nav-link active" [text]="true" [rounded]="true" severity="secondary"></p-button>
-      <p-button label="Salchichas" styleClass="nav-link" [text]="true" [rounded]="true" severity="secondary"></p-button>
-      <p-button label="Panes" styleClass="nav-link" [text]="true" [rounded]="true" severity="secondary"></p-button>
-      <p-button label="Salsas" styleClass="nav-link" [text]="true" [rounded]="true" severity="secondary"></p-button>
-      <p-button label="Admin" styleClass="nav-link" [text]="true" [rounded]="true" severity="secondary"></p-button>
-    </nav> -->
-
     <div class="topbar-actions">
+      @if (isAdmin()) {
+        <p-button
+          label="Administrar"
+          icon="pi pi-cog"
+          styleClass="admin-nav-button"
+          [text]="true"
+          severity="secondary"
+          routerLink="/admin"
+        ></p-button>
+      }
+
+      <p-button
+        label="Buscar"
+        icon="pi pi-search"
+        styleClass="search-nav-button"
+        [text]="true"
+        severity="secondary"
+        ariaLabel="Ir a búsqueda"
+        routerLink="/search"
+      ></p-button>
+
       <label class="branch-picker" aria-label="Seleccionar sucursal">
         <span class="pi pi-map-marker branch-icon"></span>
         <p-select
@@ -38,21 +60,103 @@
           styleClass="cart-button"
           [rounded]="true"
           [text]="true"
-          severity="secondary"
+          [severity]="isCartRoute() ? 'warn' : 'secondary'"
           ariaLabel="Carrito"
-          (onClick)="cartClick.emit()"
+          (onClick)="toggleCartOverlay($event)"
         ></p-button>
-        <span class="cart-count-badge">{{ cartCount }}</span>
+        <span class="cart-count-badge">{{ cartCount() }}</span>
       </div>
 
-      <p-button
-        icon="pi pi-user"
-        styleClass="account-button"
-        [rounded]="true"
-        [text]="true"
-        severity="secondary"
-        ariaLabel="Cuenta"
-      ></p-button>
+      <p-popover
+        #cartOverlay
+        [style]="{ width: '19rem', padding: '0' }"
+        [dismissable]="true"
+        appendTo="body"
+      >
+        <div class="cart-popover">
+          <div class="cart-popover-header">
+            <div>
+              <p class="cart-popover-kicker">Resumen del carrito</p>
+              <strong>{{ cartQuantity() }} artículos</strong>
+            </div>
+            <span class="cart-popover-total">{{ cartCount() }} líneas</span>
+          </div>
+
+          @if (hasCartItems()) {
+            <ul class="cart-popover-list">
+              @for (item of visibleCartItems(); track item.id) {
+                <li class="cart-popover-item">
+                  <span class="cart-item-name" [title]="item.name">{{ item.name }}</span>
+                  <span class="cart-item-qty">x{{ item.quantity }}</span>
+                </li>
+              }
+
+              @if (hiddenCartItems() > 0) {
+                <li class="cart-popover-more">+{{ hiddenCartItems() }} más</li>
+              }
+            </ul>
+
+            <p-button
+              label="Ir al carrito"
+              icon="pi pi-arrow-right"
+              styleClass="cart-popover-action"
+              [disabled]="!hasCartItems()"
+              (onClick)="goToCart()"
+            ></p-button>
+          } @else {
+            <div class="cart-popover-empty">
+              <i class="pi pi-shopping-cart"></i>
+              <p>Tu carrito está vacío.</p>
+            </div>
+
+            <p-button
+              label="Ir al carrito"
+              icon="pi pi-arrow-right"
+              styleClass="cart-popover-action"
+              [disabled]="true"
+            ></p-button>
+          }
+        </div>
+      </p-popover>
+
+      @if (isAuthenticated()) {
+        <div class="user-menu">
+          <p-button
+            [label]="user()?.displayName ?? ''"
+            icon="pi pi-user"
+            styleClass="account-button"
+            [rounded]="true"
+            [text]="true"
+            severity="secondary"
+            ariaLabel="Cuenta"
+          ></p-button>
+          <p-button
+            icon="pi pi-sign-out"
+            styleClass="logout-button"
+            [rounded]="true"
+            [text]="true"
+            severity="secondary"
+            ariaLabel="Cerrar sesión"
+            (onClick)="logout()"
+          ></p-button>
+        </div>
+      } @else {
+        <p-button
+          icon="pi pi-user"
+          styleClass="account-button"
+          [rounded]="true"
+          [text]="true"
+          severity="secondary"
+          ariaLabel="Iniciar sesión"
+          (onClick)="loginOverlay.toggle($event)"
+        ></p-button>
+      }
+
+      <p-popover #loginOverlay [style]="{ width: '360px', padding: '1.25rem' }" [dismissable]="true" appendTo="body">
+        <app-login-form (loginSuccess)="onLoginSuccess()" (loginError)="onLoginError($event)" />
+      </p-popover>
+
+      <p-toast position="top-right" />
     </div>
   </div>
 </header>

@@ -17,6 +17,19 @@
     var(--surface);
 }
 
+.landing-shell.cart-shell {
+  width: min(1280px, calc(100vw - 2rem));
+  margin-bottom: 5rem;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.auth-shell {
+  min-height: 100vh;
+}
+
 .mobile-nav,
 .mobile-nav-item {
   border: 0;

@@ -1,8 +1,0 @@
-{
-	"dependencies": {
-		"@angular/animations": "^21.2.15",
-		"primeng": "^21.1.8",
-		"@primeuix/themes": "^2.0.3",
-		"primeicons": "^7.0.0"
-	}
-}

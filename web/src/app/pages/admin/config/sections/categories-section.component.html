@@ -1,0 +1,53 @@
+<div class="tab-toolbar">
+  @if (canCreate()) {
+    <p-button label="Nueva Categoria" icon="pi pi-plus" size="small" (onClick)="openCreate()"></p-button>
+  }
+</div>
+
+@if (canRead()) {
+<p-table [value]="categories()" [loading]="loading()" styleClass="admin-table">
+  <ng-template pTemplate="header">
+    <tr>
+      <th>Nombre</th>
+      <th>Código</th>
+      @if (canModify()) {
+        <th style="width: 120px">Acciones</th>
+      }
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-cat>
+    <tr>
+      <td>{{ cat.name }}</td>
+      <td><code>{{ cat.code }}</code></td>
+      @if (canModify()) {
+      <td>
+        @if (canUpdate()) {
+          <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                    (onClick)="openEdit(cat)" pTooltip="Editar"></p-button>
+        }
+        @if (canDelete()) {
+          <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+                    (onClick)="confirmDelete(cat)" pTooltip="Eliminar"></p-button>
+        }
+      </td>
+      }
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td [attr.colspan]="canModify() ? 3 : 2" class="empty-state">No hay categorias registradas</td>
+    </tr>
+  </ng-template>
+</p-table>
+}
+
+<app-category-form-dialog
+  [visible]="dialogVisible()"
+  [category]="selectedCategory()"
+  (visibleChange)="dialogVisible.set($event)"
+  (saved)="onDialogClose(true)"
+  (closed)="onDialogClose(false)"
+/>
+
+<p-confirmDialog />
+<p-toast />

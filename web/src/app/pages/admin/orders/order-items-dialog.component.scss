@@ -1,0 +1,246 @@
+:host ::ng-deep {
+  .p-dialog {
+    max-width: 95vw;
+  }
+}
+
+.order-items-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.order-header {
+  .order-header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .order-meta {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text-soft);
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-soft);
+}
+
+.detail-notes p {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-soft);
+  margin: 0.25rem 0 0;
+}
+
+.items-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+
+  h3 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+}
+
+/* === ITEM ROW: CSS GRID === */
+.item-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 60px 150px 80px 32px;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &.item-duplicate,
+  &.item-over-stock {
+    background: rgba(217, 37, 37, 0.06);
+    border-radius: 6px;
+    padding: 0.5rem;
+    border-color: rgba(217, 37, 37, 0.3);
+  }
+}
+
+.product-field {
+  grid-column: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.qty-field {
+  grid-column: 2;
+  width: 100%;
+}
+
+.price-field {
+  grid-column: 3;
+  width: 100%;
+}
+
+.item-subtotal {
+  grid-column: 4;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: right;
+}
+
+.remove-btn {
+  grid-column: 5;
+  justify-self: end;
+}
+
+/* Force PrimeNG components to fill their grid cell */
+:host ::ng-deep .item-row .p-select,
+:host ::ng-deep .item-row .p-inputnumber,
+:host ::ng-deep .item-row .p-inputtext {
+  width: 100% !important;
+}
+
+/* === READ-ONLY MODE === */
+.item-name {
+  grid-column: 1;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.item-qty {
+  grid-column: 2;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.item-price {
+  grid-column: 3 / 4;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+/* === STOCK INFO === */
+.item-stock-info {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  grid-column: 1 / -1;
+  margin-top: -0.25rem;
+  margin-bottom: 0.75rem;
+
+  &.stock-error {
+    color: #ba1a1a;
+    font-weight: 600;
+  }
+}
+
+/* === TOTAL FOOTER === */
+.items-total {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 2px solid var(--border);
+  font-size: 0.9rem;
+
+  strong {
+    font-size: 1rem;
+  }
+}
+
+.items-total-grand {
+  border-top: 3px solid var(--text-strong);
+  font-size: 1rem;
+  padding-top: 0.75rem;
+
+  strong {
+    font-size: 1.15rem;
+  }
+}
+
+.empty-items {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.p-error {
+  color: #ba1a1a;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* === FOOTER === */
+:host ::ng-deep .p-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* === RESPONSIVE === */
+
+@media (max-width: 700px) {
+  .item-row {
+    grid-template-columns: minmax(140px, 1fr) 60px 150px 80px 32px;
+  }
+
+  .product-field,
+  .item-name {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 500px) {
+  .item-row {
+    grid-template-columns: 60px 1fr 32px;
+  }
+
+  .product-field { grid-column: 1 / -1; }
+  .qty-field     { grid-column: 1; }
+  .price-field   { grid-column: 2; }
+  .item-subtotal { grid-column: 1 / -1; text-align: left; padding-top: 0.25rem; }
+  .remove-btn    { grid-column: 3; grid-row: 2; align-self: center; }
+
+  .item-name  { grid-column: 1 / -1; }
+  .item-qty   { grid-column: 1; }
+  .item-price { grid-column: 2; }
+}

@@ -26,3 +26,11 @@ coverage/
 # Python (if present)
 __pycache__/
 *.pyc
+# Local AI runtime state
+.atl/
+
+api/static/*
+.opencode/*
+api/LCDPC/web/.angular/cache/*
+api/server
+    

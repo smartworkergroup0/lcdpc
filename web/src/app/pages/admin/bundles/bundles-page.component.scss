@@ -1,0 +1,15 @@
+.bundles-page {
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      color: var(--text-strong);
+      margin: 0;
+    }
+  }
+}

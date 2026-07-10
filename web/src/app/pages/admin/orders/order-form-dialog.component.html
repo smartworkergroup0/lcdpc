@@ -1,0 +1,120 @@
+<p-dialog header="Nueva Orden"
+          [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false"
+          [style]="{width: 'min(700px, 95vw)'}"
+          (onHide)="close()">
+  <div class="order-form" [style]="{paddingTop: '20px'}">
+
+    <div class="field-row">
+      <div class="field">
+        <p-select id="branch" [options]="branches" [(ngModel)]="form.branch_id"
+                  optionLabel="name" optionValue="id" placeholder="Sucursal *"
+                  [showClear]="false" [style]="{'width':'100%'}"
+                  [class.ng-invalid]="submitted && !form.branch_id"
+                  (onChange)="onBranchChange()" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Cliente *</label>
+      <div class="user-search">
+        <div class="user-search-input">
+          <p-select [options]="DOCUMENT_TYPE_OPTIONS" [(ngModel)]="documentType"
+                    optionLabel="label" optionValue="value"
+                    [style]="{'width': '80px', 'flex-shrink': '0'}" />
+          <input pInputText [(ngModel)]="documentNumber"
+                 placeholder="Numero de documento..."
+                 [class.ng-invalid]="submitted && !form.client_user_id"
+                 (keydown.enter)="searchByDocument(); $event.preventDefault()"
+                 style="width: 100%" />
+          <p-button icon="pi pi-search" severity="primary"
+                    [loading]="searchingUser()"
+                    pTooltip="Buscar cliente"
+                    (onClick)="searchByDocument()" />
+          @if (selectedUser()) {
+            <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger"
+                      (onClick)="clearUser()" />
+          }
+        </div>
+        @if (userSearchError()) {
+          <small class="p-error">{{ userSearchError() }}</small>
+        }
+        @if (selectedUser()) {
+          <div class="user-selected">
+            <i class="pi pi-user"></i>
+            @if (selectedUser()!.name) {
+              <span>{{ selectedUser()!.name }} — {{ selectedUser()!.email }}</span>
+            } @else {
+              <span>{{ selectedUser()!.email }}</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="items-section">
+      <div class="items-header">
+        <h3>Items de la Orden</h3>
+        <p-button label="Agregar Item" icon="pi pi-plus" [text]="true" size="small"
+                  [disabled]="!form.branch_id"
+                  (onClick)="addItem()" />
+      </div>
+
+      @if (submitted && form.items.length === 0) {
+        <small class="p-error">Debe agregar al menos un item</small>
+      }
+
+      @for (item of form.items; track $index; let i = $index) {
+        <div class="item-row" [class.ng-invalid]="submitted && (!item.product_id || item.quantity <= 0)"
+             [class.item-duplicate]="isDuplicateItem(i)"
+             [class.item-over-stock]="isOverStock(i)">
+          <p-select class="product-field" [options]="products()" [(ngModel)]="item.product_id"
+                    optionLabel="name" optionValue="productId"
+                    placeholder="Producto" (onChange)="onProductSelect(i)" />
+          <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1" [maxFractionDigits]="2"
+                         placeholder="Cant." />
+          <p-select class="price-field" [options]="item.priceOptions"
+                    [(ngModel)]="item.selectedPriceId" optionLabel="label" optionValue="id"
+                    (onChange)="onPriceOptionSelect(i, $event.value)"
+                    [disabled]="item.priceOptions.length === 0"
+                    placeholder="Precio" appendTo="body" />
+          <span class="item-subtotal">{{ (item.quantity * item.unit_price) | currency:'USD' }}</span>
+          <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
+                    (onClick)="removeItem(i)" />
+        </div>
+        @if (item.product_id && getItemStockInfo(i)) {
+          <div class="item-stock-info" [class.stock-error]="isOverStock(i)">
+            <small>{{ getItemStockInfo(i) }}</small>
+          </div>
+        }
+      } @empty {
+        <div class="empty-items">
+          @if (form.branch_id) {
+            <p>No hay items agregados</p>
+          } @else {
+            <p>Seleccione una sucursal primero</p>
+          }
+        </div>
+      }
+
+      @if (form.items.length > 0) {
+        <div class="items-total">
+          <span>Total ({{ totalItems }} items):</span>
+          <strong>{{ total | currency:'USD' }}</strong>
+        </div>
+      }
+    </div>
+
+    <div class="field">
+      <p-floatlabel>
+        <textarea pInputText id="notes" [(ngModel)]="form.notes" rows="3" style="width: 100%" placeholder=" "></textarea>
+        <label for="notes">Notas</label>
+      </p-floatlabel>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="close()" />
+    <p-button label="Crear Orden" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
+  </ng-template>
+</p-dialog>

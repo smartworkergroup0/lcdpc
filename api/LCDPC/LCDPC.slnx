@@ -1,7 +1,0 @@
-<Solution>
-  <Project Path="LCDPC.API/LCDPC.API.csproj" />
-  <Project Path="LCDPC.Application/LCDPC.Application.csproj" />
-  <Project Path="LCDPC.Architecture.Tests/LCDPC.Architecture.Tests.csproj" />
-  <Project Path="LCDPC.Domain/LCDPC.Domain.csproj" />
-  <Project Path="LCDPC.Infrastructure/LCDPC.Infrastructure.csproj" />
-</Solution>

@@ -20,7 +20,7 @@
     @for (product of products; track product.id) {
       <article class="product-card" [class.featured]="product.featured">
         <div class="product-image-frame" [class.featured]="product.featured">
-          <img [src]="product.imageUrl" [alt]="product.alt" />
+          <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
 
           <div class="product-tags">
             <span class="product-tag">{{ product.featured ? 'PROMO ESPECIAL' : product.category }}</span>

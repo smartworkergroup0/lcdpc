@@ -1,81 +1,48 @@
 # AGENTS
 
-Project guidance for AI coding agents working in this repository.
+High-signal guidance for OpenCode sessions in this repo.
 
-## Scope
+## What is actually here
 
-- This repo is a monorepo with backend in .NET and docs-first workflow.
-- Main backend root: [api/LCDPC](api/LCDPC)
-- Architecture and product context live in [docs](docs)
+- Monorepo with three real work areas:
+  - `api/` — Go backend, PASETO v2.local auth, pgx + PostgreSQL.
+  - `web/` — Angular 20 standalone app with signals, PrimeNG 20, SCSS, pnpm.
+  - `docs/` — architecture + SDD artifacts that drive feature work.
 
-## Fast Start
+## Load these files
 
-- Prerequisites: .NET SDK 10, Docker/Compose (optional)
-- Run backend locally:
-  - `cd api/LCDPC`
-  - `dotnet run --project LCDPC.API/LCDPC.API.csproj`
-- Run with Docker:
-  - `cd api/LCDPC`
-  - `cp .env.example .env`
-  - `docker compose up --build`
-- Run tests:
-  - `dotnet test api/LCDPC/LCDPC.slnx`
+Before working on any code, also load the domain-specific guidance:
 
-## Canonical Docs (Read Before Editing)
+- **`backend.md`** — all backend rules (Go, auth, RBAC, handlers, data access, migrations, branch scoping).
+- **`frontend.md`** — all frontend rules (Angular, PrimeNG, components, stores, dialogs, look & feel).
+- **`sync.md`** — sync endpoints (API Key auth, products/bundles batch upsert, chain stock, image upload).
 
-- Setup and repo overview: [README.md](README.md)
-- Backend architecture blueprint: [docs/backend/architecture/fase-1-blueprint.md](docs/backend/architecture/fase-1-blueprint.md)
-- SDD process overview: [docs/sdd/README.md](docs/sdd/README.md)
-- Active SDD changes:
-  - [docs/sdd/changes/usuarios-y-administradores/spec.md](docs/sdd/changes/usuarios-y-administradores/spec.md)
-  - [docs/sdd/changes/usuarios-y-administradores/tasks.md](docs/sdd/changes/usuarios-y-administradores/tasks.md)
-  - [docs/sdd/changes/pricing-sedes-y-mayor-detal/spec.md](docs/sdd/changes/pricing-sedes-y-mayor-detal/spec.md)
-  - [docs/sdd/changes/pricing-sedes-y-mayor-detal/tasks.md](docs/sdd/changes/pricing-sedes-y-mayor-detal/tasks.md)
+## Fast commands
 
-## Architecture Boundaries (Strict)
+- Backend with Docker (recommended when auth/db matters):
+  - `cd api && cp .env.example .env && docker compose up --build`
+- Backend local:
+  - `cd api && go run main/main.go`
+- Backend tests:
+  - `cd api && go test ./...`
+- Backend build:
+  - `cd api && go build -o server main/main.go`
+- Frontend:
+  - `cd web && pnpm install`
+  - `cd web && pnpm start`
+  - `cd web && pnpm test`
+  - `cd web && pnpm build`
 
-- Allowed dependencies:
-  - `LCDPC.Application -> LCDPC.Domain`
-  - `LCDPC.Infrastructure -> LCDPC.Application, LCDPC.Domain`
-  - `LCDPC.API -> LCDPC.Application, LCDPC.Infrastructure, LCDPC.Domain`
-- Forbidden:
-  - `LCDPC.Domain` depending on any other project
-  - `LCDPC.Application` depending on `LCDPC.Infrastructure` or `LCDPC.API`
-  - Controllers directly depending on repositories
+## Read these before editing
 
-Reference: [docs/backend/architecture/fase-1-blueprint.md](docs/backend/architecture/fase-1-blueprint.md)
+- `README.md` — repo entrypoint and env vars.
+- `docs/backend/architecture/fase-1-blueprint.md` — authoritative layer rules.
+- `docs/sdd/README.md` + matching `docs/sdd/changes/<change>/` artifacts — required before feature work; update the tasks checklist after implementation.
+- `/.agents/skills/primeng/SKILL.md` — load this before PrimeNG/UI work.
+- `/.agents/skills/golang/SKILL.md` — load this before Go backend work.
 
-## Coding Conventions You Must Respect
+## Repo gotchas
 
-- Keep business logic out of controllers.
-- Package manager policy:
-  - Use `pnpm` only for JavaScript/TypeScript package operations.
-  - Do not use `npm` commands (install, run, exec, npx, global installs) unless the user explicitly approves in that conversation.
-  - When docs or examples show `npm`, translate them to `pnpm` equivalents before executing.
-- Use DI registrations through:
-  - [api/LCDPC/LCDPC.Application/DependencyInjection.cs](api/LCDPC/LCDPC.Application/DependencyInjection.cs)
-  - [api/LCDPC/LCDPC.Infrastructure/DependencyInjection.cs](api/LCDPC/LCDPC.Infrastructure/DependencyInjection.cs)
-- Auth uses secure HTTP-only cookies and role filter:
-  - [api/LCDPC/LCDPC.API/Controllers/AuthController.cs](api/LCDPC/LCDPC.API/Controllers/AuthController.cs)
-  - [api/LCDPC/LCDPC.API/Security/RequireRolesAttribute.cs](api/LCDPC/LCDPC.API/Security/RequireRolesAttribute.cs)
-  - [api/LCDPC/LCDPC.API/Security/RequireRolesFilter.cs](api/LCDPC/LCDPC.API/Security/RequireRolesFilter.cs)
-- Domain response wrapper exists in:
-  - [api/LCDPC/LCDPC.Domain/Common/JSendResponse.cs](api/LCDPC/LCDPC.Domain/Common/JSendResponse.cs)
-  - Follow existing API style in target area; do not force broad response-shape rewrites unless requested.
-
-## Persistence and Seed Notes
-
-- EF Core context: [api/LCDPC/LCDPC.Infrastructure/Persistence/AppDbContext.cs](api/LCDPC/LCDPC.Infrastructure/Persistence/AppDbContext.cs)
-- Superuser seeding: [api/LCDPC/LCDPC.Infrastructure/Persistence/SuperUserSeeder.cs](api/LCDPC/LCDPC.Infrastructure/Persistence/SuperUserSeeder.cs)
-- Startup pipeline (db ensure + seed): [api/LCDPC/LCDPC.API/Program.cs](api/LCDPC/LCDPC.API/Program.cs)
-
-## SDD Workflow Rule
-
-- Before implementing a feature, read the matching spec/task docs in [docs/sdd/changes](docs/sdd/changes).
-- After implementing, update the corresponding tasks file checklist.
-
-## Practical Pitfalls
-
-- Do not assume the frontend stack yet; [web](web) is currently scaffold-level.
-- Be careful with cookie-based auth flows when adding endpoints (`lcdpc_at`, `lcdpc_rt`).
-- Keep changes focused; avoid cross-layer refactors unless explicitly requested.
+- No `.github/` workflows are present; do not invent CI expectations.
+- `docs/` contains SDD artifacts; read them before feature work.
+- `go_plan_finalized.md` contains the migration analysis (C# vs Go trade-offs).

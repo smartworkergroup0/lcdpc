@@ -1,0 +1,141 @@
+<p-toast />
+<p-dialog [header]="isEditMode ? 'Editar Combo' : 'Nuevo Combo'"
+          [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false"
+          [style]="{width: 'min(750px, 95vw)'}"
+          (onHide)="close()">
+  <div class="bundle-form" [style]="{paddingTop: '20px'}">
+    <div class="field-row">
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="form.name"
+                 [class.ng-invalid]="submitted && !form.name" style="width: 100%" placeholder=" " />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="code" [(ngModel)]="form.code"
+                 [class.ng-invalid]="submitted && !form.code" style="width: 100%" placeholder=" " />
+          <label for="code">Codigo *</label>
+        </p-floatlabel>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="category" [value]="categoryStore.getCategoryName(form.category_id)" style="width: 100%" placeholder=" " disabled />
+          <label for="category">Categoria</label>
+        </p-floatlabel>
+      </div>
+      @if (canViewAllBranches()) {
+        <div class="field">
+          <p-select id="branch" [options]="branches()" [(ngModel)]="form.branch_id"
+                    optionLabel="label" optionValue="value" placeholder="Sucursal"
+                    [showClear]="true" [style]="{'width':'100%'}" />
+        </div>
+      }
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <p-floatlabel>
+          <p-inputNumber id="stock" [(ngModel)]="form.stock" [min]="0" [useGrouping]="false"
+                         style="width: 100%" placeholder=" " />
+          <label for="stock">Stock</label>
+        </p-floatlabel>
+      </div>
+      <div class="field-checkbox">
+        <p-checkbox [(ngModel)]="form.blocks_product_stock" [binary]="true" inputId="blocksStock" />
+        <label for="blocksStock">Bloquea Stock de Productos</label>
+      </div>
+    </div>
+
+    <div class="items-section">
+      <div class="items-header">
+        <h3>Items del Combo</h3>
+        <p-button label="Agregar Item" icon="pi pi-plus" [text]="true" size="small" (onClick)="addItem()"></p-button>
+      </div>
+
+      @if (submitted && form.items.length === 0) {
+        <small class="p-error">Debe agregar al menos un item</small>
+      }
+
+      @for (item of form.items; track $index; let i = $index) {
+        <div class="item-row" [class.ng-invalid]="submitted && (!item.product_id || item.quantity <= 0)">
+          <p-select class="product-field" [options]="availableProducts" [(ngModel)]="item.product_id"
+                    optionLabel="name" optionValue="productId"
+                    placeholder="Producto" />
+          <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1" [maxFractionDigits]="2"
+                         placeholder="Cant." />
+          <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
+                    (onClick)="removeItem(i)"></p-button>
+        </div>
+      } @empty {
+        <div class="empty-items">
+          <p>No hay items agregados</p>
+        </div>
+      }
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section">
+      <div class="section-header">
+        <h3>Precios</h3>
+        <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small" (onClick)="addPrice()"></p-button>
+      </div>
+
+      @if (priceError) {
+        <div class="price-error">
+          <span class="pi pi-exclamation-triangle"></span>
+          <span>{{ priceError }}</span>
+        </div>
+      }
+
+      @for (price of bundlePricesForm(); track $index; let i = $index) {
+        <div class="price-card">
+          <div class="price-card-header">
+            <span class="price-index">{{ i + 1 }}</span>
+            @if (i > 0) {
+              <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger" size="small"
+                        (onClick)="removePrice(i)"></p-button>
+            }
+          </div>
+          <div class="field">
+            <p-select [options]="priceCategories()" [(ngModel)]="price.priceCategoryId"
+                      optionLabel="name" optionValue="id" placeholder="Categoria de precio"
+                      [showClear]="i > 0" [disabled]="i === 0" [style]="{'width':'100%'}" appendTo="body" />
+          </div>
+          <div class="field">
+            <p-inputNumber [(ngModel)]="price.amount" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="4"
+                           placeholder="Monto" [style]="{'width':'100%'}" />
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-items">
+          <span class="pi pi-tag" style="font-size: 1.5rem; color: var(--text-soft); opacity: 0.4"></span>
+          <p>Sin precios configurados</p>
+        </div>
+      }
+    </div>
+
+    <div class="field">
+      <label class="field-label">Imagen</label>
+      @if (imagePreview) {
+        <div class="image-preview">
+          <img [src]="imagePreview" alt="Preview" />
+          <p-button icon="pi pi-times" [text]="true" severity="danger" (onClick)="removeImage()"></p-button>
+        </div>
+      }
+      <input type="file" accept="image/*" (change)="onFileSelect($event)" />
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
+    <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Combo'"
+              icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+  </ng-template>
+</p-dialog>

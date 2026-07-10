@@ -1,0 +1,81 @@
+<p-dialog [header]="isEditMode ? 'Editar Miembro' : 'Nuevo Miembro'"
+          [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [style]="{width: 'min(550px, 95vw)'}"
+          (onHide)="close()">
+  <div class="staff-form">
+    @if (!isEditMode) {
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="email" [(ngModel)]="email" [class.ng-invalid]="submitted && !email" style="width: 100%" />
+            <label for="email">Email *</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <p-password id="password" [(ngModel)]="password" [toggleMask]="true" [class.ng-invalid]="submitted && !password" style="width: 100%" />
+            <label for="password">Password *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+    }
+
+    <div class="field-row">
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="name" [class.ng-invalid]="submitted && !name" style="width: 100%" />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="code" [(ngModel)]="code" [class.ng-invalid]="submitted && !code" style="width: 100%" />
+          <label for="code">Codigo *</label>
+        </p-floatlabel>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="identityDocument" [(ngModel)]="identityDocument" [class.ng-invalid]="submitted && !identityDocument" style="width: 100%" />
+          <label for="identityDocument">Cedula *</label>
+        </p-floatlabel>
+      </div>
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone" [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" />
+          <label for="whatsappPhone">WhatsApp *</label>
+        </p-floatlabel>
+      </div>
+    </div>
+
+    <div class="field">
+      <p-floatlabel>
+        <input pInputText id="fullAddress" [(ngModel)]="fullAddress" [class.ng-invalid]="submitted && !fullAddress" style="width: 100%" />
+        <label for="fullAddress">Direccion *</label>
+      </p-floatlabel>
+    </div>
+
+    <div class="field-row">
+      @if (canViewAllBranches()) {
+        <div class="field">
+          <p-select id="branch" [options]="branches" [(ngModel)]="branchId"
+                    optionLabel="name" optionValue="id"
+                    placeholder="Sucursal *" [style]="{'width':'100%'}" />
+        </div>
+      }
+      <div class="field">
+        <p-select id="role" [options]="roleOptions" [(ngModel)]="roleCode"
+                  optionLabel="label" optionValue="value"
+                  placeholder="Rol *" [style]="{'width':'100%'}" />
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
+    <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Miembro'"
+              icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+  </ng-template>
+</p-dialog>

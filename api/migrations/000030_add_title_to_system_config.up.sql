@@ -1,0 +1,3 @@
+ALTER TABLE system_config ADD COLUMN IF NOT EXISTS title VARCHAR(200) NOT NULL DEFAULT 'LCDPC';
+
+UPDATE system_config SET title = 'LCDPC' WHERE title IS NULL;

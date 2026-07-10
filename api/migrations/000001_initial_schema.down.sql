@@ -1,0 +1,21 @@
+-- Drop all tables in reverse dependency order
+DROP TABLE IF EXISTS combo_items CASCADE;
+DROP TABLE IF EXISTS combos CASCADE;
+DROP TABLE IF EXISTS precios_producto_sede CASCADE;
+DROP TABLE IF EXISTS productos CASCADE;
+DROP TABLE IF EXISTS api_tokens CASCADE;
+DROP TABLE IF EXISTS oauth2_refresh_tokens CASCADE;
+DROP TABLE IF EXISTS oauth2_authorization_codes CASCADE;
+DROP TABLE IF EXISTS oauth2_clients CASCADE;
+DROP TABLE IF EXISTS registration_flows CASCADE;
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS auth_security_policies CASCADE;
+DROP TABLE IF EXISTS password_reset_tokens CASCADE;
+DROP TABLE IF EXISTS user_sessions CASCADE;
+DROP TABLE IF EXISTS user_role_assignments CASCADE;
+DROP TABLE IF EXISTS role_resource_permissions CASCADE;
+DROP TABLE IF EXISTS api_resources CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS sedes CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS users CASCADE;

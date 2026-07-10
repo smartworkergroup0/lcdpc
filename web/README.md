@@ -1,59 +1,100 @@
-# LcdpcWeb
+# LCDPC Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.26.
+Angular 20 standalone application with PrimeNG 20, signals, and pnpm.
 
-## Development server
-
-To start a local development server, run:
+## Quick Start
 
 ```bash
-ng serve
+pnpm install
+pnpm start          # Dev server at http://localhost:4200
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Commands
 
 ```bash
-ng generate component component-name
+pnpm start          # Start dev server
+pnpm build          # Production build (output in dist/)
+pnpm test           # Run unit tests
+pnpm lint           # Lint with ESLint
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Architecture
 
-```bash
-ng generate --help
+- **Standalone components** — no NgModules
+- **Signals** for state management (`signal()`, `computed()`)
+- **PrimeNG 20** with Aura preset for UI components
+- **SCSS** for styling
+- **Package manager:** pnpm only
+
+## Project Structure
+
+```
+src/app/
+  core/
+    auth/              # Auth store, interceptor, guards, init
+    models/            # TypeScript interfaces matching API responses
+    services/          # API services (one per domain)
+  pages/
+    landing-page/      # Home page with hero + catalog
+    search-page/       # Catalog search with filters
+    auth-page/         # Login page
+    register-page/     # Multi-step registration (OTP + profile)
+    admin/
+      admin-layout     # Admin shell with sidebar
+      dashboard/       # Admin dashboard
+      products/        # Product CRUD
+      bundles/         # Bundle CRUD
+      orders/          # Order management
+      staff/           # Staff management
+  shared/
+    header/            # Top navigation
+    footer/            # Footer
+    hero/              # Hero carousel
+    catalog/           # Product catalog grid
+    catalog-search/    # Search bar
+    advanced-search/   # Advanced filters
+    branches/          # Branch selector
 ```
 
-## Building
+## Key Patterns
 
-To build the project run:
+### Services
+- One service per domain (`product-api.service.ts`, `bundle-api.service.ts`, etc.)
+- Inject `HttpClient` and `API_BASE_URL` injection token
+- Private `map()` method converts snake_case API responses to camelCase models
+- Auth-protected calls use `{ withCredentials: true }`
 
-```bash
-ng build
-```
+### Components
+- `@Component` with `standalone: true`
+- `inject()` for DI (not constructor injection)
+- `signal()` for mutable state, `computed()` for derived state
+- `OnInit` for data loading
+- Image `loading="lazy"` on all non-hero images
+- `(error)="onImageError($event)"` sets `/not-found.png` as fallback
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+### Routing
+| Route | Component | Guard |
+|-------|-----------|-------|
+| `/` | LandingPageComponent | — |
+| `/search` | SearchPageComponent | — |
+| `/login` | AuthPageComponent | — |
+| `/register` | RegisterPageComponent | — |
+| `/admin` | AdminLayoutComponent | `adminGuard` |
+| `/admin/dashboard` | DashboardPageComponent | — |
+| `/admin/products` | ProductsPageComponent | `permissionGuard('product:view')` |
+| `/admin/bundles` | BundlesPageComponent | `permissionGuard('bundle:view')` |
+| `/admin/orders` | OrdersPageComponent | `permissionGuard('order:view')` |
+| `/admin/staff` | StaffPageComponent | `permissionGuard('staff:view')` |
 
-## Running unit tests
+### Auth
+- PASETO v2.local tokens via HTTP-only cookies
+- `authInterceptor` handles 401 → refresh → retry
+- `AuthStore` manages user state with signals
+- Guards: `adminGuard`, `permissionGuard(code)`
+- Directive: `hasPermission` for conditional rendering
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Environment
 
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `src/environments/environment.ts` — development (`apiBaseUrl: 'http://localhost:8080'`)
+- `src/environments/environment.prod.ts` — production (`apiBaseUrl: ''`, same origin)
+- `angular.json` has `fileReplacements` for production builds

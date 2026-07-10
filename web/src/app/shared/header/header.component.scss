@@ -9,7 +9,7 @@
   right: 0;
   width: 100%;
   z-index: 40;
-  background: rgba(255, 247, 209, 0.94);
+  background: rgba(255, 253, 243, 0.94);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border);
 }
@@ -21,7 +21,7 @@
   gap: 1rem;
   width: min(1280px, calc(100vw - 2rem));
   margin: 0 auto;
-  padding: 0.9rem 1.1rem;
+  padding: 0.8rem 1rem;
   border-radius: 0 0 1rem 1rem;
 }
 
@@ -73,17 +73,27 @@
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.55rem;
+}
+
+:host ::ng-deep .search-nav-button {
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+:host ::ng-deep .search-nav-button:hover {
+  color: var(--accent);
+  background: rgba(247, 147, 26, 0.14);
 }
 
 .branch-picker {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.3rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 1.6rem;
-  background: #fffdf3;
+  background: var(--surface);
 }
 
 .branch-picker p-select {
@@ -139,7 +149,7 @@
   display: grid;
   place-items: center;
   border-radius: 9999px;
-  background: #d92525;
+  background: var(--danger);
   font-family: var(--font-body);
   line-height: 1;
   font-size: 0.72rem;
@@ -151,8 +161,134 @@
   z-index: 2;
 }
 
+:host ::ng-deep .cart-button.p-button,
+:host ::ng-deep .search-nav-button.p-button,
+:host ::ng-deep .account-button.p-button,
+:host ::ng-deep .logout-button.p-button,
+:host ::ng-deep .admin-nav-button.p-button {
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid transparent;
+}
+
+:host ::ng-deep .search-nav-button.p-button,
+:host ::ng-deep .admin-nav-button.p-button {
+  width: auto;
+  padding-inline: 0.9rem;
+}
+
+:host ::ng-deep .cart-button:hover,
+:host ::ng-deep .account-button:hover,
+:host ::ng-deep .logout-button:hover {
+  background: rgba(247, 147, 26, 0.14);
+}
+
+.cart-popover {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+.cart-popover-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.cart-popover-kicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.cart-popover-total {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cart-popover-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cart-popover-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 169, 79, 0.35);
+}
+
+.cart-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.cart-item-qty,
+.cart-popover-more {
+  flex: 0 0 auto;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cart-popover-more {
+  text-align: center;
+  padding: 0.15rem 0;
+}
+
+.cart-popover-empty {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  padding: 0.75rem 0 0.25rem;
+  color: var(--text-soft);
+
+  i {
+    font-size: 1.4rem;
+    color: var(--accent);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+}
+
+:host ::ng-deep .cart-popover-action.p-button {
+  width: 100%;
+  justify-content: center;
+}
+
 @media (max-width: 1180px) {
   .desktop-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .branch-picker {
     display: none;
   }
 }
@@ -166,9 +302,5 @@
 
   .brand-name {
     font-size: 1rem;
-  }
-
-  .branch-picker {
-    display: none;
   }
 }

@@ -1,0 +1,115 @@
+<div class="admin-shell" [class.sidebar-collapsed]="collapsed()">
+  <aside class="admin-sidebar">
+    <div class="sidebar-header">
+      @if (!collapsed()) {
+        <a routerLink="/admin/dashboard" class="sidebar-brand">LCDPC Admin</a>
+      }
+      <button class="sidebar-toggle" (click)="toggleSidebar()" [attr.aria-label]="collapsed() ? 'Expandir sidebar' : 'Colapsar sidebar'">
+        <span class="pi" [ngClass]="collapsed() ? 'pi-chevron-right' : 'pi-chevron-left'"></span>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/admin/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="collapseAll()">
+        <span class="pi pi-chart-bar"></span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+
+      @if (canViewProducts()) {
+        <a routerLink="/admin/products" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-box"></span>
+          <span class="nav-label">Productos</span>
+        </a>
+      }
+
+      @if (canViewBundles()) {
+        <a routerLink="/admin/bundles" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-gift"></span>
+          <span class="nav-label">Combos</span>
+        </a>
+      }
+
+      @if (canViewOrders()) {
+        <a routerLink="/admin/orders" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-shopping-cart"></span>
+          <span class="nav-label">Ordenes</span>
+        </a>
+      }
+
+      @if (canViewStaff()) {
+        <a routerLink="/admin/staff" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-users"></span>
+          <span class="nav-label">Personal</span>
+        </a>
+      }
+
+      @if (canViewConfig()) {
+        <button class="nav-group-toggle" [class.expanded]="configExpanded()" (click)="toggleConfig()">
+          <span class="pi pi-cog"></span>
+          <span class="nav-label">Configuracion</span>
+          <span class="pi pi-chevron-down toggle-chevron"></span>
+        </button>
+
+        @if (configExpanded() && !collapsed()) {
+          <div class="nav-group-children">
+            @if (canViewRbac()) {
+              <a routerLink="/admin/config"
+                 [queryParams]="{ section: 'rbac' }"
+                 routerLinkActive="active"
+                 [routerLinkActiveOptions]="{ queryParams: 'subset', paths: 'exact', fragment: 'ignored', matrixParams: 'ignored' }"
+                 (click)="collapseAll()">
+                <span class="pi pi-shield"></span>
+                <span class="nav-label">RBAC</span>
+              </a>
+            }
+            @if (canViewInventario()) {
+              <a routerLink="/admin/config"
+                 [queryParams]="{ section: 'inventario' }"
+                 routerLinkActive="active"
+                 [routerLinkActiveOptions]="{ queryParams: 'subset', paths: 'exact', fragment: 'ignored', matrixParams: 'ignored' }"
+                 (click)="collapseAll()">
+                <span class="pi pi-box"></span>
+                <span class="nav-label">Inventario</span>
+              </a>
+            }
+            @if (canViewAdministracion()) {
+              <a routerLink="/admin/config"
+                 [queryParams]="{ section: 'administracion' }"
+                 routerLinkActive="active"
+                 [routerLinkActiveOptions]="{ queryParams: 'subset', paths: 'exact', fragment: 'ignored', matrixParams: 'ignored' }"
+                 (click)="collapseAll()">
+                <span class="pi pi-building"></span>
+                <span class="nav-label">Administracion</span>
+              </a>
+            }
+            @if (canViewSistema()) {
+              <a routerLink="/admin/config"
+                 [queryParams]="{ section: 'sistema' }"
+                 routerLinkActive="active"
+                 [routerLinkActiveOptions]="{ queryParams: 'subset', paths: 'exact', fragment: 'ignored', matrixParams: 'ignored' }"
+                 (click)="collapseAll()">
+                <span class="pi pi-sliders-h"></span>
+                <span class="nav-label">Sistema</span>
+              </a>
+            }
+          </div>
+        }
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <a routerLink="/" class="back-to-store">
+        <span class="pi pi-arrow-left"></span>
+        <span class="nav-label">Volver a la tienda</span>
+      </a>
+      <div class="sidebar-user">
+        <span class="pi pi-user"></span>
+        <span class="nav-label">{{ userName() }}</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="admin-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

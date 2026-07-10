@@ -1,0 +1,34 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "backend.md",
+    "frontend.md"
+  ],
+  "skills": {
+    "paths": [
+      ".agents/skills"
+    ]
+  },
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+      "enabled": true
+    }
+  },
+  "references": {
+    "docs": {
+      "path": "docs",
+      "description": "Use for architecture decisions, SDD changes, and product rules."
+    },
+    "api": {
+      "path": "api/LCDPC",
+      "description": "Use for backend implementation, auth flow, and database wiring."
+    },
+    "web": {
+      "path": "web",
+      "description": "Use for the real Angular frontend; prefer this over api/LCDPC/web."
+    }
+  }
+}

@@ -1,0 +1,27 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries:
+      - "internal/user/queries.sql"
+      - "internal/auth/queries.sql"
+      - "internal/pricing/queries.sql"
+      - "internal/sede/queries.sql"
+      - "internal/admin/queries.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db/generated"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_empty_slices: true
+        emit_result_struct_pointers: true
+        emit_params_struct_pointers: false
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid[]"
+            go_type: "[]uuid.UUID"
+            import: "github.com/google/uuid"
+          - db_type: "jsonb"
+            go_type: "json.RawMessage"

@@ -3,10 +3,11 @@
     <div class="footer-brand">
       <img
         class="brand-logo large"
-        src="https://lh3.googleusercontent.com/aida-public/AB6AXuClHorMf-3Ti1vNiAK2kWqdTHKuGf_IHnq5clehQbyiemx8J4-oasySwjQkjIhsAzYUX712NmcjYunh5CfpYRhEPZ18VPymlFyMFtjF_9-_kpvJT-hoUmZTUY8oKN-R67MHmJhoh6KsVwIMqsdaCJrbvwQJ1TbMLp9o_pSmNpi9bsx16MiHH8R0ZTfAgMYHABmOWHvQ_ml0wZCtMKbAXwym-JzLAPzNWTJz6PWgSoBaUMapWdeGXdTL_c9owQl7y7Qb3z8PRX6A0tI"
-        alt="La Casa del Perrocalentero"
+        [src]="config.logoUrl() ?? '/not-found.png'"
+        alt="Logo"
+        (error)="onLogoError($event)"
       />
-      <span class="brand-name footer-name">LA CASA DEL PERROCALENTERO</span>
+      <span class="brand-name footer-name">{{ config.title() }}</span>
       <p>Distribuidor mayorista de ingredientes para carritos y locales de comida rápida. Calidad y precio en cada pedido.</p>
     </div>
 
@@ -36,6 +37,6 @@
   </div>
 
   <div class="footer-bottom">
-    <p>© 2024 La Casa del Perrocalentero. Distribuidor de Confianza.</p>
+    <p>© 2024 {{ config.pageName() }}. Distribuidor de Confianza.</p>
   </div>
 </footer>

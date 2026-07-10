@@ -35,4 +35,8 @@ export class CatalogComponent {
   @Output() categorySelect = new EventEmitter<string>();
   @Output() increment = new EventEmitter<void>();
   @Output() decrement = new EventEmitter<void>();
+
+  onImageError(event: Event): void {
+    (event.target as HTMLImageElement).src = '/not-found.png';
+  }
 }

@@ -1,0 +1,486 @@
+{
+  "info": {
+    "name": "LCDPC API",
+    "description": "Colección de endpoints para LCDPC - Productos, Combos, Precios y Sync",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "apiVersion",
+      "value": "v1"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@lcdpc.local\",\n  \"password\": \"SuperPerro123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "item": [
+        {
+          "name": "Crear producto",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/productos",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cerveza Polar\",\n  \"sku\": \"CERV-POLAR-355\",\n  \"tipoMedidaBase\": 1,\n  \"tipoComercialMayor\": 2,\n  \"unidadesPorCaja\": 12,\n  \"unidadesPorBulto\": 24\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar productos",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/productos"
+          }
+        },
+        {
+          "name": "Obtener producto por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/productos/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "productos", "{{productoId}}"]
+            },
+            "variable": [
+              {
+                "key": "productoId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Actualizar producto",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/productos/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "productos", "{{productoId}}"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cerveza Polar Light\",\n  \"sku\": \"CERV-POLAR-355\",\n  \"tipoMedidaBase\": 1,\n  \"tipoComercialMayor\": 2,\n  \"unidadesPorCaja\": 12,\n  \"unidadesPorBulto\": 24\n}"
+            },
+            "variable": [
+              {
+                "key": "productoId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Eliminar producto",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/productos/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "productos", "{{productoId}}"]
+            },
+            "variable": [
+              {
+                "key": "productoId",
+                "value": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Combos",
+      "item": [
+        {
+          "name": "Crear combo",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/combos",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"COMBO-FIESTA-001\",\n  \"nombre\": \"Combo Fiesta\",\n  \"items\": [\n    {\n      \"productoId\": \"00000000-0000-0000-0000-000000000001\",\n      \"cantidad\": 6\n    },\n    {\n      \"productoId\": \"00000000-0000-0000-0000-000000000002\",\n      \"cantidad\": 2\n    }\n  ],\n  \"sedeIdsHabilitadas\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar combos",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/combos"
+          }
+        },
+        {
+          "name": "Obtener combo por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/combos/{{comboId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "combos", "{{comboId}}"]
+            },
+            "variable": [
+              {
+                "key": "comboId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Actualizar combo",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/combos/{{comboId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "combos", "{{comboId}}"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Combo Fiesta Premium\",\n  \"items\": [\n    {\n      \"productoId\": \"00000000-0000-0000-0000-000000000001\",\n      \"cantidad\": 12\n    }\n  ],\n  \"sedeIdsHabilitadas\": []\n}"
+            },
+            "variable": [
+              {
+                "key": "comboId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Eliminar combo",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/combos/{{comboId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "combos", "{{comboId}}"]
+            },
+            "variable": [
+              {
+                "key": "comboId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Publicar combo",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/combos/{{comboId}}/publicar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "combos", "{{comboId}}", "publicar"]
+            },
+            "variable": [
+              {
+                "key": "comboId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Pausar combo",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/combos/{{comboId}}/pausar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "combos", "{{comboId}}", "pausar"]
+            },
+            "variable": [
+              {
+                "key": "comboId",
+                "value": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Precios",
+      "item": [
+        {
+          "name": "Crear precio",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/precios",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productoId\": \"00000000-0000-0000-0000-000000000001\",\n  \"sedeId\": \"00000000-0000-0000-0000-000000000001\",\n  \"precio1Unidad\": 1.50,\n  \"precio2CajaBultoPieza\": 1.30,\n  \"precio3MayorDesde2\": 1.10,\n  \"precio4MayoristaNegociable\": 0.95,\n  \"precio4RequiereAcuerdo\": true,\n  \"vigenteDesde\": \"2026-01-01T00:00:00Z\",\n  \"vigenteHasta\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener precio por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/precios/{{precioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "precios", "{{precioId}}"]
+            },
+            "variable": [
+              {
+                "key": "precioId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Listar precios por producto",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/precios/producto/{{productoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "precios", "producto", "{{productoId}}"]
+            },
+            "variable": [
+              {
+                "key": "productoId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Listar precios por sede",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/precios/sede/{{sedeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "precios", "sede", "{{sedeId}}"]
+            },
+            "variable": [
+              {
+                "key": "sedeId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Actualizar precio",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/precios/{{precioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "precios", "{{precioId}}"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"precio1Unidad\": 1.60,\n  \"precio2CajaBultoPieza\": 1.40,\n  \"precio3MayorDesde2\": 1.20,\n  \"precio4MayoristaNegociable\": 1.00,\n  \"precio4RequiereAcuerdo\": true,\n  \"vigenteDesde\": \"2026-01-01T00:00:00Z\",\n  \"vigenteHasta\": null\n}"
+            },
+            "variable": [
+              {
+                "key": "precioId",
+                "value": ""
+              }
+            ]
+          }
+        },
+        {
+          "name": "Eliminar precio",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/{{apiVersion}}/precios/{{precioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "{{apiVersion}}", "precios", "{{precioId}}"]
+            },
+            "variable": [
+              {
+                "key": "precioId",
+                "value": ""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sync",
+      "description": "Endpoints de sincronización para consumidores externos (requieren X-API-Key)",
+      "item": [
+        {
+          "name": "Sync productos (batch)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/sync/productos",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"sku\": \"CERV-POLAR-355\",\n    \"nombre\": \"Cerveza Polar 355ml\",\n    \"tipoMedidaBase\": 1,\n    \"tipoComercialMayor\": 2,\n    \"unidadesPorCaja\": 12,\n    \"unidadesPorBulto\": 24\n  },\n  {\n    \"sku\": \"CERV-MALTA-355\",\n    \"nombre\": \"Malta Regional 355ml\",\n    \"tipoMedidaBase\": 1,\n    \"tipoComercialMayor\": 2,\n    \"unidadesPorCaja\": 12,\n    \"unidadesPorBulto\": 24\n  }\n]"
+            }
+          }
+        },
+        {
+          "name": "Sync combos (batch)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/sync/combos",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"codigo\": \"COMBO-FIESTA-001\",\n    \"nombre\": \"Combo Fiesta\",\n    \"items\": [\n      {\n        \"productoId\": \"00000000-0000-0000-0000-000000000001\",\n        \"cantidad\": 6\n      },\n      {\n        \"productoId\": \"00000000-0000-0000-0000-000000000002\",\n        \"cantidad\": 2\n      }\n    ],\n    \"sedeIdsHabilitadas\": []\n  }\n]"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sedes",
+      "item": [
+        {
+          "name": "Crear sede",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/sedes",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreTienda\": \"Tienda Centro\",\n  \"rif\": \"J-12345678-9\",\n  \"direccion\": \"Av. Principal, Centro Comercial\",\n  \"telefonoContacto\": \"0412-1234567\",\n  \"telefonoContactoSecundario\": null,\n  \"horarioAtencion\": \"Lun-Sab 8:00-18:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar sedes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/{{apiVersion}}/sedes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    }
+  ]
+}

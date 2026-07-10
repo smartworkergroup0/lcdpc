@@ -8,10 +8,14 @@
 ></app-hero>
 
 <app-catalog
-  [categories]="categories"
+  [categories]="categoryStore.filterOptions()"
   [selectedCategoryId]="selectedCategoryId()"
   [products]="filteredProducts()"
+  [negativeStock]="systemConfigStore.negativeStock()"
   (categorySelect)="selectCategory($event)"
+  (increment)="incrementQuantity($event)"
+  (decrement)="decrementQuantity($event)"
+  (addToCart)="addToCart($event)"
 ></app-catalog>
 
-<app-branches [branches]="branches"></app-branches>
+<app-branches [branches]="branches()"></app-branches>

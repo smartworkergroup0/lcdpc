@@ -12,6 +12,7 @@
 	--accent: #f7931a;
 	--accent-2: #f5cb00;
 	--border: #e2a94f;
+	--danger: #d92525;
 	--shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
 	--font-body: 'Poppins', 'Segoe UI', sans-serif;
 	--font-display: 'Anton', 'Poppins', sans-serif;
@@ -45,4 +46,143 @@ a {
 button,
 input {
 	font: inherit;
+}
+
+.p-button {
+	cursor: pointer;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+// ── Admin shared styles ──────────────────────────
+
+.admin-toolbar {
+	margin-bottom: 0.5rem;
+	background: var(--surface);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+
+	.p-toolbar-start,
+	.p-toolbar-end {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+}
+
+.admin-table {
+	background: var(--surface);
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: var(--shadow);
+
+	.p-datatable-wrapper {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	th {
+		font-family: var(--font-body);
+		font-weight: 600;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		color: var(--text-soft);
+		background: rgba(0, 0, 0, 0.02);
+	}
+
+	td {
+		font-family: var(--font-body);
+		font-size: 0.875rem;
+		vertical-align: middle;
+		transition: background 0.12s ease;
+	}
+
+	tr:hover td {
+		background: rgba(0, 0, 0, 0.02);
+	}
+
+	code {
+		font-size: 0.8rem;
+		background: rgba(0, 0, 0, 0.04);
+		padding: 0.15rem 0.4rem;
+		border-radius: 4px;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 2rem 1rem;
+		color: var(--text-soft);
+		font-family: var(--font-body);
+		font-size: 0.9rem;
+	}
+}
+
+.admin-form {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.admin-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.admin-field-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+.admin-field-label {
+	font-family: var(--font-body);
+	font-weight: 500;
+	font-size: 0.85rem;
+	color: var(--text-soft);
+	margin-bottom: 0.25rem;
+}
+
+.admin-image-preview {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.5rem;
+
+	img {
+		width: 80px;
+		height: 80px;
+		object-fit: cover;
+		border-radius: 8px;
+		border: 2px solid var(--border);
+	}
+}
+
+.admin-empty-state {
+	text-align: center;
+	padding: 2rem;
+
+	p {
+		color: var(--text-soft);
+		margin-top: 0.5rem;
+	}
+}
+
+.tab-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 0.75rem;
+	padding-top: 0.75rem;
+}
+
+.product-thumb,
+.bundle-thumb {
+	width: 40px;
+	height: 40px;
+	object-fit: cover;
+	border-radius: 6px;
 }

@@ -20,8 +20,9 @@
 - [x] Implementar autenticación Google para iniciar/continuar registro.
 - [x] Implementar prefill de paso 2 con claims OAuth 2.0/OpenID Connect (`email`, `email_verified`, `name`, `given_name`, `family_name`, `picture`, `locale`).
 - [x] Endpoints de recuperación de clientes por correo afiliado (`forgot-password` / `reset-password`).
-- [x] Login con `TokenPair` real + cookies `httpOnly` para web (`lcdpc_at`, `lcdpc_rt`).
-- [x] Endpoint `GET /auth/me` para hidratar `UserSummary + permissions`.
+- [x] ~~Login con `TokenPair` real + cookies `httpOnly` para web (`lcdpc_at`, `lcdpc_rt`)~~ → **REEMPLAZADO** por OAuth 2.0 en `changes/oauth2-estandarizacion/`.
+- [x] Endpoint `GET /auth/me` para hidratar `UserSummary + permissions` (se mantiene, adaptado a OAuth 2.0).
+- [ ] Migrar flujo de autenticación a OAuth 2.0 Authorization Server (RFC 6749) → ver `changes/oauth2-estandarizacion/`.
 
 ## Fase 3 - Autorización
 

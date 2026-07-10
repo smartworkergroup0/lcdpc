@@ -1,0 +1,62 @@
+<p-dialog header="Detalle de Orden" [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: '600px'}">
+  @if (order) {
+    <div class="order-detail">
+      <div class="detail-header">
+        <div class="detail-header-left">
+          <div class="detail-id"><code>{{ order.displayId }}</code></div>
+          <p-tag [value]="orderStatusLabel(order.status)" [severity]="orderStatusSeverity(order.status)" />
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Sucursal</span>
+          <span class="detail-value">{{ getBranchName(order.branchId) }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Total</span>
+          <span class="detail-value">{{ order.priceTotal | currency:order.currency }}</span>
+        </div>
+        <div class="detail-item detail-item-items">
+          <span class="detail-label">Items</span>
+          <div class="detail-item-row">
+            <span class="detail-value">{{ order.totalItems }}</span>
+            <p-button icon="pi pi-eye" [text]="true" [rounded]="true"
+                      (onClick)="viewItems.emit()" pTooltip="Ver productos" />
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Creada</span>
+          <span class="detail-value">{{ order.createdAtUtc | date:'medium' }}</span>
+        </div>
+      </div>
+
+      @if (order.notes) {
+        <div class="detail-notes">
+          <span class="detail-label">Notas</span>
+          <p>{{ order.notes }}</p>
+        </div>
+      }
+
+      @if (history().length > 0) {
+        <h3>Historial</h3>
+        <ul class="history-list">
+          @for (entry of history(); track entry.id) {
+            <li>
+              <div class="history-status">
+                <p-tag [value]="orderStatusLabel(entry.toStatus)" [severity]="orderStatusSeverity(entry.toStatus)" />
+              </div>
+              <div class="history-info">
+                <span class="history-date">{{ entry.createdAtUtc | date:'short' }}</span>
+                @if (entry.notes) {
+                  <span class="history-notes">{{ entry.notes }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</p-dialog>

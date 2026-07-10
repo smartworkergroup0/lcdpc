@@ -1,33 +1,37 @@
-<app-header
-  [branches]="branches"
-  [selectedBranchId]="selectedBranchId()"
-  [cartCount]="cartCount()"
-  (branchChange)="selectBranch($event)"
-  (cartClick)="incrementCart()"
-></app-header>
+@if (showStoreShell()) {
+  <app-header
+    [branches]="branchStore.branches()"
+    [selectedBranchId]="branchStore.selectedBranchId()"
+    (branchChange)="selectBranch($event)"
+  ></app-header>
 
-<main class="landing-shell">
-  <router-outlet></router-outlet>
-</main>
+  <main class="landing-shell" [class.cart-shell]="isCartRoute()">
+    <router-outlet></router-outlet>
+  </main>
 
-<nav class="mobile-nav" aria-label="Acceso rápido móvil">
-  <button class="mobile-nav-item active" type="button">
-    <span class="pi pi-bars"></span>
-    <span>Catálogo</span>
-  </button>
-  <button class="mobile-nav-item" type="button">
-    <span class="pi pi-map-marker"></span>
-    <span>Ubicación</span>
-  </button>
-  <button class="mobile-nav-item" type="button">
-    <span class="pi pi-shopping-basket"></span>
-    <span>Carrito</span>
-    <span class="mobile-badge">{{ cartCount() }}</span>
-  </button>
-  <button class="mobile-nav-item" type="button">
-    <span class="pi pi-user"></span>
-    <span>Perfil</span>
-  </button>
-</nav>
+  <nav class="mobile-nav" aria-label="Acceso rápido móvil">
+    <button class="mobile-nav-item active" type="button">
+      <span class="pi pi-bars"></span>
+      <span>Catálogo</span>
+    </button>
+    <button class="mobile-nav-item" type="button">
+      <span class="pi pi-map-marker"></span>
+      <span>Ubicación</span>
+    </button>
+    <button class="mobile-nav-item" type="button" (click)="goToCart()">
+      <span class="pi pi-shopping-basket"></span>
+      <span>Carrito</span>
+      <span class="mobile-badge">{{ cartStore.totalItems() }}</span>
+    </button>
+    <button class="mobile-nav-item" type="button">
+      <span class="pi pi-user"></span>
+      <span>Perfil</span>
+    </button>
+  </nav>
 
-<app-footer></app-footer>
+  <app-footer></app-footer>
+} @else {
+  <main class="auth-shell">
+    <router-outlet></router-outlet>
+  </main>
+}

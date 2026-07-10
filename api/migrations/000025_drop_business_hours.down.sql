@@ -1,0 +1,1 @@
+ALTER TABLE branches ADD COLUMN business_hours VARCHAR(120) NOT NULL DEFAULT '';

@@ -12,7 +12,7 @@
   >
     <ng-template #item let-hero>
       <div class="hero-visual">
-        <img [src]="hero.imageUrl" [alt]="hero.alt" />
+        <img [src]="hero.imageUrl" [alt]="hero.alt" (error)="onImageError($event)" />
         <div class="hero-overlay">
           <h1>{{ hero.title }}</h1>
         </div>

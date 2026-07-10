@@ -1,9 +1,22 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { ProductApiService } from '../../core/services/product-api.service';
+import { BundleApiService } from '../../core/services/bundle-api.service';
+import { PriceApiService } from '../../core/services/price-api.service';
+import { PriceCategoryApiService } from '../../core/services/price-category-api.service';
+import { CategoryStore } from '../../core/stores/category.store';
+import { BranchApiService } from '../../core/services/branch-api.service';
+import { Branch } from '../../core/models/branch.model';
+import { BranchStore } from '../../core/stores/branch.store';
+import { CartStore } from '../../core/stores/cart.store';
+import { SystemConfigStore } from '../../core/stores/system-config.store';
 import { BranchesComponent } from '../../shared/branches/branches.component';
 import { CatalogComponent } from '../../shared/catalog/catalog.component';
 import { HeroComponent } from '../../shared/hero/hero.component';
+
+const NOT_FOUND_IMAGE = '/not-found.png';
 
 type HeroSlide = {
   title: string;
@@ -11,22 +24,23 @@ type HeroSlide = {
   alt: string;
 };
 
-type Category = {
-  id: string;
-  label: string;
-};
-
 type ProductCard = {
   id: string;
   name: string;
   price: string;
+  priceNumeric: number;
   description: string;
   imageUrl: string;
   alt: string;
+  categoryId: string;
   category: string;
   badge?: string;
   featured?: boolean;
   quantity: number;
+  branchId: string | null;
+  stockAvailable: number;
+  itemType: 'product' | 'bundle';
+  items?: { name: string; quantity: number }[];
 };
 
 type BranchCard = {
@@ -43,12 +57,23 @@ type BranchCard = {
   imports: [CommonModule, HeroComponent, CatalogComponent, BranchesComponent],
   templateUrl: './landing-page.component.html'
 })
-export class LandingPageComponent {
+export class LandingPageComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly productApi = inject(ProductApiService);
+  private readonly bundleApi = inject(BundleApiService);
+  private readonly priceApi = inject(PriceApiService);
+  private readonly priceCategoryApi = inject(PriceCategoryApiService);
+  readonly categoryStore = inject(CategoryStore);
+  private readonly branchApi = inject(BranchApiService);
+  private readonly branchStore = inject(BranchStore);
+  private readonly cartStore = inject(CartStore);
+  readonly systemConfigStore = inject(SystemConfigStore);
 
   protected readonly activeHeroIndex = signal(0);
   protected readonly search = signal('');
-  protected readonly selectedCategoryId = signal('combos');
+  protected readonly selectedCategoryId = signal('all');
+  protected readonly products = signal<ProductCard[]>([]);
+  protected readonly branches = signal<BranchCard[]>([]);
 
   protected readonly heroSlides: HeroSlide[] = [
     {
@@ -71,85 +96,15 @@ export class LandingPageComponent {
     }
   ];
 
-  protected readonly categories: Category[] = [
-    { id: 'combos', label: 'Combos' },
-    { id: 'salchichas', label: 'Salchichas' },
-    { id: 'panes', label: 'Panes' },
-    { id: 'salsas', label: 'Salsas' }
-  ];
-
-  protected readonly products: ProductCard[] = [
-    {
-      id: 'pan-basico',
-      name: 'Pan Básico x20',
-      price: '$4.50',
-      description: 'Paquete mayorista de 20 unidades de pan suave tradicional. Ideal para carritos y eventos.',
-      imageUrl:
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuBkb7EcPzI89vSjQn2HVFk8-uzrTrT8wpYH-p_b3LY3c2iclAC9OeNaT21wDSDXNCY0ksoy2eQsh9UOQ3rjeCWnchAqF0zUQqG791ivNSi-ErlniTHMXD631C9yq1nw-HfkYl0vWGIJgZ-0Hx0HfDTsyO2g47NnlEMy3nUSaQOVtyV4uDbUutK94RosLm2llimN01s3lf_57e2XeqN3BhOFabOoByDC9WvzmHDmYuPR_PZiLrpQ5Z3GwiEitd4wvw2J2Xwl5u-pCDI',
-      alt: 'Paquete de pan para perro caliente',
-      category: 'panes',
-      badge: 'Más Vendido',
-      quantity: 10
-    },
-    {
-      id: 'combo-emprendedor',
-      name: 'Combo Emprendedor',
-      price: '$25',
-      description: '50 panes tradicionales, 50 salchichas tipo viena, 1 kg de papas fritas y 3 salsas.',
-      imageUrl:
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuBzDseBhHu9EwvRAco9ePAKN5P7xc9lx9fVoTnM1edHkFtu_nDMQr2z-_cRfekhrcHfOsJ_W_buOJqgVb_OLp4UoqKPBEVhA6IMMxYyEzkCUXOxGEbY5hFUMU0uelIITl_FMyarwcgYh9jWX3voMm8b7UAZD56M8Lp1wv_G-ELO4GrfqtnS5IKepgNLU6prrPnJmoHkSBPP3CJTkFgVkigEbMfXbd4i2mp8PTN_OMNFCjv-SSEVZsbNNt1yMDBcbYATQYyIFK63k7A',
-      alt: 'Combo promocional para emprendedores',
-      category: 'combos',
-      badge: 'Promo Especial',
-      featured: true,
-      quantity: 1
-    },
-    {
-      id: 'salchicha-viena',
-      name: 'Salchicha Viena x50',
-      price: '$12.00',
-      description: 'Empaque al vacío con 50 unidades de salchicha tipo viena estándar. Larga duración.',
-      imageUrl:
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCtjIPGFwHKbCB9WVJ-opSccsbmZktXss9K_ruOrt4T4IgGn540li3OvT1CyGSw7LIc46VNpyxxsEjJm6LHKIKg8E_QnDewh7g6k5k7ZHeQxxdAZDUIac2uvVIXBwCoouE180Fe-HvYuPW13gB3zRHA_kHGV1WPdLGYwffDJOAT7VXDLbl_q5CY2UtDTrDHbeWCk41n7wXXnIAeD1vRotyuj79aw41K_6Nl3bRf6bsdWSln08t-mGT2p9etEKdbAHBy8dTPKyznxJ0',
-      alt: 'Paquete de salchichas tipo viena',
-      category: 'salchichas',
-      quantity: 5
-    }
-  ];
-
-  protected readonly branches: BranchCard[] = [
-    {
-      id: 'ocumare',
-      name: 'Ocumare',
-      address: 'Av. Principal de Ocumare del Tuy, Sector Centro.',
-      phone: '+58 412-0000000',
-      icon: 'storefront'
-    },
-    {
-      id: 'charallave',
-      name: 'Charallave',
-      address: 'Calle Bolívar, frente a la plaza, Charallave.',
-      phone: '+58 414-0000000',
-      icon: 'storefront'
-    },
-    {
-      id: 'santa-teresa',
-      name: 'Santa Teresa',
-      address: 'Av. Ayacucho, Santa Teresa del Tuy.',
-      phone: '+58 424-0000000',
-      icon: 'storefront'
-    }
-  ];
-
   protected readonly filteredProducts = computed(() => {
     const term = this.search().trim().toLowerCase();
     const category = this.selectedCategoryId();
 
-    return this.products.filter((product) => {
-      const matchesCategory = category === 'all' || product.category === category;
+    return this.products().filter((product) => {
+      const matchesCategory = category === 'all' || product.categoryId === category;
       const matchesTerm =
         term.length === 0 ||
-        [product.name, product.description, product.category, product.badge ?? '']
+        [product.name, product.description, product.category, product.badge ?? '', (product.items ?? []).map((i) => i.name).join(' ')]
           .join(' ')
           .toLowerCase()
           .includes(term);
@@ -158,12 +113,180 @@ export class LandingPageComponent {
     });
   });
 
+  constructor() {
+    effect(() => {
+      this.cartStore.lastOrderCreatedAt();
+      const branchId = this.branchStore.selectedBranchId();
+      if (branchId) {
+        this.loadProducts(branchId);
+      }
+    });
+  }
+
+  ngOnInit(): void {
+    this.categoryStore.load();
+
+    this.branchApi.list().subscribe({
+      next: (branches: Branch[]) => {
+        this.branches.set(
+          branches.map((b) => ({
+            id: b.id,
+            name: b.storeName,
+            address: b.address,
+            phone: b.contactPhone,
+            icon: 'storefront'
+          }))
+        );
+      },
+    });
+  }
+
+  private loadProducts(branchId: string): void {
+    forkJoin({
+      products: this.productApi.list({ branch_id: branchId, is_active: true }),
+      bundles: this.bundleApi.list({ branch_id: branchId }),
+      priceCategories: this.priceCategoryApi.list(),
+    }).subscribe({
+      next: ({ products, bundles, priceCategories }) => {
+          const retailCategory = priceCategories.find((c) => c.code === 'retail');
+          const retailCategoryId = retailCategory?.id ?? null;
+
+          const productMap = new Map(products.items.map((p) => [p.productId, p.name]));
+
+          const bundleCards: ProductCard[] = bundles.items
+          .filter((b) => b.status === 'Active')
+          .map((b) => {
+            const retailPrice = b.prices.find((p) => p.priceCategoryId === retailCategoryId);
+            const items = (b.items ?? []).map((bi) => ({
+              name: productMap.get(bi.productId) ?? `Producto #${bi.productId}`,
+              quantity: bi.quantity,
+            }));
+            return {
+              id: b.bundleId,
+              name: b.name,
+              price: retailPrice ? `$${retailPrice.amount.toFixed(2)}` : '$0.00',
+              priceNumeric: retailPrice?.amount ?? 0,
+              description: `Código: ${b.code}`,
+              imageUrl: this.bundleApi.resolveImageUrl(b.img) ?? NOT_FOUND_IMAGE,
+              alt: b.name,
+              categoryId: b.categoryId ?? '',
+              category: this.categoryStore.getCategoryName(b.categoryId),
+              featured: true,
+              quantity: 1,
+              branchId: b.branchId,
+              stockAvailable: b.stockAvailable,
+              itemType: 'bundle' as const,
+              items,
+            };
+          });
+
+        const productCards: ProductCard[] = products.items.map((p) => ({
+          id: p.productId,
+          name: p.name,
+          price: '$0.00',
+          priceNumeric: 0,
+          description: '',
+          imageUrl: this.productApi.resolveImageUrl(p.img) ?? NOT_FOUND_IMAGE,
+          alt: p.name,
+          categoryId: p.categoryId ?? '',
+          category: this.categoryStore.getCategoryName(p.categoryId),
+          quantity: 1,
+          branchId: p.branchId,
+          stockAvailable: p.stockAvailable,
+          itemType: 'product' as const,
+        }));
+
+        if (productCards.length === 0 || !retailCategoryId) {
+          const all = [...bundleCards, ...productCards];
+          this.syncCartStock(all);
+          this.products.set(all);
+          return;
+        }
+
+        const priceCalls = productCards.map((p) =>
+          this.priceApi.listByProductId(p.id)
+        );
+
+        forkJoin(priceCalls).subscribe({
+          next: (pricesPerProduct) => {
+            pricesPerProduct.forEach((prices, i) => {
+              const retail = prices.find((pr) => pr.priceCategoryId === retailCategoryId);
+              if (retail) {
+                productCards[i].priceNumeric = retail.amount;
+                productCards[i].price = `$${retail.amount.toFixed(2)}`;
+              }
+            });
+            this.products.set([...bundleCards, ...productCards]);
+            this.syncCartStock([...bundleCards, ...productCards]);
+          },
+          error: () => {
+            this.products.set([...bundleCards, ...productCards]);
+            this.syncCartStock([...bundleCards, ...productCards]);
+          },
+        });
+      },
+      error: () => {
+        this.products.set([]);
+      }
+    });
+  }
+
+  private syncCartStock(cards: ProductCard[]): void {
+    const stockMap = new Map(cards.map((c) => [c.id, c.stockAvailable]));
+    this.cartStore.syncStock(stockMap);
+  }
+
   protected selectCategory(categoryId: string): void {
     this.selectedCategoryId.set(categoryId);
   }
 
+  protected incrementQuantity(productId: string): void {
+    this.products.update((items) =>
+      items.map((p) => {
+        if (p.id !== productId) return p;
+        if (!this.systemConfigStore.negativeStock() && p.stockAvailable <= 0) return p;
+        const max = p.stockAvailable;
+        const newQty = this.systemConfigStore.negativeStock() ? p.quantity + 1 : Math.min(p.quantity + 1, max);
+        return { ...p, quantity: newQty };
+      })
+    );
+  }
+
+  protected decrementQuantity(productId: string): void {
+    this.products.update((items) =>
+      items.map((p) => {
+        if (p.id !== productId) return p;
+        const newQty = Math.max(1, p.quantity - 1);
+        return { ...p, quantity: newQty };
+      })
+    );
+  }
+
+  protected addToCart(productId: string): void {
+    const product = this.products().find((p) => p.id === productId);
+    if (!product) return;
+
+    this.cartStore.addItem(
+      {
+        id: product.id,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        price: product.priceNumeric,
+        branchId: product.branchId,
+        stockAvailable: product.stockAvailable,
+        itemType: product.itemType,
+        items: product.items,
+      },
+      product.quantity
+    );
+
+    this.products.update((items) =>
+      items.map((p) => (p.id === productId ? { ...p, quantity: 1 } : p))
+    );
+  }
+
   protected goToAdvancedSearch(query: string): void {
-    this.router.navigate(['/busqueda'], {
+    this.router.navigate(['/search'], {
       queryParams: query ? { q: query } : {}
     });
   }

@@ -1,0 +1,127 @@
+<section class="staff-page">
+  <div class="page-header">
+    <h1>Personal</h1>
+  </div>
+
+  <p-tabs value="staff">
+    <p-tablist>
+      <p-tab value="staff">Personal</p-tab>
+      <p-tab value="people">Personas</p-tab>
+    </p-tablist>
+
+    <p-tabpanels>
+      <p-tabpanel value="staff">
+        <p-toolbar styleClass="admin-toolbar">
+          <ng-template pTemplate="start">
+            <p-iconfield>
+              <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+              <input pInputText type="text" placeholder="Buscar por nombre o email..." [(ngModel)]="filterSearch" (keyup.enter)="applyFilters()" />
+            </p-iconfield>
+          </ng-template>
+          <ng-template pTemplate="end">
+            <p-select [options]="branchOptions()" [(ngModel)]="filterBranchId" optionLabel="label" optionValue="value" placeholder="Todas las sucursales" [showClear]="true" (onChange)="applyFilters()"></p-select>
+            <p-select [options]="roleOptions" [(ngModel)]="filterRoleCode" optionLabel="label" optionValue="value" placeholder="Todos los roles" [showClear]="true" (onChange)="applyFilters()"></p-select>
+            @if (canCreate()) {
+              <p-button label="Nuevo Miembro" icon="pi pi-plus" (onClick)="openCreateDialog()"></p-button>
+            }
+          </ng-template>
+        </p-toolbar>
+
+        <p-table [value]="staffMembers()" [lazy]="true" [paginator]="true"
+                 [rows]="pageSize" [totalRecords]="totalCount()" [loading]="loading()"
+                 (onLazyLoad)="loadStaff($event)" styleClass="admin-table">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Sucursal</th>
+              <th>Rol</th>
+              <th style="width: 80px">Estado</th>
+              <th style="width: 120px">Acciones</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-member>
+            <tr>
+              <td>{{ member.profileName }}</td>
+              <td>{{ member.email }}</td>
+              <td>{{ member.branchName ?? 'Sin sucursal' }}</td>
+              <td><p-tag [value]="member.roleName" [severity]="roleSeverity(member.roleCode)" /></td>
+              <td>
+                <p-tag [value]="member.status" [severity]="member.status === 'Active' ? 'success' : 'danger'" />
+              </td>
+              <td>
+                @if (canUpdate()) {
+                  <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
+                            (onClick)="openEditDialog(member)" pTooltip="Editar"></p-button>
+                }
+                @if (canDelete()) {
+                  <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+                            (onClick)="confirmDelete(member)" pTooltip="Eliminar"></p-button>
+                }
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="6" class="empty-state">No hay miembros del personal</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+
+      <p-tabpanel value="people">
+        <p-toolbar styleClass="admin-toolbar">
+          <ng-template pTemplate="start">
+            <p-iconfield>
+              <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+              <input pInputText type="text" placeholder="Buscar por nombre o email..." [(ngModel)]="personasSearch" (keyup.enter)="applyPersonasFilters()" />
+            </p-iconfield>
+          </ng-template>
+          <ng-template pTemplate="end">
+            <p-button label="Buscar" icon="pi pi-search" severity="secondary" (onClick)="applyPersonasFilters()"></p-button>
+          </ng-template>
+        </p-toolbar>
+
+        <p-table [value]="personas()" [lazy]="true" [paginator]="true"
+                 [rows]="personasPageSize" [totalRecords]="personasTotalCount()" [loading]="personasLoading()"
+                 (onLazyLoad)="loadPersonas($event)" styleClass="admin-table">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Documento</th>
+              <th style="width: 110px">Estado</th>
+              <th style="width: 140px">Creado</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-person>
+            <tr>
+              <td>{{ person.name ?? 'Sin nombre' }}</td>
+              <td>{{ person.email }}</td>
+              <td>{{ person.identityDocument ?? '—' }}</td>
+              <td><p-tag [value]="person.status" [severity]="statusSeverity(person.status)" /></td>
+              <td>{{ formatDate(person.createdAtUtc) }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="5" class="empty-state">No hay personas registradas</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+</section>
+
+<app-staff-form-dialog
+  [visible]="dialogVisible()"
+  [staff]="selectedStaff()"
+  [branches]="branches()"
+  (visibleChange)="dialogVisible.set($event)"
+  (saved)="onDialogClose(true)"
+  (closed)="onDialogClose(false)"
+></app-staff-form-dialog>
+
+<p-confirmDialog />
+<p-toast />

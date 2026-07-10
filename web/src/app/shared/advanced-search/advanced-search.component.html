@@ -27,11 +27,11 @@
 
       <div class="filter-group">
         <h3>Categoría</h3>
-        <label><input type="checkbox" /> Panes <span>12</span></label>
-        <label><input type="checkbox" checked /> Salchichas <span>48</span></label>
-        <label><input type="checkbox" /> Salsas <span>34</span></label>
-        <label><input type="checkbox" /> Combos <span>8</span></label>
-        <label><input type="checkbox" /> Bebidas <span>15</span></label>
+        @for (cat of categoryStore.filterOptions(); track cat.id) {
+          @if (cat.id !== 'all') {
+            <label><input type="checkbox" /> {{ cat.label }}</label>
+          }
+        }
       </div>
 
       <div class="filter-group">
@@ -52,7 +52,7 @@
         <p-card styleClass="result-card" [class.featured]="item.featured" [class.sold-out]="item.soldOut">
           <ng-template pTemplate="content">
             <div class="result-image">
-              <img [src]="item.imageUrl" [alt]="item.alt" />
+              <img [src]="item.imageUrl" [alt]="item.alt" loading="lazy" (error)="onImageError($event)" />
               @if (item.promo) {
                 <span class="promo-badge">{{ item.promo }}</span>
               }

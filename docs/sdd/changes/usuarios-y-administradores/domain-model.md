@@ -254,12 +254,17 @@ Definir el modelo de dominio para identidad, sesión, autorización por rol/sede
 6. TTL de reset token y política de revocación de sesiones se define en `PoliticaSeguridadAuth`.
 7. OTP solo habilita transición de paso 2 a paso 3; no se usa como credencial de sesión.
 
-## Estrategia de sesión web (v1)
+## Estrategia de sesión web (v1 → OAuth 2.0)
 
-1. Web mantiene sesión mediante cookies `httpOnly` (`lcdpc_at`, `lcdpc_rt`).
-2. Frontend no lee tokens para pintar UI; hidrata estado desde `GET /auth/me`.
-3. `UserSummary + permissions` es la fuente de verdad para menú y guardas.
-4. Backend mantiene autorización real por permisos de recurso, independiente del cliente.
+1. Web mantiene sesión mediante **OAuth 2.0 Authorization Code Flow con PKCE**.
+2. Access token (JWT RS256) almacenado en memoria; refresh token (opaco) en cookie `httpOnly` (`lcdpc_rt`).
+3. Frontend no lee tokens para pintar UI; hidrata estado desde `GET /auth/me`.
+4. `UserSummary + permissions` es la fuente de verdad para menú y guardas.
+5. Backend mantiene autorización real por permisos de recurso, independiente del cliente.
+6. **Discovery**: `GET /.well-known/openid-configuration` expone metadata OAuth 2.0.
+7. **JWKS**: `GET /.well-known/jwks.json` expone clave pública RSA para validar access tokens.
+8. **Introspection**: `POST /oauth2/introspect` para validar estado de tokens.
+9. **Revocation**: `POST /oauth2/revoke` para cerrar sesión y revocar familia de refresh tokens.
 
 ## Patrón Front (guardas/menú)
 

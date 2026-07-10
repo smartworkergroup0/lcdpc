@@ -1,0 +1,185 @@
+<p-dialog [header]="isEditMode ? 'Editar Producto' : 'Nuevo Producto'"
+          [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: '650px'}"
+          [contentStyle]="{'max-height': '70vh', 'overflow': 'auto'}"
+          (onHide)="close()">
+  <div class="form-fields" [style]="{paddingTop: '20px'}">
+    <div class="field">
+      <p-floatlabel>
+        <input pInputText id="name" [(ngModel)]="form.name" [class.ng-invalid]="submitted && !form.name" style="width: 100%" placeholder=" " />
+        <label for="name">Nombre *</label>
+      </p-floatlabel>
+    </div>
+
+    <div class="field">
+      <p-floatlabel>
+        <input pInputText id="sku" [(ngModel)]="form.sku" [class.ng-invalid]="submitted && !form.sku" style="width: 100%" placeholder=" " />
+        <label for="sku">SKU *</label>
+      </p-floatlabel>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <p-select id="brand" [options]="brands()" [(ngModel)]="form.brand_id"
+                  optionLabel="label" optionValue="value" placeholder="Marca *"
+                  [showClear]="false" [style]="{'width':'100%'}" />
+      </div>
+      <div class="field">
+        <p-select id="category" [options]="categoryStore.categoryOptions()" [(ngModel)]="form.category_id"
+                  optionLabel="label" optionValue="value" placeholder="Categoría"
+                  [showClear]="true" [style]="{'width':'100%'}" />
+      </div>
+    </div>
+
+    <div class="field-row">
+      @if (canViewAllBranches()) {
+        <div class="field">
+          <p-select id="branch" [options]="branches()" [(ngModel)]="form.branch_id"
+                    optionLabel="label" optionValue="value" placeholder="Sucursal"
+                    [showClear]="true" [style]="{'width':'100%'}" />
+        </div>
+      }
+      <div class="field">
+        <p-select id="baseUnit" [options]="measurementUnits()" [(ngModel)]="form.base_unit_id"
+                  optionLabel="label" optionValue="value" placeholder="Unidad base"
+                  [showClear]="true" [style]="{'width':'100%'}" (onChange)="onBaseUnitChange()" />
+      </div>
+    </div>
+
+    <div class="field">
+      <p-floatlabel>
+        <p-inputNumber id="stock" [(ngModel)]="form.stock" [min]="0" [useGrouping]="false"
+                       style="width: 100%" placeholder=" " />
+        <label for="stock">Stock</label>
+      </p-floatlabel>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Imagen</label>
+      @if (imagePreview) {
+        <div class="image-preview">
+          <img [src]="imagePreview" alt="Preview" />
+          <p-button icon="pi pi-times" [text]="true" severity="danger" (onClick)="removeImage()"></p-button>
+        </div>
+      }
+      <input type="file" accept="image/*" (change)="onFileSelect($event)" />
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section">
+      <div class="section-header">
+        <h3>Precios</h3>
+        <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small" (onClick)="addPrice()"></p-button>
+      </div>
+
+      @if (priceError) {
+        <div class="conversion-error">
+          <span class="pi pi-exclamation-triangle"></span>
+          <span>{{ priceError }}</span>
+        </div>
+      }
+
+      @for (price of prices; track $index; let i = $index) {
+        <div class="price-card">
+          <div class="price-card-header">
+            <span class="price-index">{{ i + 1 }}</span>
+            @if (i > 0) {
+              <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger" size="small"
+                        (onClick)="removePrice(i)"></p-button>
+            }
+          </div>
+          <div class="field">
+            <p-select [options]="priceCategories()" [(ngModel)]="price.price_category_id"
+                      optionLabel="label" optionValue="value" placeholder="Categoria de precio"
+                      [showClear]="i > 0" [disabled]="i === 0" [style]="{'width':'100%'}" appendTo="body" />
+          </div>
+          <div class="field">
+            <p-inputNumber [(ngModel)]="price.amount" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="4"
+                           placeholder="Monto" [style]="{'width':'100%'}" />
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section" [class.section-disabled]="!hasBaseUnit">
+      <div class="section-header">
+        <div>
+          <h3>Factores de conversión</h3>
+          <span class="section-subtitle">Opcional — el primero usa la unidad base como origen</span>
+        </div>
+        <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small" (onClick)="addConversion()"
+                  [disabled]="!hasBaseUnit"></p-button>
+      </div>
+
+      @if (!hasBaseUnit) {
+        <div class="empty-conversions">
+          <span class="pi pi-info-circle" style="font-size: 1.5rem; color: var(--text-soft); opacity: 0.4"></span>
+          <p>Selecciona una unidad base primero</p>
+        </div>
+      }
+
+      @if (conversionError) {
+        <div class="conversion-error">
+          <span class="pi pi-exclamation-triangle"></span>
+          <span>{{ conversionError }}</span>
+        </div>
+      }
+
+      @for (conv of conversions; track $index; let i = $index) {
+        <div class="conversion-card">
+          <div class="conversion-card-header">
+            <span class="conversion-index">{{ i + 1 }}</span>
+            <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger" size="small"
+                      (onClick)="removeConversion(i)"></p-button>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              @if (i === 0) {
+                <p-select [options]="baseUnitAsOptions" [(ngModel)]="conv.from_unit_id"
+                          optionLabel="label" optionValue="value"
+                          [style]="{'width':'100%'}" appendTo="body"
+                          [disabled]="true" />
+              } @else {
+                <p-select [options]="conversionUnitOptions" [(ngModel)]="conv.from_unit_id"
+                          optionLabel="label" optionValue="value" placeholder="Unidad origen"
+                          [showClear]="true" [style]="{'width':'100%'}" appendTo="body" />
+              }
+            </div>
+            <div class="field">
+              <p-select [options]="conversionUnitOptions" [(ngModel)]="conv.to_unit_id"
+                        optionLabel="label" optionValue="value" placeholder="Unidad destino"
+                        [showClear]="true" [style]="{'width':'100%'}" appendTo="body" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <p-inputNumber [(ngModel)]="conv.amount" [min]="0.0001" [minFractionDigits]="1" [maxFractionDigits]="4"
+                             placeholder="Cantidad" [style]="{'width':'100%'}" />
+            </div>
+            <div class="field-checkbox">
+              <p-checkbox [(ngModel)]="conv.main" [binary]="true" inputId="main{{ i }}"
+                          [disabled]="i === 0 && conversions.length > 0" />
+              <label for="main{{ i }}">Principal</label>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        @if (hasBaseUnit) {
+          <div class="empty-conversions">
+            <span class="pi pi-arrows-h" style="font-size: 1.5rem; color: var(--text-soft); opacity: 0.4"></span>
+            <p>Sin factores de conversión</p>
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
+    <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Producto'"
+              icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+  </ng-template>
+</p-dialog>

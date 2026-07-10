@@ -1,0 +1,496 @@
+<section class="auth-page">
+  <div class="wave-pattern" aria-hidden="true"></div>
+  <div class="glow glow-right" aria-hidden="true"></div>
+  <div class="glow glow-left" aria-hidden="true"></div>
+
+  <main class="auth-card" aria-label="Flujo de registro">
+    <aside class="auth-visual">
+      <img
+        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVhTbxGd6ZHnY2Xs10cvetjZ1W85pnddOLfScW8KI9rqerMJdIO9ROzV3hNal_hlf4WdtqhnD1iFKfHj7cFlS1tGlNUi-xkp_7SS_FPpO27Ygp5OZrOHAKbCXI2k6PyTCv2z-IhPMhFQODrXRfqIOxrjr0Er_V4YRS40ivjQbh66AN1UmOyBxK9vZQQ-QlONNgmlUwzjqLKcZAWKdiEbI16Z3PZ-gcaI2FQacENhYDJ_bDOHPwu9kfSafIBCrDn5RhlFEW4ceynpo"
+        alt="Perro caliente gourmet de la casa"
+      />
+      <div class="visual-overlay"></div>
+      <div class="visual-copy">
+        @if (step() === 1) {
+          <h2>Verificación de correo.</h2>
+          <p>Validá tu cuenta con un código OTP para comenzar el alta de distribuidor.</p>
+        }
+        @if (step() === 2) {
+          <h2>Perfil de distribuidor.</h2>
+          <p>Completá tus datos personales y de facturación para activar tu cuenta.</p>
+        }
+        @if (step() === 3) {
+          <h2>Registro completado.</h2>
+          <p>Tu cuenta está lista para comprar y gestionar pedidos en la plataforma.</p>
+        }
+      </div>
+    </aside>
+
+    <section class="auth-form-wrap">
+      <div class="auth-head">
+        <img
+          class="brand-mark"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmdmF_vXgBnOq4bG4hOZJQ1y25fz7ODZZ1oK3Ue4b8DbBpmNwjn5w7nVHD4tsWqtnMkw4LG0CPDjt8KjSCU_y4tSpoDshSlE_UXlQJlTVS6ewH82NOQAEXuiMU3GzVPe3SBt1BaRUg782yUmPS8USKuo4FvLKRDCHIN9qZg35Amd0o0YJ8m02IokuUqXDKeXXMivhpdx0n_ilkCm0SWtJh0cwcrljylYeOON-PB2xF4uu62jsi5z009xSIXeyKvynkG3FgmVely5Y"
+          alt="Logo La Casa del Perrocalentero"
+        />
+        @if (step() === 1) {
+          <h1>Verificación de Correo</h1>
+          <p>Ingresa tu correo de negocio para recibir el código OTP.</p>
+        }
+        @if (step() === 2) {
+          <h1>Formulario de Perfil</h1>
+          <p>Completa tus datos para continuar con el alta.</p>
+        }
+        @if (step() === 3) {
+          <h1>¡Registro Exitoso!</h1>
+          <p>Tu cuenta de distribución fue creada correctamente.</p>
+        }
+
+        <p-stepper [value]="step()" [linear]="true" styleClass="register-stepper">
+          <p-step-list>
+            <p-step [value]="1">Correo</p-step>
+            <p-step [value]="2">Perfil</p-step>
+            <p-step [value]="3">Confirmación</p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <form class="auth-form auth-step-one" (ngSubmit)="verifyCode()" novalidate>
+                  <section class="step-one-card">
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isBusinessEmailValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-envelope" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <input
+                            id="businessEmail"
+                            pInputText
+                            type="email"
+                            autocomplete="email"
+                            [disabled]="codeSent() || isSendingCode() || isVerifyingCode()"
+                            [ngModel]="businessEmail()"
+                            (ngModelChange)="businessEmail.set($event)"
+                            name="businessEmail"
+                            placeholder="ejemplo@distribuidor.com"
+                          />
+                          <label for="businessEmail">Correo electrónico <span class="required-marker" aria-hidden="true">*</span></label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (submitAttempted() && !isBusinessEmailValid()) {
+                        <small class="field-error">Ingresa un correo válido para enviar el código OTP.</small>
+                      }
+                    </div>
+
+                    @if (!codeSent() || otpSecondsLeft() === 0 || forceOtpResendVisible()) {
+                      <p-button
+                        type="button"
+                        [label]="codeSent() ? 'Reenviar Código' : 'Enviar Código'"
+                        styleClass="submit-btn"
+                        [outlined]="true"
+                        [loading]="isSendingCode()"
+                        [disabled]="!isBusinessEmailValid() || isSendingCode() || isVerifyingCode()"
+                        (onClick)="sendCode()"
+                      ></p-button>
+                    }
+
+                    @if (apiError()) {
+                      <small class="field-error">{{ apiError() }}</small>
+                    }
+
+                    @if (codeSent()) {
+                      <div class="otp-divider" aria-hidden="true">
+                        <span>o</span>
+                      </div>
+
+                      <div class="otp-wrap">
+                        <label>Ingresa los 6 dígitos del código OTP</label>
+                        <p-inputotp
+                          [length]="6"
+                          [integerOnly]="true"
+                          [disabled]="!codeSent() || isVerifyingCode()"
+                          [ngModel]="otpCode()"
+                          (ngModelChange)="otpCode.set($event || '')"
+                          name="otpCode"
+                          styleClass="otp-input"
+                          [invalid]="submitAttempted() && !isOtpValid()"
+                        ></p-inputotp>
+                        @if (submitAttempted() && !isOtpValid()) {
+                          <small class="field-error">Completa los 6 dígitos del código recibido.</small>
+                        }
+
+                        <small class="otp-hint">Código enviado a {{ businessEmail() }}</small>
+                        @if (otpSecondsLeft() > 0) {
+                          <small class="otp-hint">El código expira en {{ otpSecondsLeft() }} segundos.</small>
+                        } @else {
+                          <small class="otp-hint">El código expiró. Reenviá uno nuevo.</small>
+                        }
+                      </div>
+
+                      <p-button
+                        type="submit"
+                        label="Verificar Código"
+                        styleClass="submit-btn dark-btn"
+                        [loading]="isVerifyingCode()"
+                        [disabled]="!codeSent() || !isOtpValid() || isVerifyingCode()"
+                      ></p-button>
+                    }
+                  </section>
+
+                  <div class="register-actions">
+                    <a routerLink="/login" class="login-link">Volver al inicio de sesión</a>
+
+                    @if (codeSent()) {
+                      <p class="register-copy login-copy">
+                        ¿No recibiste el código? El correo queda fijado para este flujo de registro.
+                      </p>
+                    }
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <form class="auth-form" (ngSubmit)="submitProfile()" novalidate>
+                  <div class="field-grid two-cols name-grid">
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isFirstNameValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-user" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <input
+                            id="firstName"
+                            pInputText
+                            type="text"
+                            [ngModel]="firstName()"
+                            (input)="updateFirstNameFromInput($event)"
+                            (ngModelChange)="updateFirstName($event)"
+                            (keydown)="allowOnlyNameCharacters($event)"
+                            (paste)="sanitizeNamePaste($event)"
+                            name="firstName"
+                          />
+                          <label for="firstName">Nombres *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (submitAttempted() && !isFirstNameValid()) {
+                        <small class="field-error">Ingresa un nombre válido (solo letras).</small>
+                      }
+                    </div>
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isLastNameValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-user" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <input
+                            id="lastName"
+                            pInputText
+                            type="text"
+                            [ngModel]="lastName()"
+                            (input)="updateLastNameFromInput($event)"
+                            (ngModelChange)="updateLastName($event)"
+                            (keydown)="allowOnlyNameCharacters($event)"
+                            (paste)="sanitizeNamePaste($event)"
+                            name="lastName"
+                          />
+                          <label for="lastName">Apellidos *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (submitAttempted() && !isLastNameValid()) {
+                        <small class="field-error">Ingresa un apellido válido (solo letras).</small>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="field-grid two-cols">
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isCedulaValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <p-select
+                            styleClass="doc-prefix-select"
+                            [options]="cedulaTypeOptions"
+                            [ngModel]="cedulaType()"
+                            (ngModelChange)="cedulaType.set($event)"
+                            name="cedulaType"
+                            optionLabel="label"
+                            optionValue="value"
+                            appendTo="body"
+                          ></p-select>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <input
+                            id="cedula"
+                            pInputText
+                            type="text"
+                            inputmode="numeric"
+                            maxlength="8"
+                            [ngModel]="cedula()"
+                            (ngModelChange)="updateCedula($event)"
+                            (keydown)="allowOnlyDigits($event)"
+                            (paste)="sanitizeCedulaPaste($event)"
+                            name="cedula"
+                          />
+                          <label for="cedula">Cédula *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (submitAttempted() && !isCedulaValid()) {
+                        <small class="field-error">La cédula debe tener entre 6 y 8 dígitos.</small>
+                      }
+                    </div>
+
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isRifValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <p-select
+                            styleClass="doc-prefix-select"
+                            [options]="rifTypeOptions"
+                            [ngModel]="rifType()"
+                            (ngModelChange)="rifType.set($event)"
+                            name="rifType"
+                            optionLabel="label"
+                            optionValue="value"
+                            appendTo="body"
+                          ></p-select>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <input
+                            id="rif"
+                            pInputText
+                            type="text"
+                            inputmode="numeric"
+                            maxlength="9"
+                            [ngModel]="rif()"
+                            (ngModelChange)="updateRif($event)"
+                            (keydown)="allowOnlyDigits($event)"
+                            (paste)="sanitizeRifPaste($event)"
+                            name="rif"
+                          />
+                          <label for="rif">RIF</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (submitAttempted() && !isRifValid()) {
+                        <small class="field-error">El RIF debe tener entre 5 y 9 dígitos.</small>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="field-wrap" [class.invalid]="submitAttempted() && !isWhatsappValid()">
+                    <p-inputgroup styleClass="icon-inputgroup">
+                      <p-inputgroup-addon>
+                        <i class="pi pi-whatsapp" aria-hidden="true"></i>
+                      </p-inputgroup-addon>
+                      <p-inputgroup-addon class="phone-prefix-addon">
+                        <p-select
+                          styleClass="phone-prefix-select"
+                          [options]="whatsappPrefixOptions"
+                          [ngModel]="whatsappPrefix()"
+                          (ngModelChange)="whatsappPrefix.set($event)"
+                          name="whatsappPrefix"
+                          optionLabel="label"
+                          optionValue="value"
+                          appendTo="body"
+                        ></p-select>
+                      </p-inputgroup-addon>
+                      <p-floatlabel variant="over">
+                        <input
+                          id="whatsapp"
+                          pInputText
+                          type="text"
+                          inputmode="numeric"
+                          pattern="[0-9]*"
+                          maxlength="7"
+                          [ngModel]="whatsapp()"
+                          (ngModelChange)="updateWhatsapp($event)"
+                          (keydown)="allowOnlyDigits($event)"
+                          (paste)="sanitizeWhatsappPaste($event)"
+                          name="whatsapp"
+                        />
+                        <label for="whatsapp">Teléfono WhatsApp *</label>
+                      </p-floatlabel>
+                    </p-inputgroup>
+                    @if (submitAttempted() && !isWhatsappValid()) {
+                      <small class="field-error">El teléfono debe tener 7 dígitos.</small>
+                    }
+                  </div>
+
+                  <div class="field-wrap" [class.invalid]="submitAttempted() && !isAddressValid()">
+                    <p-inputgroup styleClass="icon-inputgroup textarea-inputgroup">
+                      <p-inputgroup-addon>
+                        <i class="pi pi-map-marker" aria-hidden="true"></i>
+                      </p-inputgroup-addon>
+                      <p-floatlabel variant="over">
+                        <textarea
+                          id="address"
+                          [ngModel]="address()"
+                          (ngModelChange)="address.set($event)"
+                          name="address"
+                          rows="3"
+                        ></textarea>
+                        <label for="address">Dirección completa *</label>
+                      </p-floatlabel>
+                    </p-inputgroup>
+                    @if (submitAttempted() && !isAddressValid()) {
+                      <small class="field-error">La dirección debe tener al menos 10 caracteres.</small>
+                    }
+                  </div>
+
+                  <div class="field-grid two-cols">
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isPasswordValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-lock" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <p-password
+                            inputId="registerPassword"
+                            [feedback]="false"
+                            [toggleMask]="true"
+                            [ngModel]="password()"
+                            (ngModelChange)="password.set($event)"
+                            name="password"
+                            autocomplete="new-password"
+                            styleClass="auth-password"
+                          ></p-password>
+                          <label for="registerPassword">Contraseña *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                    </div>
+
+                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isConfirmPasswordValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-shield" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <p-password
+                            inputId="confirmPassword"
+                            [feedback]="false"
+                            [toggleMask]="true"
+                            [ngModel]="confirmPassword()"
+                            (ngModelChange)="confirmPassword.set($event)"
+                            name="confirmPassword"
+                            autocomplete="new-password"
+                            styleClass="auth-password"
+                          ></p-password>
+                          <label for="confirmPassword">Confirmación *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                    </div>
+                  </div>
+
+                  @if (submitAttempted() && !isPasswordValid()) {
+                    <small class="field-error">La contraseña debe tener al menos 8 caracteres.</small>
+                  }
+                  @if (submitAttempted() && isPasswordMismatch()) {
+                    <small class="field-error">Las contraseñas no coinciden.</small>
+                  }
+
+                  <div class="remember-row" [class.invalid]="submitAttempted() && !acceptedTerms()">
+                    <p-checkbox
+                      inputId="terms"
+                      [binary]="true"
+                      [ngModel]="acceptedTerms()"
+                      (ngModelChange)="acceptedTerms.set(!!$event)"
+                      name="terms"
+                    ></p-checkbox>
+                    <label for="terms">Acepto términos y condiciones *</label>
+                  </div>
+                  @if (submitAttempted() && !acceptedTerms()) {
+                    <small class="field-error">Debes aceptar los términos y condiciones.</small>
+                  }
+
+                  <div class="actions-row">
+                    <p class="required-note">Los campos marcados con (*) son obligatorios para poder continuar.</p>
+                    <div class="actions-buttons">
+                      <p-button
+                        type="button"
+                        label="Atrás"
+                        styleClass="back-btn"
+                        [outlined]="true"
+                        [disabled]="isSubmittingProfile()"
+                        (onClick)="goToStepOne()"
+                      ></p-button>
+                      <p-button
+                        type="submit"
+                        label="Continuar"
+                        styleClass="submit-btn"
+                        [loading]="isSubmittingProfile()"
+                        [disabled]="isSubmittingProfile()"
+                      ></p-button>
+                    </div>
+                  </div>
+
+                  @if (apiError()) {
+                    <small class="field-error">{{ apiError() }}</small>
+                  }
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <section class="confirmation-wrap">
+                  <div class="success-icon">
+                    <span class="pi pi-check-circle"></span>
+                  </div>
+
+                  <div class="info-card">
+                    <h3>Información de acceso</h3>
+                    <p>Tu usuario principal será tu cédula y también podrás ingresar con el correo <strong>{{ email() }}</strong>.</p>
+                  </div>
+
+                  <div class="summary-grid">
+                    <article class="summary-card">
+                      <h4>Datos Personales</h4>
+                      <ul>
+                        <li><span>Nombre:</span> <strong>{{ fullName() }}</strong></li>
+                        <li><span>Cédula:</span> <strong>{{ cedula() }}</strong></li>
+                        <li><span>Correo:</span> <strong>{{ email() }}</strong></li>
+                      </ul>
+                    </article>
+
+                    <article class="summary-card">
+                      <h4>Punto de Entrega</h4>
+                      <ul>
+                        <li><span>WhatsApp:</span> <strong>{{ whatsapp() }}</strong></li>
+                        <li><span>Dirección:</span> <strong>{{ address() }}</strong></li>
+                        <li><span>RIF:</span> <strong>{{ rif() || 'No indicado' }}</strong></li>
+                      </ul>
+                    </article>
+                  </div>
+
+                  <div class="actions-row two-buttons">
+                    <p-button
+                      type="button"
+                      label="Comenzar a Comprar"
+                      styleClass="submit-btn"
+                      [loading]="isLoggingIn()"
+                      (onClick)="loginAndGoToShop()"
+                    ></p-button>
+                    <p-button
+                      type="button"
+                      label="Nuevo Registro"
+                      styleClass="back-btn"
+                      [outlined]="true"
+                      (onClick)="resetFlow()"
+                    ></p-button>
+                  </div>
+
+                  <p class="register-copy login-copy">
+                    ¿Ya tienes cuenta?
+                    <a routerLink="/login">Inicia sesión</a>
+                  </p>
+                </section>
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </section>
+  </main>
+
+  <footer class="auth-footer">© 2024 La Casa del Perrocalentero. Distribuidor de Confianza.</footer>
+</section>

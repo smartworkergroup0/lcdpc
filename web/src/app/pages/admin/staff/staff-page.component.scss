@@ -1,0 +1,23 @@
+.staff-page {
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      color: var(--text-strong);
+      margin: 0;
+    }
+  }
+
+  :host ::ng-deep .p-tabpanels {
+    padding-top: 0.75rem;
+  }
+
+  .admin-toolbar {
+    margin-bottom: 0.75rem;
+  }
+}

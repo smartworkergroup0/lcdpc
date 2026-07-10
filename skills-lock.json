@@ -1,11 +1,29 @@
 {
   "version": 1,
   "skills": {
+    "clean-architecture": {
+      "source": "codewithmukesh/dotnet-claude-kit",
+      "sourceType": "github",
+      "skillPath": "skills/clean-architecture/SKILL.md",
+      "computedHash": "20f86fc158a8d7d15f4b43ed06614e31fd0a8e611477c9eebd4fc9996b903d05"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
     "primeng": {
       "source": "twhitehead-blackdog/People",
       "sourceType": "github",
       "skillPath": ".agent/skills/primeng/SKILL.md",
       "computedHash": "27cf3ddbd7ef0cdbb915529bcf281dc24b27e333cab931003cabf202b04fe65e"
+    },
+    "dotnet-webapi": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-aspnetcore/skills/dotnet-webapi/SKILL.md",
+      "computedHash": "47f7a15cbbdd8f9f95e0d6a219f6207b901a402a97e01b0a2f597ad7f7180324"
     }
   }
 }
