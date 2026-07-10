@@ -159,7 +159,7 @@ func main() {
 	apiTokenSvc := apitoken.NewService(pool)
 	svcAccountSvc := serviceaccount.NewService(pool)
 
-	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc)
+	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc, frontendFS)
 
 	addr := ":" + cfg.Port
 	srv := &http.Server{

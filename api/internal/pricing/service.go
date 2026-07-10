@@ -28,6 +28,12 @@ func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader) *Service {
 
 // Product
 
+type BranchInfo struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+	Code string    `json:"code"`
+}
+
 type Product struct {
 	ProductID      uuid.UUID  `json:"product_id"`
 	Name           string     `json:"name"`
@@ -37,6 +43,7 @@ type Product struct {
 	BrandID        uuid.UUID  `json:"brand_id"`
 	CategoryID     *uuid.UUID `json:"category_id"`
 	BranchID       *uuid.UUID `json:"branch_id"`
+	Branch         *BranchInfo `json:"branch"`
 	BaseUnitID     *uuid.UUID `json:"base_unit_id"`
 	Stock          float64    `json:"stock"`
 	StockAvailable float64    `json:"stock_available"`
@@ -93,37 +100,43 @@ func (s *Service) ListProducts(ctx context.Context, filter ...ProductFilter) ([]
 	}
 
 	countQuery := `SELECT COUNT(*) FROM products WHERE 1=1`
-	dataQuery := `SELECT product_id, name, sku, is_active, img, brand_id, category_id, branch_id, base_unit_id, stock, stock_available, stock_blocked FROM products WHERE 1=1`
+	dataQuery := `SELECT p.product_id, p.name, p.sku, p.is_active, p.img, p.brand_id, p.category_id, p.branch_id,
+		COALESCE(b.store_name, '') AS branch_name,
+		COALESCE(b.code, '') AS branch_code,
+		p.base_unit_id, p.stock, p.stock_available, p.stock_blocked
+	FROM products p
+	LEFT JOIN branches b ON b.id = p.branch_id
+	WHERE 1=1`
 	var args []interface{}
 	argIdx := 1
 
 	if f.CategoryID != nil {
 		countQuery += fmt.Sprintf(` AND category_id = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND category_id = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND p.category_id = $%d`, argIdx)
 		args = append(args, *f.CategoryID)
 		argIdx++
 	}
 	if f.Name != nil {
 		countQuery += fmt.Sprintf(` AND name ILIKE '%%' || $%d || '%%'`, argIdx)
-		dataQuery += fmt.Sprintf(` AND name ILIKE '%%' || $%d || '%%'`, argIdx)
+		dataQuery += fmt.Sprintf(` AND p.name ILIKE '%%' || $%d || '%%'`, argIdx)
 		args = append(args, *f.Name)
 		argIdx++
 	}
 	if f.Sku != nil {
 		countQuery += fmt.Sprintf(` AND sku = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND sku = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND p.sku = $%d`, argIdx)
 		args = append(args, *f.Sku)
 		argIdx++
 	}
 	if f.IsActive != nil {
 		countQuery += fmt.Sprintf(` AND is_active = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND is_active = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND p.is_active = $%d`, argIdx)
 		args = append(args, *f.IsActive)
 		argIdx++
 	}
 	if f.BranchID != nil {
 		countQuery += fmt.Sprintf(` AND branch_id = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND branch_id = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND p.branch_id = $%d`, argIdx)
 		args = append(args, *f.BranchID)
 		argIdx++
 	}
@@ -133,7 +146,7 @@ func (s *Service) ListProducts(ctx context.Context, filter ...ProductFilter) ([]
 		return nil, 0, fmt.Errorf("count products: %w", err)
 	}
 
-	dataQuery += ` ORDER BY name`
+	dataQuery += ` ORDER BY p.name`
 
 	if len(filter) > 0 {
 		limit := f.GetLimit()
@@ -151,8 +164,13 @@ func (s *Service) ListProducts(ctx context.Context, filter ...ProductFilter) ([]
 	products := make([]Product, 0)
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ProductID, &p.Name, &p.Sku, &p.IsActive, &p.Img, &p.BrandID, &p.CategoryID, &p.BranchID, &p.BaseUnitID, &p.Stock, &p.StockAvailable, &p.StockBlocked); err != nil {
+		var branchName, branchCode string
+		if err := rows.Scan(&p.ProductID, &p.Name, &p.Sku, &p.IsActive, &p.Img, &p.BrandID, &p.CategoryID, &p.BranchID,
+			&branchName, &branchCode, &p.BaseUnitID, &p.Stock, &p.StockAvailable, &p.StockBlocked); err != nil {
 			return nil, 0, fmt.Errorf("scan product: %w", err)
+		}
+		if p.BranchID != nil {
+			p.Branch = &BranchInfo{ID: *p.BranchID, Name: branchName, Code: branchCode}
 		}
 		products = append(products, p)
 	}
@@ -289,6 +307,7 @@ type Bundle struct {
 	Name               string        `json:"name"`
 	Status             string        `json:"status"`
 	BranchID           *uuid.UUID    `json:"branch_id"`
+	Branch             *BranchInfo   `json:"branch"`
 	Items              []BundleItem  `json:"items"`
 	Prices             []BundlePrice `json:"prices"`
 	Img                *string       `json:"img"`
@@ -515,37 +534,43 @@ func (s *Service) ListBundles(ctx context.Context, filter ...BundleFilter) ([]Bu
 	}
 
 	countQuery := `SELECT COUNT(*) FROM bundles WHERE 1=1`
-	dataQuery := `SELECT bundle_id, code, name, status, branch_id, img, category_id, stock, stock_available, stock_blocked, blocks_product_stock FROM bundles WHERE 1=1`
+	dataQuery := `SELECT bu.bundle_id, bu.code, bu.name, bu.status, bu.branch_id,
+		COALESCE(b.store_name, '') AS branch_name,
+		COALESCE(b.code, '') AS branch_code,
+		bu.img, bu.category_id, bu.stock, bu.stock_available, bu.stock_blocked, bu.blocks_product_stock
+	FROM bundles bu
+	LEFT JOIN branches b ON b.id = bu.branch_id
+	WHERE 1=1`
 	var args []interface{}
 	argIdx := 1
 
 	if f.CategoryID != nil {
 		countQuery += fmt.Sprintf(` AND category_id = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND category_id = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND bu.category_id = $%d`, argIdx)
 		args = append(args, *f.CategoryID)
 		argIdx++
 	}
 	if f.Name != nil {
 		countQuery += fmt.Sprintf(` AND name ILIKE '%%' || $%d || '%%'`, argIdx)
-		dataQuery += fmt.Sprintf(` AND name ILIKE '%%' || $%d || '%%'`, argIdx)
+		dataQuery += fmt.Sprintf(` AND bu.name ILIKE '%%' || $%d || '%%'`, argIdx)
 		args = append(args, *f.Name)
 		argIdx++
 	}
 	if f.Code != nil {
 		countQuery += fmt.Sprintf(` AND code = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND code = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND bu.code = $%d`, argIdx)
 		args = append(args, *f.Code)
 		argIdx++
 	}
 	if f.Status != nil {
 		countQuery += fmt.Sprintf(` AND status = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND status = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND bu.status = $%d`, argIdx)
 		args = append(args, *f.Status)
 		argIdx++
 	}
 	if f.BranchID != nil {
 		countQuery += fmt.Sprintf(` AND branch_id = $%d`, argIdx)
-		dataQuery += fmt.Sprintf(` AND branch_id = $%d`, argIdx)
+		dataQuery += fmt.Sprintf(` AND bu.branch_id = $%d`, argIdx)
 		args = append(args, *f.BranchID)
 		argIdx++
 	}
@@ -555,7 +580,7 @@ func (s *Service) ListBundles(ctx context.Context, filter ...BundleFilter) ([]Bu
 		return nil, 0, fmt.Errorf("count bundles: %w", err)
 	}
 
-	dataQuery += ` ORDER BY name`
+	dataQuery += ` ORDER BY bu.name`
 
 	if len(filter) > 0 {
 		limit := f.GetLimit()
@@ -573,9 +598,14 @@ func (s *Service) ListBundles(ctx context.Context, filter ...BundleFilter) ([]Bu
 	bundles := make([]Bundle, 0)
 	for rows.Next() {
 		var b Bundle
+		var branchName, branchCode string
 		if err := rows.Scan(&b.BundleID, &b.Code, &b.Name, &b.Status, &b.BranchID,
+			&branchName, &branchCode,
 			&b.Img, &b.CategoryID, &b.Stock, &b.StockAvailable, &b.StockBlocked, &b.BlocksProductStock); err != nil {
 			return nil, 0, fmt.Errorf("scan bundle: %w", err)
+		}
+		if b.BranchID != nil {
+			b.Branch = &BranchInfo{ID: *b.BranchID, Name: branchName, Code: branchCode}
 		}
 		bundles = append(bundles, b)
 	}

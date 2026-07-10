@@ -74,7 +74,7 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 	if err == nil {
 		defer file.Close()
-		ext, err := validateImageFile(header)
+		ext, err := validateImageFile(file, header)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 			return
@@ -165,7 +165,7 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 	if err == nil {
 		defer file.Close()
-		ext, err := validateImageFile(header)
+		ext, err := validateImageFile(file, header)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 			return
@@ -246,7 +246,7 @@ func (h *ProductHandler) UpdateImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ext, err := validateImageFile(header)
+	ext, err := validateImageFile(file, header)
 	if err != nil {
 		response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 		return
@@ -310,7 +310,7 @@ func (h *BundleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 	if err == nil {
 		defer file.Close()
-		ext, err := validateImageFile(header)
+		ext, err := validateImageFile(file, header)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 			return
@@ -401,7 +401,7 @@ func (h *BundleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 	if err == nil {
 		defer file.Close()
-		ext, err := validateImageFile(header)
+		ext, err := validateImageFile(file, header)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 			return
@@ -578,7 +578,7 @@ func (h *BundleHandler) UpdateImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ext, err := validateImageFile(header)
+	ext, err := validateImageFile(file, header)
 	if err != nil {
 		response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 		return
@@ -1055,7 +1055,7 @@ func chiURLParam(r *http.Request, key string) string {
 	return chi.URLParam(r, key)
 }
 
-func validateImageFile(header *multipart.FileHeader) (string, error) {
+func validateImageFile(file multipart.File, header *multipart.FileHeader) (string, error) {
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	mimeType := header.Header.Get("Content-Type")
 
@@ -1070,7 +1070,42 @@ func validateImageFile(header *multipart.FileHeader) (string, error) {
 		ext = ".jpg"
 	}
 
+	buf := make([]byte, 12)
+	n, err := file.Read(buf)
+	if err != nil && n == 0 {
+		return "", fmt.Errorf("failed to read file for validation")
+	}
+	file.Seek(0, 0)
+
+	detected := detectImageType(buf[:n])
+	if detected == "" {
+		return "", fmt.Errorf("file content does not match a supported image format")
+	}
+	if detected != ext && !(detected == ".jpg" && ext == ".jpg") {
+		return "", fmt.Errorf("file content (%s) does not match declared extension (%s)", detected, ext)
+	}
+
 	return ext, nil
+}
+
+func detectImageType(header []byte) string {
+	if len(header) < 4 {
+		return ""
+	}
+	switch {
+	case header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF:
+		return ".jpg"
+	case header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47:
+		return ".png"
+	case header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46:
+		return ".gif"
+	case len(header) >= 12 && string(header[0:4]) == "RIFF" && string(header[8:12]) == "WEBP":
+		return ".webp"
+	case header[0] == 0x00 && header[1] == 0x00 && header[2] == 0x01 && header[3] == 0x00:
+		return ".ico"
+	default:
+		return ""
+	}
 }
 
 func saveUploadedFile(file multipart.File, ext, subDir string) (string, error) {
@@ -1118,7 +1153,11 @@ func saveUploadedFile(file multipart.File, ext, subDir string) (string, error) {
 
 func deleteOldFile(oldImg string) {
 	filename := strings.TrimPrefix(oldImg, "/static/img/")
-	os.Remove(filepath.Join(staticImgDir, filename))
+	fullPath := filepath.Join(staticImgDir, filepath.Clean(filename))
+	if !strings.HasPrefix(filepath.Clean(fullPath), filepath.Clean(staticImgDir)) {
+		return
+	}
+	os.Remove(fullPath)
 }
 
 func decodeImage(file multipart.File, ext string) (image.Image, error) {

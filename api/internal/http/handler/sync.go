@@ -96,7 +96,7 @@ func (h *SyncHandler) SyncProductImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ext, err := validateImageFile(header)
+	ext, err := validateImageFile(file, header)
 	if err != nil {
 		response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 		return
@@ -143,7 +143,7 @@ func (h *SyncHandler) SyncBundleImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ext, err := validateImageFile(header)
+	ext, err := validateImageFile(file, header)
 	if err != nil {
 		response.Fail(w, http.StatusBadRequest, map[string]string{"file": err.Error()})
 		return

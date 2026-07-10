@@ -2,7 +2,9 @@ package http
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -50,6 +52,7 @@ func NewServer(
 	dashboardSvc *dashboard.Service,
 	apiTokenSvc *apitoken.Service,
 	svcAccountSvc *serviceaccount.Service,
+	frontendFS fs.FS,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -57,11 +60,12 @@ func NewServer(
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.RealIP)
 	r.Use(middleware.CORS(cfg.CORSAllowedOrigins))
-	r.Use(middleware.NoCache())
+	r.Use(middleware.SecurityHeaders())
+	r.Use(middleware.APINoCache())
 
 	// Serve static files with cache + resize support
 	staticH := handler.NewStaticHandler("static")
-	r.HandleFunc("/static/*", staticH.ServeImage)
+	r.With(middleware.RateLimit(30, time.Minute)).HandleFunc("/static/*", staticH.ServeImage)
 
 	authH := handler.NewAuthHandler(authSvc)
 	oauth2H := handler.NewOAuth2Handler(oauth2Svc)
@@ -87,11 +91,14 @@ func NewServer(
 	apiTokenH := apitoken.NewHandler(apiTokenSvc)
 	svcAccountH := serviceaccount.NewHandler(svcAccountSvc)
 	saPricingH := handler.NewSAPricingHandler(pricingSvc, rbacStore, cfg.CatalogDomain)
+	saBranchH := handler.NewSABranchHandler(branchSvc, rbacStore)
 
 	// Public
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"service":"LCDPC.API","status":"ok"}`))
-	})
+	if frontendFS == nil {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(`{"service":"LCDPC.API","status":"ok"}`))
+		})
+	}
 	r.Get("/health", healthH.Ready)
 	r.Get("/api/health", healthH.Health)
 
@@ -657,7 +664,18 @@ func NewServer(
 
 		r.Get("/products", saPricingH.ListProducts)
 		r.Get("/bundles", saPricingH.ListBundles)
+		r.Get("/branches", saBranchH.List)
 	})
+
+	// SPA frontend (embedded)
+	if frontendFS != nil {
+		subFS, err := fs.Sub(frontendFS, "frontend")
+		if err != nil {
+			panic("failed to create sub filesystem for frontend: " + err.Error())
+		}
+		spaH := handler.NewSPAHandler(subFS)
+		r.NotFound(spaH.ServeHTTP)
+	}
 
 	return r
 }

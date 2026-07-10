@@ -20,8 +20,8 @@ var allowedLogoExtensions = map[string]bool{
 	".gif":  true,
 }
 
-func validateLogoFile(header *multipart.FileHeader) (string, error) {
-	ext, err := validateImageFile(header)
+func validateLogoFile(file multipart.File, header *multipart.FileHeader) (string, error) {
+	ext, err := validateImageFile(file, header)
 	if err != nil {
 		return "", err
 	}
@@ -31,8 +31,8 @@ func validateLogoFile(header *multipart.FileHeader) (string, error) {
 	return ext, nil
 }
 
-func validateIconFile(header *multipart.FileHeader) (string, error) {
-	ext, err := validateImageFile(header)
+func validateIconFile(file multipart.File, header *multipart.FileHeader) (string, error) {
+	ext, err := validateImageFile(file, header)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +82,7 @@ func (h *SystemConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	logoFile, logoHeader, _ := r.FormFile("logo")
 	if logoFile != nil {
 		defer logoFile.Close()
-		ext, err := validateLogoFile(logoHeader)
+		ext, err := validateLogoFile(logoFile, logoHeader)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"logo": err.Error()})
 			return
@@ -98,7 +98,7 @@ func (h *SystemConfigHandler) Create(w http.ResponseWriter, r *http.Request) {
 	iconFile, iconHeader, _ := r.FormFile("icon")
 	if iconFile != nil {
 		defer iconFile.Close()
-		ext, err := validateIconFile(iconHeader)
+		ext, err := validateIconFile(iconFile, iconHeader)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"icon": err.Error()})
 			return
@@ -165,7 +165,7 @@ func (h *SystemConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 	logoFile, logoHeader, _ := r.FormFile("logo")
 	if logoFile != nil {
 		defer logoFile.Close()
-		ext, err := validateLogoFile(logoHeader)
+		ext, err := validateLogoFile(logoFile, logoHeader)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"logo": err.Error()})
 			return
@@ -185,7 +185,7 @@ func (h *SystemConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 	iconFile, iconHeader, _ := r.FormFile("icon")
 	if iconFile != nil {
 		defer iconFile.Close()
-		ext, err := validateIconFile(iconHeader)
+		ext, err := validateIconFile(iconFile, iconHeader)
 		if err != nil {
 			response.Fail(w, http.StatusBadRequest, map[string]string{"icon": err.Error()})
 			return
