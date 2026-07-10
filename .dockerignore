@@ -1,0 +1,11 @@
+.git
+.agents
+.opencode
+.env
+.env.*
+docs
+web/node_modules
+web/.angular
+web/dist
+api/static
+api/server

@@ -33,4 +33,4 @@ api/static/*
 .opencode/*
 api/LCDPC/web/.angular/cache/*
 api/server
-    
+api/main/frontend/
