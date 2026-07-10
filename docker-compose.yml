@@ -7,8 +7,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-lcdpc}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
-    ports:
-      - "${DB_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,13 +26,13 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      PORT: "8080"
+      PORT: 8080
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       DB_NAME: ${DB_NAME:-lcdpc}
-      DB_SSL: disable
+      DB_SSL: ${DB_SSL:-disable}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
       OAUTH2_ISSUER: ${OAUTH2_ISSUER:-http://localhost:8080}
       OAUTH2_AUDIENCE: ${OAUTH2_AUDIENCE:-lcdpc-api}
@@ -51,6 +49,7 @@ services:
       RESEND_FROM_ADDRESS: ${RESEND_FROM_ADDRESS:-}
       EMAIL_DRIVER: ${EMAIL_DRIVER:-noop}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      CATALOG_DOMAIN: ${CATALOG_DOMAIN:-http://localhost:8080}
       AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
       AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET:-}
       AUTH_GOOGLE_REDIRECT_URI: ${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8080/api/v1/auth/register/google/callback}
@@ -61,9 +60,14 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@lcdpc.local}
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${PORT:-8080}:8080"
     volumes:
       - static_data:/app/static/img
+      # PASETO v2.local symmetric keys (64 hex chars each).
+      # Must exist before running `docker compose up`. Generate with:
+      #   openssl rand -hex 32 > api/paseto.key
+      #   openssl rand -hex 32 > api/paseto_sa.key
+      # Optional: encrypt with -encrypt-paseto-key flag and set PASETO_DECRYPTION_KEY.
       - ./api/paseto.key:/app/paseto.key:ro
       - ./api/paseto_sa.key:/app/paseto_sa.key:ro
     healthcheck:
