@@ -32,6 +32,7 @@ Batch upsert products by `(sku, branch_id)`.
   "code": "string (required, maps to products.sku)",
   "is_active": true,
   "brand_code": "string (required, resolves to brands.id, auto-creates if not found)",
+  "brand_name": "string | null (display name for auto-create, defaults to brand_code)",
   "category_code": "string | null (resolves to categories.category_id)",
   "category_name": "string | null (display name for auto-create)",
   "branch_code": "string | null (resolves to branches.id)",
@@ -52,7 +53,7 @@ Batch upsert products by `(sku, branch_id)`.
 
 **New products:** `stockAvailable = stock`, `stockBlocked = 0`
 
-**Code resolution:** All `_code` fields are resolved to their corresponding UUID primary keys. `brand_code`, `category_code`, `base_unit_code`, and `prices[].code` support auto-creation — if the code is not found, the system creates the record automatically. Other codes (`branch_code`) still fail if not found.
+**Code resolution:** All `_code` fields are resolved to their corresponding UUID primary keys. `brand_code`, `category_code`, `base_unit_code`, `prices[].code`, and `branch_code` support auto-creation — if the code is not found, the system creates the record automatically. Other codes (`branch_code`) are **pre-resolved before the item loop** and fail the entire request if any branch code is not found (fatal error).
 
 ### POST /api/v1/sync/bundles
 
@@ -116,9 +117,13 @@ Both `SyncProducts` and `SyncBundles` wrap the entire batch in a single DB trans
 
 Each item is wrapped in a **savepoint** (`SAVEPOINT sp_N` / `RELEASE SAVEPOINT sp_N` / `ROLLBACK TO SAVEPOINT sp_N`). This ensures that a failure in one item does not abort the entire transaction — the savepoint rolls back only the failed item's changes, allowing subsequent items to proceed normally.
 
+**Exception:** `branch_code` resolution is **fatal** — all unique branch codes are pre-resolved before the item loop. If any branch code is not found, the entire request fails with an error and the transaction is rolled back.
+
 ### Pre-resolution of codes (batch dedup)
 
 All codes that support auto-creation (`brand_code`, `prices[].code`) are **pre-resolved before the item loop**. This prevents duplicate auto-create conflicts when multiple items in the same batch reference the same non-existent code.
+
+`branch_code` is also **pre-resolved** but for a different reason: invalid branch codes are **fatal errors** that abort the entire batch. If any `branch_code` is not found in the database, the transaction is rolled back and the request returns an error immediately.
 
 **Pattern:**
 1. Collect all unique codes from the entire batch
@@ -160,6 +165,7 @@ All `_code` fields in the request are resolved to UUID primary keys before DB op
 | Request field | Resolves to | Lookup table | Lookup column |
 |---|---|---|---|
 | `brand_code` | `brands.id` | `brands` | `code` (auto-creates if missing) |
+| `brand_name` | — | — | display name for auto-create (defaults to `brand_code`) |
 | `category_code` | `categories.category_id` | `categories` | `code` |
 | `category_name` | `categories.category_id` | `categories` | `name` (fallback) |
 | `branch_code` | `branches.id` | `branches` | `code` |
@@ -175,7 +181,7 @@ When `brand_code`, `category_code`, `base_unit_code`, or `prices[].code` is prov
 1. Try by code (`WHERE code = $1`)
 2. If not found, **INSERT** a new record:
    - `code` = slugified value (lowercase, no accents, hyphens)
-   - `name` = the provided `_name` value for categories/units, or the raw code value for brands/price categories
+   - `name` = the provided `_name` value (`brand_name`, `category_name`, `base_unit_name`), or the raw code value for brands/price categories
 
 This ensures the sync never fails due to missing brands, categories, measurement units, or price categories.
 

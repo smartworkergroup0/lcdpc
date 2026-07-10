@@ -57,6 +57,15 @@ type CreateBranchRequest struct {
 	Schedules             []CreateScheduleRequest `json:"schedules" validate:"required,min=1"`
 }
 
+type UpdateBranchRequest struct {
+	StoreName             string                 `json:"store_name" validate:"required"`
+	TaxID                 string                 `json:"tax_id" validate:"required"`
+	Address               string                 `json:"address" validate:"required"`
+	ContactPhone          string                 `json:"contact_phone" validate:"required"`
+	SecondaryContactPhone string                 `json:"secondary_contact_phone"`
+	Schedules             []CreateScheduleRequest `json:"schedules" validate:"required,min=1"`
+}
+
 func (s *Service) Create(ctx context.Context, req CreateBranchRequest) (*Branch, error) {
 	var secPhone *string
 	if req.SecondaryContactPhone != "" {
@@ -80,6 +89,61 @@ func (s *Service) Create(ctx context.Context, req CreateBranchRequest) (*Branch,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert branch: %w", err)
+	}
+
+	branch.Schedules = make([]Schedule, 0, len(req.Schedules))
+	for _, sr := range req.Schedules {
+		sch := Schedule{}
+		err = tx.QueryRow(ctx, `
+			INSERT INTO branch_schedules (id, branch_id, day_of_week, start_time, end_time, created_at_utc, updated_at_utc)
+			VALUES ($1, $2, $3, $4, $5, now(), now())
+			RETURNING id, branch_id, day_of_week, start_time::text, end_time::text, created_at_utc, updated_at_utc
+		`, uuid.New(), branch.ID, sr.DayOfWeek, sr.StartTime, sr.EndTime).Scan(
+			&sch.ID, &sch.BranchID, &sch.DayOfWeek, &sch.StartTime, &sch.EndTime, &sch.CreatedAtUtc, &sch.UpdatedAtUtc,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("insert schedule: %w", err)
+		}
+		branch.Schedules = append(branch.Schedules, sch)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+	return branch, nil
+}
+
+func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateBranchRequest) (*Branch, error) {
+	var secPhone *string
+	if req.SecondaryContactPhone != "" {
+		secPhone = &req.SecondaryContactPhone
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	branch := &Branch{}
+	err = tx.QueryRow(ctx, `
+		UPDATE branches SET store_name = $2, tax_id = $3, address = $4, contact_phone = $5, secondary_contact_phone = $6, updated_at_utc = now()
+		WHERE id = $1
+		RETURNING id, code, store_name, tax_id, address, contact_phone, secondary_contact_phone, created_at_utc, updated_at_utc
+	`, id, req.StoreName, req.TaxID, req.Address, req.ContactPhone, secPhone).Scan(
+		&branch.ID, &branch.Code, &branch.StoreName, &branch.TaxID, &branch.Address, &branch.ContactPhone,
+		&branch.SecondaryContactPhone, &branch.CreatedAtUtc, &branch.UpdatedAtUtc,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("NOT_FOUND")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("update branch: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM branch_schedules WHERE branch_id = $1`, id)
+	if err != nil {
+		return nil, fmt.Errorf("delete schedules: %w", err)
 	}
 
 	branch.Schedules = make([]Schedule, 0, len(req.Schedules))

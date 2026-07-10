@@ -7,7 +7,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { DatePickerModule } from 'primeng/datepicker';
-import { CreateBranchRequest, CreateScheduleRequest } from '../../../../core/models/branch.model';
+import { Branch, BranchSchedule, CreateBranchRequest, CreateScheduleRequest, UpdateBranchRequest } from '../../../../core/models/branch.model';
 import { BranchApiService } from '../../../../core/services/branch-api.service';
 
 interface DaySchedule {
@@ -31,14 +31,16 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
     DialogModule, InputTextModule, FloatLabelModule, DatePickerModule,
   ],
   template: `
-    <p-dialog header="Nueva Sede"
+    <p-dialog [header]="isEditMode ? 'Editar Sede' : 'Nueva Sede'"
               [visible]="visible" (visibleChange)="visibleChange.emit($event)"
-              [modal]="true" [dismissableMask]="true" [style]="{width: 'min(700px, 95vw)'}"
+              [modal]="true" [dismissableMask]="true" [draggable]="false"
+              [style]="{width: 'min(700px, 95vw)'}"
               (onHide)="close()">
       <div class="form-fields" [style]="{paddingTop: '20px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="code" [(ngModel)]="form.code"
+                   [disabled]="isEditMode"
                    [class.ng-invalid]="submitted && !form.code" style="width: 100%" placeholder=" " />
             <label for="code">Código *</label>
           </p-floatlabel>
@@ -119,7 +121,8 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
       </div>
       <ng-template pTemplate="footer">
         <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
-        <p-button label="Crear Sede" icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+        <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Sede'"
+                  icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
       </ng-template>
     </p-dialog>
   `,
@@ -144,6 +147,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
 })
 export class BranchFormDialogComponent implements OnChanges {
   @Input() visible = false;
+  @Input() entity: Branch | null = null;
 
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() saved = new EventEmitter<void>();
@@ -158,11 +162,19 @@ export class BranchFormDialogComponent implements OnChanges {
 
   protected days: DaySchedule[] = this.emptyDays();
 
+  get isEditMode(): boolean {
+    return this.entity !== null;
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
-      this.form = this.emptyForm();
-      this.days = this.emptyDays();
       this.submitted = false;
+      if (this.entity) {
+        this.populateForm(this.entity);
+      } else {
+        this.form = this.emptyForm();
+        this.days = this.emptyDays();
+      }
     }
   }
 
@@ -182,7 +194,8 @@ export class BranchFormDialogComponent implements OnChanges {
 
   save(): void {
     this.submitted = true;
-    if (!this.form.code || !this.form.store_name || !this.form.tax_id || !this.form.address || !this.form.contact_phone) return;
+    if (!this.form.store_name || !this.form.tax_id || !this.form.address || !this.form.contact_phone) return;
+    if (!this.isEditMode && !this.form.code) return;
     if (!this.hasAnySchedule()) return;
 
     const schedules: CreateScheduleRequest[] = [];
@@ -201,26 +214,68 @@ export class BranchFormDialogComponent implements OnChanges {
     if (schedules.length === 0) return;
 
     this.saving.set(true);
-    const req: CreateBranchRequest = {
-      code: this.form.code,
-      store_name: this.form.store_name,
-      tax_id: this.form.tax_id,
-      address: this.form.address,
-      contact_phone: this.form.contact_phone,
-      schedules,
-    };
-    if (this.form.secondary_contact_phone) {
-      req.secondary_contact_phone = this.form.secondary_contact_phone;
-    }
 
-    this.branchApi.create(req).subscribe({
-      next: () => { this.saving.set(false); this.saved.emit(); },
-      error: () => this.saving.set(false),
-    });
+    if (this.isEditMode) {
+      const req: UpdateBranchRequest = {
+        store_name: this.form.store_name,
+        tax_id: this.form.tax_id,
+        address: this.form.address,
+        contact_phone: this.form.contact_phone,
+        schedules,
+      };
+      if (this.form.secondary_contact_phone) {
+        req.secondary_contact_phone = this.form.secondary_contact_phone;
+      }
+      this.branchApi.update(this.entity!.id, req).subscribe({
+        next: () => { this.saving.set(false); this.saved.emit(); },
+        error: () => this.saving.set(false),
+      });
+    } else {
+      const req: CreateBranchRequest = {
+        code: this.form.code,
+        store_name: this.form.store_name,
+        tax_id: this.form.tax_id,
+        address: this.form.address,
+        contact_phone: this.form.contact_phone,
+        schedules,
+      };
+      if (this.form.secondary_contact_phone) {
+        req.secondary_contact_phone = this.form.secondary_contact_phone;
+      }
+      this.branchApi.create(req).subscribe({
+        next: () => { this.saving.set(false); this.saved.emit(); },
+        error: () => this.saving.set(false),
+      });
+    }
   }
 
   close(): void {
     this.closed.emit();
+  }
+
+  private populateForm(branch: Branch): void {
+    this.form = {
+      code: branch.code,
+      store_name: branch.storeName,
+      tax_id: branch.taxId,
+      address: branch.address,
+      contact_phone: branch.contactPhone,
+      secondary_contact_phone: branch.secondaryContactPhone ?? '',
+    };
+    this.populateDaysFromSchedules(branch.schedules);
+  }
+
+  private populateDaysFromSchedules(schedules: BranchSchedule[]): void {
+    this.days = this.emptyDays();
+    for (const s of schedules) {
+      const day = this.days[s.dayOfWeek];
+      day.enabled = true;
+      const startParts = s.startTime.substring(0, 5).split(':');
+      const endParts = s.endTime.substring(0, 5).split(':');
+      const start = new Date(2000, 0, 1, parseInt(startParts[0], 10), parseInt(startParts[1], 10));
+      const end = new Date(2000, 0, 1, parseInt(endParts[0], 10), parseInt(endParts[1], 10));
+      day.ranges.push({ start, end });
+    }
   }
 
   private formatTime(d: Date): string {

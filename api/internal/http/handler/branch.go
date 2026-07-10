@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/lcdpc/lcdpc-go/internal/branch"
 	"github.com/lcdpc/lcdpc-go/internal/http/middleware"
@@ -33,6 +34,29 @@ func (h *BranchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Created(w, result)
+}
+
+func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	var req branch.UpdateBranchRequest
+	if err := response.Decode(r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"body": "invalid"})
+		return
+	}
+
+	result, err := h.svc.Update(r.Context(), id, req)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(w, result)
 }
 
 func (h *BranchHandler) List(w http.ResponseWriter, r *http.Request) {

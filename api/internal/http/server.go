@@ -350,6 +350,11 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "branch:create"))
 			r.Post("/", branchH.Create)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(rbacStore, "branch:update"))
+				r.Put("/{id}", branchH.Update)
+			})
 		})
 	})
 

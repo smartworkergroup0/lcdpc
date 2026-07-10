@@ -36,3 +36,12 @@ export interface CreateBranchRequest {
   secondary_contact_phone?: string;
   schedules: CreateScheduleRequest[];
 }
+
+export interface UpdateBranchRequest {
+  store_name: string;
+  tax_id: string;
+  address: string;
+  contact_phone: string;
+  secondary_contact_phone?: string;
+  schedules: CreateScheduleRequest[];
+}

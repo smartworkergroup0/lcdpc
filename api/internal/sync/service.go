@@ -39,6 +39,7 @@ type SyncProductRequest struct {
 	Code         string             `json:"code"`
 	IsActive     bool               `json:"is_active"`
 	BrandCode    string             `json:"brand_code"`
+	BrandName    *string            `json:"brand_name"`
 	CategoryCode *string            `json:"category_code"`
 	CategoryName *string            `json:"category_name"`
 	BranchCode   string             `json:"branch_code"`
@@ -230,7 +231,7 @@ func (s *Service) resolveCategoryID(ctx context.Context, tx pgx.Tx, code *string
 	return &id, nil
 }
 
-func (s *Service) resolveBrandID(ctx context.Context, tx pgx.Tx, code string) (uuid.UUID, error) {
+func (s *Service) resolveBrandID(ctx context.Context, tx pgx.Tx, code string, name *string) (uuid.UUID, error) {
 	newCode := slugify(code)
 	var id uuid.UUID
 	err := tx.QueryRow(ctx, `SELECT id FROM brands WHERE code = $1`, newCode).Scan(&id)
@@ -241,10 +242,15 @@ func (s *Service) resolveBrandID(ctx context.Context, tx pgx.Tx, code string) (u
 		return uuid.Nil, fmt.Errorf("resolve brand: %w", err)
 	}
 
+	displayName := code
+	if name != nil && *name != "" {
+		displayName = *name
+	}
+
 	err = tx.QueryRow(ctx, `
 		INSERT INTO brands (id, name, code) VALUES ($1, $2, $3)
 		RETURNING id
-	`, uuid.New(), code, newCode).Scan(&id)
+	`, uuid.New(), displayName, newCode).Scan(&id)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("auto-create brand: %w", err)
 	}
@@ -291,19 +297,45 @@ func (s *Service) resolvePriceCategoryID(ctx context.Context, tx pgx.Tx, code *s
 // Batch resolvers — pre-resolve all unique codes before the item loop
 // ---------------------------------------------------------------------------
 
-func (s *Service) resolveBrandIDs(ctx context.Context, tx pgx.Tx, codes []string) (map[string]uuid.UUID, error) {
+type BrandCodeName struct {
+	Code string
+	Name *string
+}
+
+func (s *Service) resolveBrandIDs(ctx context.Context, tx pgx.Tx, items []BrandCodeName) (map[string]uuid.UUID, error) {
+	seen := make(map[string]struct{})
+	unique := make([]BrandCodeName, 0, len(items))
+	for _, item := range items {
+		if _, dup := seen[slugify(item.Code)]; !dup {
+			seen[slugify(item.Code)] = struct{}{}
+			unique = append(unique, item)
+		}
+	}
+
+	result := make(map[string]uuid.UUID, len(unique))
+	for _, item := range unique {
+		id, err := s.resolveBrandID(ctx, tx, item.Code, item.Name)
+		if err != nil {
+			return nil, err
+		}
+		result[item.Code] = id
+	}
+	return result, nil
+}
+
+func (s *Service) resolveBranchIDs(ctx context.Context, tx pgx.Tx, codes []string) (map[string]uuid.UUID, error) {
 	seen := make(map[string]struct{})
 	unique := make([]string, 0, len(codes))
 	for _, c := range codes {
-		if _, dup := seen[slugify(c)]; !dup {
-			seen[slugify(c)] = struct{}{}
+		if _, dup := seen[c]; !dup {
+			seen[c] = struct{}{}
 			unique = append(unique, c)
 		}
 	}
 
 	result := make(map[string]uuid.UUID, len(unique))
 	for _, code := range unique {
-		id, err := s.resolveBrandID(ctx, tx, code)
+		id, err := s.resolveBranchID(ctx, tx, code)
 		if err != nil {
 			return nil, err
 		}
@@ -412,18 +444,24 @@ func (s *Service) SyncProducts(ctx context.Context, products []SyncProductReques
 
 	// Pre-resolve all unique codes before the item loop to avoid duplicate
 	// auto-create conflicts when multiple items reference the same code.
-	brandCodes := make([]string, 0, len(products))
+	brandItems := make([]BrandCodeName, 0, len(products))
+	branchCodes := make([]string, 0, len(products))
 	priceCodes := make([]*string, 0)
 	for _, p := range products {
-		brandCodes = append(brandCodes, p.BrandCode)
+		brandItems = append(brandItems, BrandCodeName{Code: p.BrandCode, Name: p.BrandName})
+		branchCodes = append(branchCodes, p.BranchCode)
 		for _, price := range p.Prices {
 			priceCodes = append(priceCodes, price.Code)
 		}
 	}
 
-	brandMap, err := s.resolveBrandIDs(ctx, tx, brandCodes)
+	brandMap, err := s.resolveBrandIDs(ctx, tx, brandItems)
 	if err != nil {
 		return nil, fmt.Errorf("pre-resolve brands: %w", err)
+	}
+	branchMap, err := s.resolveBranchIDs(ctx, tx, branchCodes)
+	if err != nil {
+		return nil, fmt.Errorf("pre-resolve branches: %w", err)
 	}
 	priceCatMap, err := s.resolvePriceCategoryIDs(ctx, tx, priceCodes)
 	if err != nil {
@@ -455,13 +493,7 @@ func (s *Service) SyncProducts(ctx context.Context, products []SyncProductReques
 			continue
 		}
 
-		branchID, err := s.resolveBranchID(ctx, tx, p.BranchCode)
-		if err != nil {
-			tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+sp)
-			result.Errors++
-			result.Details = append(result.Details, SyncError{Identifier: p.identifier(), Message: err.Error()})
-			continue
-		}
+		branchID := branchMap[p.BranchCode]
 
 		baseUnitID, err := s.resolveMeasurementUnitID(ctx, tx, p.BaseUnitCode, p.BaseUnitName)
 		if err != nil {
@@ -599,13 +631,19 @@ func (s *Service) SyncBundles(ctx context.Context, bundles []SyncBundleRequest) 
 
 	// Pre-resolve all unique codes before the item loop to avoid duplicate
 	// auto-create conflicts when multiple items reference the same code.
+	branchCodes := make([]string, 0, len(bundles))
 	priceCodes := make([]*string, 0)
 	for _, b := range bundles {
+		branchCodes = append(branchCodes, b.BranchCode)
 		for _, p := range b.Prices {
 			priceCodes = append(priceCodes, p.Code)
 		}
 	}
 
+	branchMap, err := s.resolveBranchIDs(ctx, tx, branchCodes)
+	if err != nil {
+		return nil, fmt.Errorf("pre-resolve branches: %w", err)
+	}
 	priceCatMap, err := s.resolvePriceCategoryIDs(ctx, tx, priceCodes)
 	if err != nil {
 		return nil, fmt.Errorf("pre-resolve price categories: %w", err)
@@ -630,13 +668,7 @@ func (s *Service) SyncBundles(ctx context.Context, bundles []SyncBundleRequest) 
 		}
 
 		// Resolve codes → UUIDs
-		branchID, err := s.resolveBranchID(ctx, tx, b.BranchCode)
-		if err != nil {
-			tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+sp)
-			result.Errors++
-			result.Details = append(result.Details, SyncError{Identifier: b.identifier(), Message: err.Error()})
-			continue
-		}
+		branchID := branchMap[b.BranchCode]
 
 		categoryID, err := s.resolveCategoryID(ctx, tx, b.CategoryCode, b.CategoryName)
 		if err != nil {

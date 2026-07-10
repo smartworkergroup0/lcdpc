@@ -13,6 +13,7 @@
       <th>Direccion</th>
       <th>Telefono</th>
       <th>Horario</th>
+      <th style="width: 60px"></th>
     </tr>
   </ng-template>
   <ng-template pTemplate="body" let-item>
@@ -23,17 +24,24 @@
       <td>{{ item.address }}</td>
       <td>{{ item.contactPhone }}</td>
       <td class="schedule-cell">{{ formatSchedules(item.schedules) }}</td>
+      <td>
+        @if (canUpdate()) {
+          <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" size="small"
+                    pTooltip="Editar" tooltipPosition="top" (onClick)="openEdit(item)" />
+        }
+      </td>
     </tr>
   </ng-template>
   <ng-template pTemplate="emptymessage">
     <tr>
-      <td colspan="6" class="empty-state">No hay sedes registradas</td>
+      <td colspan="7" class="empty-state">No hay sedes registradas</td>
     </tr>
   </ng-template>
 </p-table>
 
 <app-branch-form-dialog
   [visible]="dialogVisible()"
+  [entity]="editingItem()"
   (visibleChange)="dialogVisible.set($event)"
   (saved)="onDialogClose(true)"
   (closed)="onDialogClose(false)"
