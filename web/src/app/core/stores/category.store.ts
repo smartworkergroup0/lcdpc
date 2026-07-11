@@ -13,7 +13,6 @@ export class CategoryStore {
 
   private readonly _categories = signal<Category[]>([]);
   private readonly _loading = signal(false);
-  private loaded = false;
 
   readonly categories = this._categories.asReadonly();
   readonly loading = this._loading.asReadonly();
@@ -32,13 +31,12 @@ export class CategoryStore {
   ]);
 
   load(): void {
-    if (this.loaded) return;
+    if (this._categories().length > 0) return;
     this._loading.set(true);
     this.categoryApi.list().subscribe({
       next: (categories) => {
         this._categories.set(categories);
         this._loading.set(false);
-        this.loaded = true;
       },
       error: () => {
         this._loading.set(false);
@@ -52,7 +50,7 @@ export class CategoryStore {
   }
 
   refresh(): void {
-    this.loaded = false;
+    this._categories.set([]);
     this.load();
   }
 }

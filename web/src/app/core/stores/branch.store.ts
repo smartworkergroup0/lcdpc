@@ -12,14 +12,15 @@ export class BranchStore {
 
   private readonly _branches = signal<BranchOption[]>([]);
   private readonly _selectedBranchId = signal<string>('');
-  private loaded = false;
+  private readonly _loading = signal(false);
 
   readonly branches = this._branches.asReadonly();
   readonly selectedBranchId = this._selectedBranchId.asReadonly();
+  readonly loading = this._loading.asReadonly();
 
   load(): void {
-    if (this.loaded) return;
-    this.loaded = true;
+    if (this._branches().length > 0) return;
+    this._loading.set(true);
 
     this.branchApi.list().subscribe({
       next: (branchList) => {
@@ -28,6 +29,10 @@ export class BranchStore {
         if (mapped.length > 0 && !this._selectedBranchId()) {
           this._selectedBranchId.set(mapped[0].id);
         }
+        this._loading.set(false);
+      },
+      error: () => {
+        this._loading.set(false);
       },
     });
   }
@@ -39,7 +44,7 @@ export class BranchStore {
   }
 
   refresh(): void {
-    this.loaded = false;
+    this._branches.set([]);
     this.load();
   }
 }

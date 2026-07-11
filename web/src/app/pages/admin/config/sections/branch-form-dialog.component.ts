@@ -7,6 +7,8 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { DatePickerModule } from 'primeng/datepicker';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
 import { Branch, BranchSchedule, CreateBranchRequest, CreateScheduleRequest, UpdateBranchRequest } from '../../../../core/models/branch.model';
 import { BranchApiService } from '../../../../core/services/branch-api.service';
 
@@ -29,8 +31,11 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
   imports: [
     CommonModule, FormsModule, ButtonModule, CheckboxModule,
     DialogModule, InputTextModule, FloatLabelModule, DatePickerModule,
+    ToastModule,
   ],
+  providers: [MessageService],
   template: `
+    <p-toast />
     <p-dialog [header]="isEditMode ? 'Editar Sede' : 'Nueva Sede'"
               [visible]="visible" (visibleChange)="visibleChange.emit($event)"
               [modal]="true" [dismissableMask]="true" [draggable]="false"
@@ -44,6 +49,12 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
                    [class.ng-invalid]="submitted && !form.code" style="width: 100%" placeholder=" " />
             <label for="code">Código *</label>
           </p-floatlabel>
+          @if (submitted && !form.code) {
+            <small class="p-error">El código es requerido</small>
+          }
+          @if (serverErrors['code']) {
+            <small class="p-error">{{ serverErrors['code'] }}</small>
+          }
         </div>
         <div class="field">
           <p-floatlabel>
@@ -51,6 +62,12 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
                    [class.ng-invalid]="submitted && !form.store_name" style="width: 100%" placeholder=" " />
             <label for="storeName">Nombre de la sede *</label>
           </p-floatlabel>
+          @if (submitted && !form.store_name) {
+            <small class="p-error">El nombre es requerido</small>
+          }
+          @if (serverErrors['store_name']) {
+            <small class="p-error">{{ serverErrors['store_name'] }}</small>
+          }
         </div>
         <div class="field">
           <p-floatlabel>
@@ -58,6 +75,12 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
                    [class.ng-invalid]="submitted && !form.tax_id" style="width: 100%" placeholder=" " />
             <label for="taxId">RUC *</label>
           </p-floatlabel>
+          @if (submitted && !form.tax_id) {
+            <small class="p-error">El RUC es requerido</small>
+          }
+          @if (serverErrors['tax_id']) {
+            <small class="p-error">{{ serverErrors['tax_id'] }}</small>
+          }
         </div>
         <div class="field">
           <p-floatlabel>
@@ -65,6 +88,12 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
                    [class.ng-invalid]="submitted && !form.address" style="width: 100%" placeholder=" " />
             <label for="address">Direccion *</label>
           </p-floatlabel>
+          @if (submitted && !form.address) {
+            <small class="p-error">La dirección es requerida</small>
+          }
+          @if (serverErrors['address']) {
+            <small class="p-error">{{ serverErrors['address'] }}</small>
+          }
         </div>
         <div class="field">
           <p-floatlabel>
@@ -72,6 +101,12 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
                    [class.ng-invalid]="submitted && !form.contact_phone" style="width: 100%" placeholder=" " />
             <label for="contactPhone">Telefono de contacto *</label>
           </p-floatlabel>
+          @if (submitted && !form.contact_phone) {
+            <small class="p-error">El teléfono es requerido</small>
+          }
+          @if (serverErrors['contact_phone']) {
+            <small class="p-error">{{ serverErrors['contact_phone'] }}</small>
+          }
         </div>
         <div class="field">
           <p-floatlabel>
@@ -154,11 +189,13 @@ export class BranchFormDialogComponent implements OnChanges {
   @Output() closed = new EventEmitter<void>();
 
   private readonly branchApi = inject(BranchApiService);
+  private readonly messageService = inject(MessageService);
 
   protected readonly saving = signal(false);
   protected submitted = false;
   protected form = this.emptyForm();
   protected readonly dayLabels = DAY_LABELS;
+  protected serverErrors: Record<string, string> = {};
 
   protected days: DaySchedule[] = this.emptyDays();
 
@@ -169,6 +206,7 @@ export class BranchFormDialogComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
       this.submitted = false;
+      this.serverErrors = {};
       if (this.entity) {
         this.populateForm(this.entity);
       } else {
@@ -228,7 +266,10 @@ export class BranchFormDialogComponent implements OnChanges {
       }
       this.branchApi.update(this.entity!.id, req).subscribe({
         next: () => { this.saving.set(false); this.saved.emit(); },
-        error: () => this.saving.set(false),
+        error: (err) => {
+          this.saving.set(false);
+          this.handleServerError(err);
+        },
       });
     } else {
       const req: CreateBranchRequest = {
@@ -244,13 +285,27 @@ export class BranchFormDialogComponent implements OnChanges {
       }
       this.branchApi.create(req).subscribe({
         next: () => { this.saving.set(false); this.saved.emit(); },
-        error: () => this.saving.set(false),
+        error: (err) => {
+          this.saving.set(false);
+          this.handleServerError(err);
+        },
       });
     }
   }
 
   close(): void {
     this.closed.emit();
+  }
+
+  private handleServerError(err: any): void {
+    const errorData = err?.error?.data;
+    if (errorData && typeof errorData === 'object') {
+      this.serverErrors = errorData;
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Por favor corrija los errores marcados' });
+    } else {
+      const message = err?.error?.message || 'Error inesperado del servidor';
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: message });
+    }
   }
 
   private populateForm(branch: Branch): void {

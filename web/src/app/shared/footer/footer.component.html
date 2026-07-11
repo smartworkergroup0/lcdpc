@@ -21,9 +21,9 @@
 
     <div>
       <h4>Ubicaciones</h4>
-      <a href="#sucursales">Ocumare del Tuy</a>
-      <a href="#sucursales">Charallave</a>
-      <a href="#sucursales">Santa Teresa del Tuy</a>
+      @for (branch of branches(); track branch.id) {
+        <a href="#sucursales">{{ branch.storeName }}</a>
+      }
     </div>
 
     <div>
