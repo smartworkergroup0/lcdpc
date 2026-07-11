@@ -8,19 +8,28 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lcdpc/lcdpc-go/internal/workflow"
 )
 
 type SystemConfigReader interface {
 	GetNegativeStock(ctx context.Context) (bool, error)
 }
 
-type Service struct {
-	pool   *pgxpool.Pool
-	sysCfg SystemConfigReader
+type TransitionReader interface {
+	GetAllowedTransitions(ctx context.Context) (map[string][]string, error)
+	GetTerminalStatuses(ctx context.Context) (map[string]bool, error)
+	GetEditableStatuses(ctx context.Context) (map[string]bool, error)
 }
 
-func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader) *Service {
-	return &Service{pool: pool, sysCfg: sysCfg}
+type Service struct {
+	pool      *pgxpool.Pool
+	sysCfg    SystemConfigReader
+	transRepo TransitionReader
+	wfReader  workflow.WorkflowReader
+}
+
+func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader, transRepo TransitionReader, wfReader workflow.WorkflowReader) *Service {
+	return &Service{pool: pool, sysCfg: sysCfg, transRepo: transRepo, wfReader: wfReader}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByUserID *uuid.UUID) (*Order, error) {
@@ -308,7 +317,13 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderReque
 	}
 
 	if !IsEditable(o.Status) {
-		return nil, fmt.Errorf("ORDER_NOT_EDITABLE")
+		editable, err := s.transRepo.GetEditableStatuses(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get editable statuses: %w", err)
+		}
+		if !editable[o.Status] {
+			return nil, fmt.Errorf("ORDER_NOT_EDITABLE")
+		}
 	}
 
 	if req.Items != nil {
@@ -490,8 +505,43 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 		return nil, err
 	}
 
-	if !IsTransitionAllowed(o.Status, req.ToStatus) {
-		return nil, fmt.Errorf("INVALID_TRANSITION")
+	// Try workflow-based transition validation first
+	var activeEdge *workflow.WorkflowEdgeInfo
+	wf, wfErr := s.wfReader.GetActiveWorkflow(ctx, "order")
+	if wfErr == nil && wf != nil {
+		// Find matching edge in workflow
+		for _, edge := range wf.Edges {
+			if edge.SourceCode == o.Status && edge.TargetCode == req.ToStatus {
+				activeEdge = &edge
+				break
+			}
+		}
+		if activeEdge == nil {
+			return nil, fmt.Errorf("INVALID_TRANSITION")
+		}
+		// Evaluate conditions
+		if err := s.evaluateConditions(ctx, o, activeEdge.Conditions); err != nil {
+			return nil, err
+		}
+	} else {
+		// Fallback to order_transitions table
+		if !IsTransitionAllowed(o.Status, req.ToStatus) {
+			allowed, err := s.transRepo.GetAllowedTransitions(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("get allowed transitions: %w", err)
+			}
+			targets := allowed[o.Status]
+			found := false
+			for _, t := range targets {
+				if t == req.ToStatus {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("INVALID_TRANSITION")
+			}
+		}
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -529,7 +579,76 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
+	// Execute post-transition actions
+	if activeEdge != nil {
+		s.executeActions(ctx, o, activeEdge.Actions)
+	}
+
 	return s.GetByID(ctx, id)
+}
+
+func (s *Service) evaluateConditions(ctx context.Context, o *Order, conditions []workflow.WorkflowConditionInfo) error {
+	for _, cond := range conditions {
+		if err := s.evaluateCondition(ctx, o, cond); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) evaluateCondition(ctx context.Context, o *Order, cond workflow.WorkflowConditionInfo) error {
+	var actual string
+	switch cond.Field {
+	case "total":
+		actual = fmt.Sprintf("%.2f", o.PriceTotal)
+	case "item_count":
+		actual = fmt.Sprintf("%d", o.TotalItems)
+	case "branch_id":
+		actual = o.BranchID.String()
+	case "notes":
+		if o.Notes != nil {
+			actual = *o.Notes
+		}
+	default:
+		return nil
+	}
+
+	switch cond.Operator {
+	case "equals":
+		if actual != cond.Value {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "not_equals":
+		if actual == cond.Value {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "contains":
+		if !strings.Contains(actual, cond.Value) {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "is_empty":
+		if actual != "" {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "is_not_empty":
+		if actual == "" {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	}
+	return nil
+}
+
+func (s *Service) executeActions(ctx context.Context, o *Order, actions []workflow.WorkflowActionInfo) {
+	for _, action := range actions {
+		switch action.Type {
+		case "send_email":
+			// TODO: implement email sending
+		case "webhook":
+			// TODO: implement webhook call
+		case "update_field":
+			// TODO: implement field update
+		}
+	}
 }
 
 func (s *Service) GetHistory(ctx context.Context, orderID uuid.UUID) ([]StatusHistoryEntry, error) {

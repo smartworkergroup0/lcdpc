@@ -34,7 +34,17 @@
               }
             ],
             "styles": [
+              "node_modules/@xyflow/react/dist/style.css",
               "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "react",
+              "react-dom",
+              "react/jsx-runtime",
+              "use-sync-external-store",
+              "zustand",
+              "ngx-reactify",
+              "dagre"
             ]
           },
           "configurations": {
@@ -48,8 +58,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "1.5MB",
-                  "maximumError": "2MB"
+                  "maximumWarning": "3MB",
+                  "maximumError": "4MB"
                 },
                 {
                   "type": "anyComponentStyle",

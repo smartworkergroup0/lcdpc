@@ -36,6 +36,13 @@
         </a>
       }
 
+      @if (canViewWorkflows()) {
+        <a routerLink="/admin/workflows" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-sitemap"></span>
+          <span class="nav-label">Flujos</span>
+        </a>
+      }
+
       @if (canViewStaff()) {
         <a routerLink="/admin/staff" routerLinkActive="active" (click)="collapseAll()">
           <span class="pi pi-users"></span>

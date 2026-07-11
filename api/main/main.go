@@ -30,6 +30,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/sync"
 	"github.com/lcdpc/lcdpc-go/internal/systemconfig"
 	"github.com/lcdpc/lcdpc-go/internal/user"
+	"github.com/lcdpc/lcdpc-go/internal/workflow"
 )
 
 func main() {
@@ -152,14 +153,15 @@ func main() {
 	staffSvc := staff.NewService(pool, rbacStore)
 	syncSvc := sync.NewService(pool, systemConfigSvc)
 	rbacSvc := rbac.NewService(pool, rbacStore)
-	orderSvc := order.NewService(pool, systemConfigSvc)
+	workflowSvc := workflow.NewService(pool)
+	orderSvc := order.NewService(pool, systemConfigSvc, workflowSvc, workflowSvc)
 	personSvc := person.NewService(pool)
 	userSvc := user.NewService(pool)
 	dashboardSvc := dashboard.NewService(pool)
 	apiTokenSvc := apitoken.NewService(pool)
 	svcAccountSvc := serviceaccount.NewService(pool)
 
-	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc, frontendFS)
+	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc, workflowSvc, frontendFS)
 
 	addr := ":" + cfg.Port
 	srv := &http.Server{
