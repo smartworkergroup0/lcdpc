@@ -16,6 +16,15 @@
   (increment)="incrementQuantity($event)"
   (decrement)="decrementQuantity($event)"
   (addToCart)="addToCart($event)"
+  (productClick)="openDetail($event)"
 ></app-catalog>
 
 <app-branches [branches]="branches()"></app-branches>
+
+<app-product-detail-dialog
+  [visible]="detailDialogVisible()"
+  (visibleChange)="detailDialogVisible.set($event)"
+  [product]="selectedProduct()"
+  [negativeStock]="systemConfigStore.negativeStock()"
+  (addToCart)="onDetailAddToCart($event)"
+></app-product-detail-dialog>

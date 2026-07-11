@@ -1,0 +1,82 @@
+<p-dialog
+  [visible]="visible"
+  (visibleChange)="visibleChange.emit($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [closable]="true"
+  [style]="{ width: 'min(750px, 95vw)' }"
+  (onHide)="close()"
+>
+  <ng-template pTemplate="header">
+    <span class="dialog-title">Detalle del Producto</span>
+  </ng-template>
+
+  @if (product) {
+    <div class="detail-body">
+      <div class="detail-top">
+        <div class="detail-image-frame">
+          <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
+        </div>
+
+        <div class="detail-info">
+          <div class="detail-tags">
+            <p-tag
+              [value]="product.featured ? 'COMBO' : product.category"
+              [severity]="product.featured ? 'warn' : 'info'"
+            />
+            @if (product.badge) {
+              <p-tag [value]="product.badge" severity="success" />
+            }
+          </div>
+
+          <h2 class="detail-name">{{ product.name }}</h2>
+          <span class="detail-price">{{ product.price }}</span>
+
+          @if (negativeStock || product.stockAvailable > 0) {
+            <span class="detail-stock">{{ product.stockAvailable }} disponibles</span>
+          } @else {
+            <span class="detail-stock out-of-stock">Sin stock</span>
+          }
+        </div>
+      </div>
+
+      @if (product.featured && product.items && product.items.length > 0) {
+        <div class="detail-section">
+          <h3 class="detail-section-title">Contenido del combo</h3>
+          <ul class="detail-bullets">
+            @for (item of product.items; track $index) {
+              <li>{{ item.quantity }} {{ item.name }}</li>
+            }
+          </ul>
+        </div>
+      } @else if (product.description) {
+        <div class="detail-section">
+          <h3 class="detail-section-title">Descripcion</h3>
+          <p class="detail-description">{{ product.description }}</p>
+        </div>
+      }
+
+      <div class="detail-actions">
+        <div class="quantity-control">
+          <p-button icon="pi pi-minus" [text]="true" [disabled]="quantity <= 1" (onClick)="decrement()" />
+          <span class="quantity-value">{{ quantity }}</span>
+          <p-button
+            icon="pi pi-plus"
+            [text]="true"
+            [disabled]="!negativeStock && (product.stockAvailable === 0 || quantity >= product.stockAvailable)"
+            (onClick)="increment()"
+          />
+        </div>
+        <div class="detail-actions-right">
+          <p-button
+            label="Agregar al carrito"
+            icon="pi pi-shopping-cart"
+            [disabled]="!negativeStock && product.stockAvailable === 0"
+            (onClick)="add()"
+          />
+        </div>
+      </div>
+    </div>
+  }
+</p-dialog>

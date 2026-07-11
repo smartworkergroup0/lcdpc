@@ -60,6 +60,10 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
+.product-clickable {
+  cursor: pointer;
+}
+
 .product-card.featured {
   background: linear-gradient(180deg, #ffe37a, #f7d20a 92%);
   border: 0;
@@ -166,8 +170,10 @@
 .product-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.65rem;
   margin-top: auto;
+  padding: 0 1rem 1rem;
 }
 
 .stock-info {

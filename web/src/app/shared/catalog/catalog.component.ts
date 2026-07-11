@@ -42,6 +42,7 @@ export class CatalogComponent {
   @Output() increment = new EventEmitter<string>();
   @Output() decrement = new EventEmitter<string>();
   @Output() addToCart = new EventEmitter<string>();
+  @Output() productClick = new EventEmitter<string>();
 
   onImageError(event: Event): void {
     (event.target as HTMLImageElement).src = '/not-found.png';

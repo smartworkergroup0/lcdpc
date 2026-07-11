@@ -1,6 +1,6 @@
 <section id="catalogo" class="catalog-section">
   <div class="section-head">
-    <h2>Catálogo Mayorista</h2>
+    <h2>Catálogo</h2>
 
     <div class="category-filters" aria-label="Filtros de categoría">
       @for (category of categories; track category.id) {
@@ -19,39 +19,42 @@
     @for (product of products; track product.id) {
       <p-card styleClass="product-card" [class.featured]="product.featured">
         <ng-template pTemplate="content">
-          <div class="product-image-frame" [class.featured]="product.featured">
-            <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
+          <div class="product-clickable" (click)="productClick.emit(product.id)">
+            <div class="product-image-frame" [class.featured]="product.featured">
+              <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
 
-            <div class="product-tags">
-              <p-tag
-                styleClass="product-tag"
-                [value]="product.featured ? 'PROMO ESPECIAL' : product.category"
-                [severity]="product.featured ? 'warn' : 'info'"
-              ></p-tag>
-              @if (product.badge) {
-                <p-tag styleClass="product-badge" [value]="product.badge" severity="success"></p-tag>
+              <div class="product-tags">
+                <p-tag
+                  styleClass="product-tag"
+                  [value]="product.featured ? 'PROMO ESPECIAL' : product.category"
+                  [severity]="product.featured ? 'warn' : 'info'"
+                ></p-tag>
+                @if (product.badge) {
+                  <p-tag styleClass="product-badge" [value]="product.badge" severity="success"></p-tag>
+                }
+              </div>
+
+            </div>
+
+            <div class="product-copy">
+              <div class="product-title-row">
+                <h3>{{ product.name }}</h3>
+                <span class="product-price">{{ product.price }}</span>
+              </div>
+
+              @if (product.featured) {
+                <ul class="product-bullets">
+                  @for (item of product.items; track $index) {
+                    <li>{{ item.quantity }} {{ item.name }}</li>
+                  }
+                </ul>
+              } @else {
+                <p>{{ product.description }}</p>
               }
             </div>
-
           </div>
 
-          <div class="product-copy">
-            <div class="product-title-row">
-              <h3>{{ product.name }}</h3>
-              <span class="product-price">{{ product.price }}</span>
-            </div>
-
-            @if (product.featured) {
-              <ul class="product-bullets">
-                @for (item of product.items; track $index) {
-                  <li>{{ item.quantity }} {{ item.name }}</li>
-                }
-              </ul>
-            } @else {
-              <p>{{ product.description }}</p>
-            }
-
-            <div class="product-actions">
+          <div class="product-actions">
               <div class="quantity-control">
                 <p-button icon="pi pi-minus" [text]="true"
                           [disabled]="product.quantity <= 1"
@@ -74,7 +77,6 @@
                 (onClick)="addToCart.emit(product.id)"
               ></p-button>
             </div>
-          </div>
         </ng-template>
       </p-card>
     }

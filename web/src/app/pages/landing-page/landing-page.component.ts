@@ -15,6 +15,7 @@ import { SystemConfigStore } from '../../core/stores/system-config.store';
 import { BranchesComponent } from '../../shared/branches/branches.component';
 import { CatalogComponent } from '../../shared/catalog/catalog.component';
 import { HeroComponent } from '../../shared/hero/hero.component';
+import { ProductDetailDialogComponent } from '../../shared/product-detail-dialog/product-detail-dialog.component';
 
 const NOT_FOUND_IMAGE = '/not-found.png';
 
@@ -54,7 +55,7 @@ type BranchCard = {
 @Component({
   selector: 'app-landing-page',
   standalone: true,
-  imports: [CommonModule, HeroComponent, CatalogComponent, BranchesComponent],
+  imports: [CommonModule, HeroComponent, CatalogComponent, BranchesComponent, ProductDetailDialogComponent],
   templateUrl: './landing-page.component.html'
 })
 export class LandingPageComponent implements OnInit {
@@ -74,6 +75,8 @@ export class LandingPageComponent implements OnInit {
   protected readonly selectedCategoryId = signal('all');
   protected readonly products = signal<ProductCard[]>([]);
   protected readonly branches = signal<BranchCard[]>([]);
+  protected readonly selectedProduct = signal<ProductCard | null>(null);
+  protected readonly detailDialogVisible = signal(false);
 
   protected readonly heroSlides: HeroSlide[] = [
     {
@@ -282,6 +285,36 @@ export class LandingPageComponent implements OnInit {
 
     this.products.update((items) =>
       items.map((p) => (p.id === productId ? { ...p, quantity: 1 } : p))
+    );
+  }
+
+  protected openDetail(productId: string): void {
+    const product = this.products().find((p) => p.id === productId);
+    if (!product) return;
+    this.selectedProduct.set(product);
+    this.detailDialogVisible.set(true);
+  }
+
+  protected onDetailAddToCart(event: { id: string; quantity: number }): void {
+    const product = this.products().find((p) => p.id === event.id);
+    if (!product) return;
+
+    this.cartStore.addItem(
+      {
+        id: product.id,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        price: product.priceNumeric,
+        branchId: product.branchId,
+        stockAvailable: product.stockAvailable,
+        itemType: product.itemType,
+        items: product.items,
+      },
+      event.quantity
+    );
+
+    this.products.update((items) =>
+      items.map((p) => (p.id === event.id ? { ...p, quantity: 1 } : p))
     );
   }
 
