@@ -9,3 +9,4 @@ web/.angular
 web/dist
 api/static
 api/server
+api/main/frontend
