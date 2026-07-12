@@ -1,6 +1,30 @@
 <p-toast />
 <p-confirmDialog />
 
+<!-- Status node template for x6 -->
+<ng-template #statusNodeTemplate let-data="ngArguments">
+  <div
+    class="status-node"
+    [style.border-color]="data?.color"
+    [class.is-initial]="data?.isInitial"
+    [class.is-final]="data?.isFinal"
+  >
+    <div class="status-node-header">
+      <span class="status-dot" [style.background]="data?.color"></span>
+      <span class="status-label">{{ data?.label }}</span>
+    </div>
+    <div class="status-node-code">{{ data?.code }}</div>
+    <div class="status-node-badges">
+      @if (data?.isInitial) {
+        <span class="badge badge-initial">Inicio</span>
+      }
+      @if (data?.isFinal) {
+        <span class="badge badge-final">Final</span>
+      }
+    </div>
+  </div>
+</ng-template>
+
 <div class="workflow-editor">
   <p-toolbar styleClass="admin-toolbar">
     <div class="p-toolbar-start">
@@ -113,58 +137,8 @@
 
   <div class="editor-container">
     <div class="canvas-area">
-      <ngx-xyflow
-        [nodes]="nodes()"
-        [edges]="edges()"
-        [snapToGrid]="true"
-        [snapGrid]="[16, 16]"
-        [fitView]="true"
-        [nodesDraggable]="true"
-        [nodesConnectable]="true"
-        [elementsSelectable]="true"
-        [deleteKeyCode]="'Delete'"
-        [defaultEdgeOptions]="defaultEdgeOptions"
-        (onNodesChange)="onNodesChange($event)"
-        (onEdgesChange)="onEdgesChange($event)"
-        (onConnect)="onConnect($event)"
-        (onNodeClick)="onNodeClick($event)"
-        (onEdgeClick)="onEdgeClick($event)"
-        (onPaneClick)="onPaneClick()"
-      >
-        <ngx-xyflow-background color="#e2e8f0" [gap]="16" [size]="1" />
-        <ngx-xyflow-controls />
-        <ngx-xyflow-minimap />
-
-        <ngx-xyflow-node nodeType="status">
-          <ng-template let-data let-id="id">
-            <div
-              class="status-node"
-              [style.border-color]="data.color"
-              [class.is-initial]="data.isInitial"
-              [class.is-final]="data.isFinal"
-            >
-              <div class="status-node-header">
-                <span
-                  class="status-dot"
-                  [style.background]="data.color"
-                ></span>
-                <span class="status-label">{{ data.label }}</span>
-              </div>
-              <div class="status-node-code">{{ data.code }}</div>
-              <div class="status-node-badges">
-                @if (data.isInitial) {
-                  <span class="badge badge-initial">Inicio</span>
-                }
-                @if (data.isFinal) {
-                  <span class="badge badge-final">Final</span>
-                }
-              </div>
-              <ngx-xyflow-handle type="target" position="left" [isConnectable]="true" />
-              <ngx-xyflow-handle type="source" position="right" [isConnectable]="true" />
-            </div>
-          </ng-template>
-        </ngx-xyflow-node>
-      </ngx-xyflow>
+      <div #graphContainer class="graph-container"></div>
+      <div #minimapContainer class="minimap-container"></div>
     </div>
 
     <p-drawer

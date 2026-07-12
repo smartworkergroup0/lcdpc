@@ -1,8 +1,24 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  Injector,
+  OnInit,
+  signal,
+  ViewChild,
+  TemplateRef,
+  AfterViewInit,
+  ElementRef,
+  OnDestroy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { XYFlowModule } from 'ngx-xyflow';
-import { Connection, NodeChange, EdgeChange } from '@xyflow/react';
+import { Graph, Shape, Node, Edge } from '@antv/x6';
+import { register } from '@antv/x6-angular-shape';
+import { MiniMap } from '@antv/x6-plugin-minimap';
+import { History } from '@antv/x6-plugin-history';
+import { Selection } from '@antv/x6-plugin-selection';
+import { Snapline } from '@antv/x6-plugin-snapline';
 import * as dagre from 'dagre';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
@@ -61,7 +77,6 @@ interface HistoryState {
   imports: [
     CommonModule,
     FormsModule,
-    XYFlowModule,
     ButtonModule,
     TagModule,
     ToolbarModule,
@@ -80,12 +95,19 @@ interface HistoryState {
   templateUrl: './workflow-editor-page.component.html',
   styleUrl: './workflow-editor-page.component.scss',
 })
-export class WorkflowEditorPageComponent implements OnInit {
+export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('statusNodeTemplate', { static: true }) statusNodeTemplate!: TemplateRef<any>;
+  @ViewChild('graphContainer', { static: true }) graphContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('minimapContainer', { static: true }) minimapContainer!: ElementRef<HTMLDivElement>;
+
   private readonly authStore = inject(AuthStore);
   private readonly workflowApi = inject(WorkflowApiService);
   private readonly rbacApi = inject(RbacApiService);
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
+  private readonly injector = inject(Injector);
+
+  private graph!: Graph;
 
   protected readonly nodes = signal<WorkflowNode[]>([]);
   protected readonly edges = signal<WorkflowEdge[]>([]);
@@ -119,8 +141,8 @@ export class WorkflowEditorPageComponent implements OnInit {
   private historyIndex = -1;
   private maxHistory = 50;
 
-  protected readonly canUndo = computed(() => this.historyIndex > 0);
-  protected readonly canRedo = computed(() => this.historyIndex < this.history.length - 1);
+  protected readonly canUndo = signal(false);
+  protected readonly canRedo = signal(false);
 
   protected readonly availableStatuses = computed<StatusOption[]>(() => {
     const usedCodes = new Set(this.nodes().map((n) => n.data.code));
@@ -132,15 +154,6 @@ export class WorkflowEditorPageComponent implements OnInit {
         color: s.color || '#6366f1',
       }));
   });
-
-  protected readonly defaultEdgeOptions = {
-    type: 'smoothstep',
-    animated: false,
-    style: { strokeWidth: 2, stroke: '#94a3b8' },
-    labelStyle: { fill: '#2f2f2f', fontWeight: 600, fontSize: 12 },
-    labelBgStyle: { fill: '#fffdf3', fillOpacity: 0.9, rx: 4 },
-    labelBgPadding: [6, 4] as [number, number],
-  };
 
   protected readonly triggerTypeOptions = [
     { label: 'Manual', value: 'manual' },
@@ -169,6 +182,132 @@ export class WorkflowEditorPageComponent implements OnInit {
     this.loadRoles();
   }
 
+  ngAfterViewInit(): void {
+    this.initGraph();
+  }
+
+  ngOnDestroy(): void {
+    this.graph?.dispose();
+  }
+
+  private initGraph(): void {
+    // Register Angular component node
+    register({
+      shape: 'status-node',
+      width: 120,
+      height: 44,
+      content: this.statusNodeTemplate,
+      injector: this.injector,
+    });
+
+    this.graph = new Graph({
+      container: this.graphContainer.nativeElement,
+      autoResize: true,
+      background: { color: '#f8f9fa' },
+      grid: { visible: true, size: 16, type: 'dot', args: { color: '#e2e8f0', thickness: 1 } },
+      panning: { enabled: true, modifiers: [] },
+      mousewheel: { enabled: true, modifiers: [], factor: 1.05, maxScale: 3, minScale: 0.3 },
+      connecting: {
+        snap: true,
+        allowBlank: false,
+        allowMulti: true,
+        allowLoop: false,
+        highlight: true,
+        anchor: 'center',
+        connectionPoint: 'anchor',
+        router: 'manhattan',
+        connector: 'rounded',
+      },
+    });
+
+    // Plugins
+    this.graph.use(new MiniMap({ container: this.minimapContainer.nativeElement, width: 200, height: 160 }));
+    this.graph.use(new History({ enabled: true }));
+    this.graph.use(new Selection({ enabled: true, multiple: false, showNodeSelectionBox: true }));
+    this.graph.use(new Snapline({ enabled: true }));
+
+    // Events
+    this.graph.on('node:click', ({ node }) => {
+      this.onNodeClick(node.id);
+    });
+
+    this.graph.on('edge:click', ({ edge }) => {
+      this.onEdgeClick(edge.id);
+    });
+
+    this.graph.on('blank:click', () => {
+      this.onPaneClick();
+    });
+
+    this.graph.on('node:added', ({ node }) => {
+      this.syncNodesFromGraph();
+    });
+
+    this.graph.on('node:removed', () => {
+      this.syncNodesFromGraph();
+    });
+
+    this.graph.on('edge:added', ({ edge }) => {
+      this.syncEdgesFromGraph();
+    });
+
+    this.graph.on('edge:removed', () => {
+      this.syncEdgesFromGraph();
+    });
+
+    this.graph.on('node:moved', () => {
+      this.syncNodesFromGraph();
+    });
+
+    // History change events
+    this.graph.on('history:change', () => {
+      this.canUndo.set(this.graph.canUndo());
+      this.canRedo.set(this.graph.canRedo());
+    });
+  }
+
+  private syncNodesFromGraph(): void {
+    const x6Nodes = this.graph.getNodes();
+    const updated: WorkflowNode[] = x6Nodes.map((n) => {
+      const pos = n.getPosition();
+      const data = n.getData()?.ngArguments ?? n.getData() ?? {};
+      return {
+        id: n.id,
+        type: 'status',
+        position: { x: pos.x, y: pos.y },
+        data: {
+          label: data.label ?? '',
+          code: data.code ?? '',
+          isInitial: data.isInitial ?? false,
+          isFinal: data.isFinal ?? false,
+          color: data.color ?? '#6366f1',
+          description: data.description ?? '',
+        },
+      };
+    });
+    this.nodes.set(updated);
+  }
+
+  private syncEdgesFromGraph(): void {
+    const x6Edges = this.graph.getEdges();
+    const updated: WorkflowEdge[] = x6Edges.map((e) => {
+      const data = e.getData() ?? {};
+      return {
+        id: e.id,
+        source: e.getSourceCellId(),
+        target: e.getTargetCellId(),
+        label: data.label ?? '',
+        data: {
+          label: data.label ?? '',
+          code: data.code ?? '',
+          rules: data.rules ?? { triggerType: 'manual', requiredRoles: [], conditions: [] },
+          actions: data.actions ?? [],
+        },
+      };
+    });
+    this.edges.set(updated);
+  }
+
   private loadRoles(): void {
     this.rbacApi.listRoles().subscribe({
       next: (roles) => {
@@ -185,7 +324,6 @@ export class WorkflowEditorPageComponent implements OnInit {
     this.workflowApi.getOrderStatuses().subscribe({
       next: (statuses) => {
         this.orderStatuses.set(statuses);
-        this.initNodesFromStatuses(statuses);
       },
       error: () => {
         this.messageService.add({
@@ -199,7 +337,7 @@ export class WorkflowEditorPageComponent implements OnInit {
     this.workflowApi.getOrderTransitions().subscribe({
       next: (transitions) => {
         this.orderTransitions.set(transitions);
-        this.initEdgesFromTransitions(transitions);
+        this.initDefaultCanvas();
         this.loading.set(false);
       },
       error: () => {
@@ -208,52 +346,135 @@ export class WorkflowEditorPageComponent implements OnInit {
     });
   }
 
-  private initNodesFromStatuses(statuses: OrderStatus[]): void {
-    const cols = 4;
-    const spacingX = 280;
-    const spacingY = 160;
-    const startX = 80;
-    const startY = 80;
+  private initDefaultCanvas(): void {
+    const statuses = this.orderStatuses();
+    const transitions = this.orderTransitions();
 
-    const wfNodes: WorkflowNode[] = statuses.map((s, i) => ({
-      id: `node_${s.code}`,
-      type: 'status',
-      position: {
+    // Clear graph
+    this.graph.clearCells();
+
+    // Add nodes
+    const cols = 6;
+    const spacingX = 180;
+    const spacingY = 80;
+    const startX = 40;
+    const startY = 40;
+
+    for (let i = 0; i < statuses.length; i++) {
+      const s = statuses[i];
+      this.graph.addNode({
+        id: `node_${s.code}`,
+        shape: 'status-node',
         x: startX + (i % cols) * spacingX,
         y: startY + Math.floor(i / cols) * spacingY,
-      },
-      data: {
-        label: s.label,
-        code: s.code,
-        isInitial: s.isInitial,
-        isFinal: s.isFinal,
-        color: s.color || '#6366f1',
-        description: s.description,
-      },
-    }));
+        width: 120,
+        height: 44,
+        data: {
+          ngArguments: {
+            label: s.label,
+            code: s.code,
+            isInitial: s.isInitial,
+            isFinal: s.isFinal,
+            color: s.color || '#6366f1',
+            description: s.description,
+          },
+        },
+      });
+    }
 
-    this.nodes.set(wfNodes);
+    // Add edges
+    for (const t of transitions) {
+      this.graph.addEdge({
+        id: `edge_${t.code}`,
+        source: `node_${t.sourceStatusCode}`,
+        target: `node_${t.targetStatusCode}`,
+        label: t.label,
+        attrs: {
+          line: {
+            stroke: '#94a3b8',
+            strokeWidth: 2,
+            targetMarker: { name: 'block', width: 12, height: 8 },
+          },
+        },
+        labels: [
+          {
+            position: 0.5,
+            attrs: {
+              label: {
+                text: t.label,
+                fill: '#2f2f2f',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'Poppins, sans-serif',
+              },
+              rect: {
+                fill: '#fffdf3',
+                rx: 4,
+                ry: 4,
+                ref: 'label',
+                refX: -6,
+                refY: -4,
+                refWidth: '100%',
+                refHeight: '100%',
+                refWidth2: 12,
+                refHeight2: 8,
+              },
+            },
+          },
+        ],
+        data: {
+          label: t.label,
+          code: t.code,
+          rules: {
+            triggerType: t.triggerType as 'manual' | 'automatic' | 'webhook',
+            requiredRoles: t.requiredRoles,
+            conditions: t.conditions,
+          },
+          actions: t.actions,
+        },
+        router: 'manhattan',
+        connector: 'rounded',
+      });
+    }
+
+    this.graph.zoomToFit({ padding: 40, maxScale: 1.2 });
+    this.syncNodesFromGraph();
+    this.syncEdgesFromGraph();
   }
 
-  private initEdgesFromTransitions(transitions: OrderTransition[]): void {
-    const wfEdges: WorkflowEdge[] = transitions.map((t) => ({
-      id: `edge_${t.code}`,
-      source: `node_${t.sourceStatusCode}`,
-      target: `node_${t.targetStatusCode}`,
-      label: t.label,
-      data: {
-        label: t.label,
-        code: t.code,
-        rules: {
-          triggerType: t.triggerType as 'manual' | 'automatic' | 'webhook',
-          requiredRoles: t.requiredRoles,
-          conditions: t.conditions,
-        },
-        actions: t.actions,
-      },
-    }));
+  // ── Graph events ───────────────────────────────────────
 
-    this.edges.set(wfEdges);
+  private onNodeClick(nodeId: string): void {
+    const node = this.nodes().find((n) => n.id === nodeId) ?? null;
+    this.selectedNode.set(node);
+    this.selectedEdge.set(null);
+    this.showNodePanel.set(true);
+    this.showEdgePanel.set(false);
+  }
+
+  private onEdgeClick(edgeId: string): void {
+    const edge = this.edges().find((e) => e.id === edgeId) ?? null;
+    this.selectedEdge.set(edge);
+    this.selectedNode.set(null);
+    this.showEdgePanel.set(true);
+    this.showNodePanel.set(false);
+  }
+
+  private onPaneClick(): void {
+    this.selectedNode.set(null);
+    this.selectedEdge.set(null);
+    this.showNodePanel.set(false);
+    this.showEdgePanel.set(false);
+  }
+
+  protected closeNodePanel(): void {
+    this.showNodePanel.set(false);
+    this.selectedNode.set(null);
+  }
+
+  protected closeEdgePanel(): void {
+    this.showEdgePanel.set(false);
+    this.selectedEdge.set(null);
   }
 
   // ── Serialization ──────────────────────────────────────
@@ -335,7 +556,7 @@ export class WorkflowEditorPageComponent implements OnInit {
     this.workflowDescription.set('');
     this.closeNodePanel();
     this.closeEdgePanel();
-    this.loadOrderData();
+    this.initDefaultCanvas();
   }
 
   protected openLoadDialog(): void {
@@ -362,11 +583,74 @@ export class WorkflowEditorPageComponent implements OnInit {
     this.workflowId.set(workflow.id);
     this.workflowName.set(workflow.name);
     this.workflowDescription.set(workflow.description);
-    this.nodes.set(workflow.nodes);
-    this.edges.set(workflow.edges);
+
+    // Load nodes and edges into graph
+    this.graph.clearCells();
+
+    for (const node of workflow.nodes) {
+      this.graph.addNode({
+        id: node.id,
+        shape: 'status-node',
+        x: node.position.x,
+        y: node.position.y,
+        width: 120,
+        height: 44,
+        data: {
+          ngArguments: { ...node.data },
+        },
+      });
+    }
+
+    for (const edge of workflow.edges) {
+      this.graph.addEdge({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.label,
+        attrs: {
+          line: {
+            stroke: '#94a3b8',
+            strokeWidth: 2,
+            targetMarker: { name: 'block', width: 12, height: 8 },
+          },
+        },
+        labels: [
+          {
+            position: 0.5,
+            attrs: {
+              label: {
+                text: edge.label ?? edge.data.label,
+                fill: '#2f2f2f',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'Poppins, sans-serif',
+              },
+              rect: {
+                fill: '#fffdf3',
+                rx: 4,
+                ry: 4,
+                ref: 'label',
+                refX: -6,
+                refY: -4,
+                refWidth: '100%',
+                refHeight: '100%',
+                refWidth2: 12,
+                refHeight2: 8,
+              },
+            },
+          },
+        ],
+        data: { ...edge.data },
+        router: 'manhattan',
+        connector: 'rounded',
+      });
+    }
+
     this.showLoadDialog.set(false);
     this.closeNodePanel();
     this.closeEdgePanel();
+    this.syncNodesFromGraph();
+    this.syncEdgesFromGraph();
 
     this.messageService.add({
       severity: 'success',
@@ -461,114 +745,257 @@ export class WorkflowEditorPageComponent implements OnInit {
     });
   }
 
-  // ── xyflow events ──────────────────────────────────────
+  // ── Auto-layout with dagre ─────────────────────────────
 
-  protected onNodesChange(changes: NodeChange[]): void {
-    this.nodes.update((current) => {
-      let updated = [...current];
-      for (const change of changes) {
-        if (change.type === 'position' && change.position) {
-          updated = updated.map((n) =>
-            n.id === change.id
-              ? { ...n, position: change.position! }
-              : n
-          );
-        }
-        if (change.type === 'remove') {
-          updated = updated.filter((n) => n.id !== change.id);
-        }
+  protected autoLayout(): void {
+    const currentNodes = this.nodes();
+    const currentEdges = this.edges();
+
+    if (currentNodes.length === 0) return;
+
+    const g = new dagre.graphlib.Graph();
+    g.setDefaultEdgeLabel(() => ({}));
+    g.setGraph({ rankdir: 'LR', nodesep: 50, ranksep: 80 });
+
+    for (const node of currentNodes) {
+      g.setNode(node.id, { width: 120, height: 44 });
+    }
+
+    for (const edge of currentEdges) {
+      g.setEdge(edge.source, edge.target);
+    }
+
+    dagre.layout(g);
+
+    for (const node of currentNodes) {
+      const pos = g.node(node.id);
+      const x6Node = this.graph.getCellById(node.id);
+      if (x6Node && x6Node.isNode()) {
+        (x6Node as Node).position(pos.x - 60, pos.y - 22);
       }
-      return updated;
+    }
+
+    this.graph.zoomToFit({ padding: 40, maxScale: 1.2 });
+    this.syncNodesFromGraph();
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Auto-layout',
+      detail: 'Nodos organizados automáticamente',
     });
   }
 
-  protected onEdgesChange(changes: EdgeChange[]): void {
-    this.edges.update((current) => {
-      let updated = [...current];
-      for (const change of changes) {
-        if (change.type === 'remove') {
-          updated = updated.filter((e) => e.id !== change.id);
-        }
-      }
-      return updated;
+  // ── Undo / Redo ────────────────────────────────────────
+
+  protected undo(): void {
+    this.graph.undo();
+  }
+
+  protected redo(): void {
+    this.graph.redo();
+  }
+
+  // ── Export / Import JSON ───────────────────────────────
+
+  protected exportJson(): void {
+    const { definition } = this.serialize();
+    const json = JSON.stringify({
+      name: this.workflowName(),
+      description: this.workflowDescription(),
+      entity_type: 'order',
+      definition,
+    }, null, 2);
+
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workflow-${this.workflowName().replace(/\s+/g, '-').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Exportado',
+      detail: 'Flujo exportado como JSON',
     });
   }
 
-  protected onConnect(connection: Connection): void {
-    const newEdge: WorkflowEdge = {
-      id: `edge_${connection.source}_to_${connection.target}`,
-      source: connection.source as string,
-      target: connection.target as string,
-      label: 'Nueva transición',
-      data: {
-        label: 'Nueva transición',
-        code: `${connection.source}_to_${connection.target}`,
-        rules: {
-          triggerType: 'manual',
-          requiredRoles: [],
-          conditions: [],
-        },
-        actions: [],
-      },
+  protected importJson(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (event: Event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target?.result as string);
+
+          if (data.definition?.nodes && data.definition?.edges) {
+            this.workflowId.set(null);
+            if (data.name) this.workflowName.set(data.name);
+            if (data.description) this.workflowDescription.set(data.description);
+
+            // Load into graph
+            this.graph.clearCells();
+
+            for (const node of data.definition.nodes) {
+              this.graph.addNode({
+                id: node.id,
+                shape: 'status-node',
+                x: node.position.x,
+                y: node.position.y,
+      width: 120,
+      height: 44,
+                data: { ngArguments: { ...node.data } },
+              });
+            }
+
+            for (const edge of data.definition.edges) {
+              this.graph.addEdge({
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                label: edge.label ?? edge.data?.label,
+                attrs: {
+                  line: {
+                    stroke: '#94a3b8',
+                    strokeWidth: 2,
+                    targetMarker: { name: 'block', width: 12, height: 8 },
+                  },
+                },
+                labels: [
+                  {
+                    position: 0.5,
+                    attrs: {
+                      label: {
+                        text: edge.label ?? edge.data?.label ?? '',
+                        fill: '#2f2f2f',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fontFamily: 'Poppins, sans-serif',
+                      },
+                      rect: {
+                        fill: '#fffdf3',
+                        rx: 4,
+                        ry: 4,
+                        ref: 'label',
+                        refX: -6,
+                        refY: -4,
+                        refWidth: '100%',
+                        refHeight: '100%',
+                        refWidth2: 12,
+                        refHeight2: 8,
+                      },
+                    },
+                  },
+                ],
+                data: { ...edge.data },
+                router: 'manhattan',
+                connector: 'rounded',
+              });
+            }
+
+            this.syncNodesFromGraph();
+            this.syncEdgesFromGraph();
+
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Importado',
+              detail: 'Flujo importado correctamente',
+            });
+          } else {
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: 'El archivo JSON no tiene el formato correcto',
+            });
+          }
+        } catch {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'No se pudo leer el archivo JSON',
+          });
+        }
+      };
+      reader.readAsText(file);
     };
-    this.edges.update((current) => [...current, newEdge]);
+    input.click();
   }
 
-  protected onNodeClick(event: { node: any }): void {
-    const node = this.nodes().find((n) => n.id === event.node.id) ?? null;
-    this.selectedNode.set(node);
-    this.selectedEdge.set(null);
-    this.showNodePanel.set(true);
-    this.showEdgePanel.set(false);
-  }
-
-  protected onEdgeClick(event: { edge: any }): void {
-    const edge = this.edges().find((e) => e.id === event.edge.id) ?? null;
-    this.selectedEdge.set(edge);
-    this.selectedNode.set(null);
-    this.showEdgePanel.set(true);
-    this.showNodePanel.set(false);
-  }
-
-  protected onPaneClick(): void {
-    this.selectedNode.set(null);
-    this.selectedEdge.set(null);
-    this.showNodePanel.set(false);
-    this.showEdgePanel.set(false);
-  }
-
-  protected closeNodePanel(): void {
-    this.showNodePanel.set(false);
-    this.selectedNode.set(null);
-  }
-
-  protected closeEdgePanel(): void {
-    this.showEdgePanel.set(false);
-    this.selectedEdge.set(null);
-  }
+  // ── Node data update ───────────────────────────────────
 
   protected updateNodeData(field: keyof WorkflowNodeData, value: any): void {
     const node = this.selectedNode();
     if (!node) return;
+
+    const updatedData = { ...node.data, [field]: value };
     this.nodes.update((current) =>
-      current.map((n) =>
-        n.id === node.id ? { ...n, data: { ...n.data, [field]: value } } : n
-      )
+      current.map((n) => (n.id === node.id ? { ...n, data: updatedData } : n))
     );
-    this.selectedNode.set({ ...node, data: { ...node.data, [field]: value } });
+    this.selectedNode.set({ ...node, data: updatedData });
+
+    // Update x6 node
+    const x6Node = this.graph.getCellById(node.id);
+    if (x6Node) {
+      x6Node.setData({ ngArguments: updatedData });
+    }
   }
+
+  // ── Edge data update ───────────────────────────────────
 
   protected updateEdgeData(field: keyof WorkflowEdgeData, value: any): void {
     const edge = this.selectedEdge();
     if (!edge) return;
-    const updated = { ...edge, data: { ...edge.data, [field]: value } };
+
+    const updatedData = { ...edge.data, [field]: value };
+    const updated = { ...edge, data: updatedData };
     if (field === 'label') {
-      (updated as any).label = value;
+      updated.label = value;
     }
+
     this.edges.update((current) =>
       current.map((e) => (e.id === edge.id ? updated : e))
     );
     this.selectedEdge.set(updated);
+
+    // Update x6 edge
+    const x6Edge = this.graph.getCellById(edge.id);
+    if (x6Edge && x6Edge.isEdge()) {
+      (x6Edge as Edge).setData(updatedData);
+      if (field === 'label') {
+        (x6Edge as Edge).setLabels([
+          {
+            position: 0.5,
+            attrs: {
+              label: {
+                text: value as string,
+                fill: '#2f2f2f',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'Poppins, sans-serif',
+              },
+              rect: {
+                fill: '#fffdf3',
+                rx: 4,
+                ry: 4,
+                ref: 'label',
+                refX: -6,
+                refY: -4,
+                refWidth: '100%',
+                refHeight: '100%',
+                refWidth2: 12,
+                refHeight2: 8,
+              },
+            },
+          },
+        ]);
+      }
+    }
   }
 
   protected onTriggerTypeChange(triggerType: string): void {
@@ -665,20 +1092,26 @@ export class WorkflowEditorPageComponent implements OnInit {
     const status = this.orderStatuses().find((s) => s.code === code);
     if (!status) return;
 
-    const newNode: WorkflowNode = {
+    this.graph.addNode({
       id: `node_${status.code}`,
-      type: 'status',
-      position: { x: 100 + this.nodes().length * 40, y: 100 + this.nodes().length * 40 },
+      shape: 'status-node',
+      x: 100 + this.nodes().length * 40,
+      y: 100 + this.nodes().length * 40,
+      width: 160,
+      height: 56,
       data: {
-        label: status.label,
-        code: status.code,
-        isInitial: status.isInitial,
-        isFinal: status.isFinal,
-        color: status.color || '#6366f1',
-        description: status.description,
+        ngArguments: {
+          label: status.label,
+          code: status.code,
+          isInitial: status.isInitial,
+          isFinal: status.isFinal,
+          color: status.color || '#6366f1',
+          description: status.description,
+        },
       },
-    };
-    this.nodes.update((current) => [...current, newNode]);
+    });
+
+    this.syncNodesFromGraph();
     this.selectedStatusToAdd = undefined;
   }
 
@@ -694,10 +1127,10 @@ export class WorkflowEditorPageComponent implements OnInit {
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
-        this.nodes.update((current) => current.filter((n) => n.id !== node.id));
-        this.edges.update((current) =>
-          current.filter((e) => e.source !== node.id && e.target !== node.id)
-        );
+        const x6Node = this.graph.getCellById(node.id);
+        if (x6Node && x6Node.isNode()) {
+          this.graph.removeNode(x6Node as Node);
+        }
         this.closeNodePanel();
         this.messageService.add({
           severity: 'success',
@@ -720,7 +1153,10 @@ export class WorkflowEditorPageComponent implements OnInit {
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
-        this.edges.update((current) => current.filter((e) => e.id !== edge.id));
+        const x6Edge = this.graph.getCellById(edge.id);
+        if (x6Edge && x6Edge.isEdge()) {
+          this.graph.removeEdge(x6Edge as Edge);
+        }
         this.closeEdgePanel();
         this.messageService.add({
           severity: 'success',
@@ -739,158 +1175,5 @@ export class WorkflowEditorPageComponent implements OnInit {
   protected getTargetLabel(targetId: string): string {
     const node = this.nodes().find((n) => n.id === targetId);
     return node?.data.label ?? targetId;
-  }
-
-  // ── Auto-layout with dagre ─────────────────────────────
-
-  protected autoLayout(): void {
-    const currentNodes = this.nodes();
-    const currentEdges = this.edges();
-
-    if (currentNodes.length === 0) return;
-
-    const g = new dagre.graphlib.Graph();
-    g.setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: 'LR', nodesep: 80, ranksep: 120 });
-
-    for (const node of currentNodes) {
-      g.setNode(node.id, { width: 200, height: 80 });
-    }
-
-    for (const edge of currentEdges) {
-      g.setEdge(edge.source, edge.target);
-    }
-
-    dagre.layout(g);
-
-    const layoutNodes = currentNodes.map((node) => {
-      const pos = g.node(node.id);
-      return {
-        ...node,
-        position: { x: pos.x - 100, y: pos.y - 40 },
-      };
-    });
-
-    this.pushHistory();
-    this.nodes.set(layoutNodes);
-
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Auto-layout',
-      detail: 'Nodos organizados automáticamente',
-    });
-  }
-
-  // ── Undo / Redo ────────────────────────────────────────
-
-  private pushHistory(): void {
-    const state: HistoryState = {
-      nodes: [...this.nodes()],
-      edges: [...this.edges()],
-    };
-
-    // Remove future states if we're not at the end
-    if (this.historyIndex < this.history.length - 1) {
-      this.history = this.history.slice(0, this.historyIndex + 1);
-    }
-
-    this.history.push(state);
-
-    // Limit history size
-    if (this.history.length > this.maxHistory) {
-      this.history.shift();
-    }
-
-    this.historyIndex = this.history.length - 1;
-  }
-
-  protected undo(): void {
-    if (!this.canUndo()) return;
-    this.historyIndex--;
-    const state = this.history[this.historyIndex];
-    this.nodes.set([...state.nodes]);
-    this.edges.set([...state.edges]);
-  }
-
-  protected redo(): void {
-    if (!this.canRedo()) return;
-    this.historyIndex++;
-    const state = this.history[this.historyIndex];
-    this.nodes.set([...state.nodes]);
-    this.edges.set([...state.edges]);
-  }
-
-  // ── Export / Import JSON ───────────────────────────────
-
-  protected exportJson(): void {
-    const { definition } = this.serialize();
-    const json = JSON.stringify({
-      name: this.workflowName(),
-      description: this.workflowDescription(),
-      entity_type: 'order',
-      definition,
-    }, null, 2);
-
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `workflow-${this.workflowName().replace(/\s+/g, '-').toLowerCase()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Exportado',
-      detail: 'Flujo exportado como JSON',
-    });
-  }
-
-  protected importJson(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (event: Event) => {
-      const file = (event.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string);
-
-          if (data.definition?.nodes && data.definition?.edges) {
-            this.pushHistory();
-            this.nodes.set(data.definition.nodes);
-            this.edges.set(data.definition.edges);
-
-            if (data.name) this.workflowName.set(data.name);
-            if (data.description) this.workflowDescription.set(data.description);
-
-            this.workflowId.set(null);
-
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Importado',
-              detail: 'Flujo importado correctamente',
-            });
-          } else {
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'El archivo JSON no tiene el formato correcto',
-            });
-          }
-        } catch {
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'No se pudo leer el archivo JSON',
-          });
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
   }
 }
