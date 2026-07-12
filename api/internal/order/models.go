@@ -107,3 +107,36 @@ func (f OrderFilter) GetOffset() int {
 	}
 	return f.Offset
 }
+
+type OrderWithHistory struct {
+	Order
+	History []StatusHistoryEntry `json:"history"`
+}
+
+const MatrixDefaultLimit = 10
+const MatrixMaxLimit = 500
+
+type MatrixFilter struct {
+	BranchID *uuid.UUID
+	DateFrom *time.Time
+	DateTo   *time.Time
+	Limit    int
+	Offset   int
+}
+
+func (f MatrixFilter) GetLimit() int {
+	if f.Limit <= 0 {
+		return MatrixDefaultLimit
+	}
+	if f.Limit > MatrixMaxLimit {
+		return MatrixMaxLimit
+	}
+	return f.Limit
+}
+
+func (f MatrixFilter) GetOffset() int {
+	if f.Offset < 0 {
+		return 0
+	}
+	return f.Offset
+}

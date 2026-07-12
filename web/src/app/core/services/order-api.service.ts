@@ -5,9 +5,11 @@ import { API_BASE_URL } from '../../pages/auth-page/auth-api-go.service';
 import { PaginatedResponse } from '../models/pagination.model';
 import {
   CreateOrderRequest,
+  MatrixFilter,
   Order,
   OrderFilter,
   OrderItem,
+  OrderWithHistory,
   StatusChangeRequest,
   StatusHistoryEntry,
   UpdateOrderRequest,
@@ -65,6 +67,10 @@ interface StatusHistoryGoData {
   created_at_utc: string;
 }
 
+interface OrderWithHistoryGoData extends OrderGoData {
+  history: StatusHistoryGoData[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class OrderApiService {
   private readonly baseUrl: string;
@@ -93,6 +99,22 @@ export class OrderApiService {
         totalCount: res.data.total_count,
         limit: res.data.limit,
         offset: res.data.offset,
+      })));
+  }
+
+  listMatrix(filter?: MatrixFilter): Observable<{ items: OrderWithHistory[]; totalCount: number }> {
+    const params: Record<string, string> = {};
+    if (filter?.branch_id) params['branch_id'] = filter.branch_id;
+    if (filter?.date_from) params['date_from'] = filter.date_from;
+    if (filter?.date_to) params['date_to'] = filter.date_to;
+    if (filter?.limit != null) params['limit'] = String(filter.limit);
+    if (filter?.offset != null) params['offset'] = String(filter.offset);
+
+    return this.http
+      .get<JsendEnvelope<PaginatedGoData<OrderWithHistoryGoData>>>(`${this.baseUrl}/api/v1/orders/matrix`, { params, withCredentials: true })
+      .pipe(map((res) => ({
+        items: res.data.items.map((o) => this.mapOrderWithHistory(o)),
+        totalCount: res.data.total_count,
       })));
   }
 
@@ -189,6 +211,13 @@ export class OrderApiService {
       changedByUserId: raw.changed_by_user_id,
       notes: raw.notes,
       createdAtUtc: raw.created_at_utc,
+    };
+  }
+
+  private mapOrderWithHistory(raw: OrderWithHistoryGoData): OrderWithHistory {
+    return {
+      ...this.mapOrder(raw),
+      history: (raw.history ?? []).map((h) => this.mapHistory(h)),
     };
   }
 }

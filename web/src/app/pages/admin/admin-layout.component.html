@@ -36,6 +36,13 @@
         </a>
       }
 
+      @if (canViewOrderMatrix()) {
+        <a routerLink="/admin/orders-matrix" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-table"></span>
+          <span class="nav-label">Matriz</span>
+        </a>
+      }
+
       @if (canViewWorkflows()) {
         <a routerLink="/admin/workflows" routerLinkActive="active" (click)="collapseAll()">
           <span class="pi pi-sitemap"></span>

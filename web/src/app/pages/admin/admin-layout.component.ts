@@ -41,6 +41,9 @@ export class AdminLayoutComponent {
   protected readonly canViewOrders = computed(() =>
     this.authStore.hasPermission('order:view')
   );
+  protected readonly canViewOrderMatrix = computed(() =>
+    this.authStore.hasPermission('order:view')
+  );
   protected readonly canViewStaff = computed(() =>
     this.authStore.hasPermission('staff:view')
   );

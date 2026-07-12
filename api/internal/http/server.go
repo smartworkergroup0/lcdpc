@@ -572,6 +572,7 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "order:view"))
 			r.Get("/", orderH.List)
+			r.Get("/matrix", orderH.ListMatrix)
 			r.Get("/{id}", orderH.GetByID)
 			r.Get("/{id}/history", orderH.GetHistory)
 		})

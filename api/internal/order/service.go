@@ -310,6 +310,126 @@ func (s *Service) List(ctx context.Context, filter OrderFilter) ([]Order, int, e
 	return orders, totalCount, nil
 }
 
+func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]OrderWithHistory, int, error) {
+	countQuery := `SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL`
+	dataQuery := `SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, deleted_at, created_at_utc, updated_at_utc FROM orders WHERE deleted_at IS NULL`
+	args := []interface{}{}
+	argIdx := 1
+
+	if filter.BranchID != nil {
+		clause := fmt.Sprintf(" AND branch_id = $%d", argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.BranchID)
+		argIdx++
+	}
+	if filter.DateFrom != nil {
+		clause := fmt.Sprintf(" AND created_at_utc >= $%d", argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.DateFrom)
+		argIdx++
+	}
+	if filter.DateTo != nil {
+		clause := fmt.Sprintf(" AND created_at_utc < $%d", argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.DateTo)
+		argIdx++
+	}
+
+	var totalCount int
+	if err := s.pool.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("count orders: %w", err)
+	}
+
+	dataQuery += " ORDER BY created_at_utc DESC"
+	limit := filter.GetLimit()
+	offset := filter.GetOffset()
+	dataQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	rows, err := s.pool.Query(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list orders: %w", err)
+	}
+	defer rows.Close()
+
+	orders := make([]Order, 0)
+	for rows.Next() {
+		var o Order
+		if err := rows.Scan(&o.ID, &o.DisplayID, &o.BranchID, &o.personIDRaw, &o.clientUserIDRaw, &o.Status, &o.PriceTotal, &o.TotalItems,
+			&o.Currency, &o.Notes, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc); err != nil {
+			return nil, 0, fmt.Errorf("scan order: %w", err)
+		}
+		if o.personIDRaw != "" {
+			parsed, parseErr := uuid.Parse(o.personIDRaw)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("parse person id: %w", parseErr)
+			}
+			o.PersonID = &parsed
+		}
+		if o.clientUserIDRaw != "" {
+			parsed, parseErr := uuid.Parse(o.clientUserIDRaw)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("parse client user id: %w", parseErr)
+			}
+			o.ClientUserID = &parsed
+		}
+		orders = append(orders, o)
+	}
+
+	if len(orders) == 0 {
+		return []OrderWithHistory{}, totalCount, nil
+	}
+
+	orderIDs := make([]uuid.UUID, len(orders))
+	for i, o := range orders {
+		orderIDs[i] = o.ID
+	}
+
+	historyRows, err := s.pool.Query(ctx, `
+		SELECT id, order_id, from_status, to_status, COALESCE(changed_by_user_id::text, ''), notes, created_at_utc
+		FROM order_status_history
+		WHERE order_id = ANY($1::uuid[])
+		ORDER BY created_at_utc
+	`, orderIDs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("batch get history: %w", err)
+	}
+	defer historyRows.Close()
+
+	historyMap := make(map[uuid.UUID][]StatusHistoryEntry)
+	for historyRows.Next() {
+		var e StatusHistoryEntry
+		var changedBy string
+		if err := historyRows.Scan(&e.ID, &e.OrderID, &e.FromStatus, &e.ToStatus, &changedBy, &e.Notes, &e.CreatedAtUtc); err != nil {
+			return nil, 0, fmt.Errorf("scan history: %w", err)
+		}
+		if changedBy != "" {
+			parsed, parseErr := uuid.Parse(changedBy)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("parse history user id: %w", parseErr)
+			}
+			e.ChangedByUserID = &parsed
+		}
+		historyMap[e.OrderID] = append(historyMap[e.OrderID], e)
+	}
+
+	result := make([]OrderWithHistory, len(orders))
+	for i, o := range orders {
+		result[i] = OrderWithHistory{
+			Order:   o,
+			History: historyMap[o.ID],
+		}
+		if result[i].History == nil {
+			result[i].History = []StatusHistoryEntry{}
+		}
+	}
+
+	return result, totalCount, nil
+}
+
 func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderRequest) (*Order, error) {
 	o, err := s.GetByID(ctx, id)
 	if err != nil {

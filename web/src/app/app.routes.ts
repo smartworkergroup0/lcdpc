@@ -11,6 +11,7 @@ import { DashboardPageComponent } from './pages/admin/dashboard/dashboard-page.c
 import { ProductsPageComponent } from './pages/admin/products/products-page.component';
 import { BundlesPageComponent } from './pages/admin/bundles/bundles-page.component';
 import { OrdersPageComponent } from './pages/admin/orders/orders-page.component';
+import { OrderMatrixPageComponent } from './pages/admin/orders-matrix/order-matrix-page.component';
 import { StaffPageComponent } from './pages/admin/staff/staff-page.component';
 import { ConfigPageComponent } from './pages/admin/config/config-page.component';
 import { WorkflowEditorPageComponent } from './pages/admin/workflows/workflow-editor-page.component';
@@ -32,6 +33,7 @@ export const routes: Routes = [
 			{ path: 'products', component: ProductsPageComponent, canActivate: [permissionGuard('product:view')] },
 			{ path: 'bundles', component: BundlesPageComponent, canActivate: [permissionGuard('bundle:view')] },
 			{ path: 'orders', component: OrdersPageComponent, canActivate: [permissionGuard('order:view')] },
+			{ path: 'orders-matrix', component: OrderMatrixPageComponent, canActivate: [permissionGuard('order:view')] },
 			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('order:view')] },
 			{ path: 'staff', component: StaffPageComponent, canActivate: [permissionGuard('staff:view')] },
 			{ path: 'config', component: ConfigPageComponent, canActivate: [() => {

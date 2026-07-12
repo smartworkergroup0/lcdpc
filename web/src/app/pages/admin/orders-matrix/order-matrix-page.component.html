@@ -1,0 +1,234 @@
+<div class="matrix-header">
+  <h2>Matriz de Órdenes</h2>
+  <div class="matrix-filters">
+    <p-datepicker
+      [(ngModel)]="selectedDate"
+      [showIcon]="true"
+      dateFormat="yy-mm-dd"
+      (onSelect)="onDateChange($event)"
+      placeholder="Seleccionar fecha"
+      appendTo="body" />
+    @if (canViewAllBranches()) {
+      <p-select
+        [options]="branches()"
+        [(ngModel)]="selectedBranch"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Todas las sucursales"
+        [showClear]="true"
+        (onChange)="onBranchChange($event.value)"
+        appendTo="body" />
+    }
+    <p-button
+      [label]="showAllColumns() ? 'Columnas dinámicas' : 'Todas las columnas'"
+      [icon]="showAllColumns() ? 'pi pi-filter' : 'pi pi-table'"
+      severity="secondary"
+      [outlined]="true"
+      size="small"
+      (onClick)="toggleAllColumns()"
+      [pTooltip]="showAllColumns() ? 'Mostrar solo estatus con datos' : 'Mostrar los 15 estatus siempre'"
+      tooltipPosition="bottom" />
+    <p-button
+      [label]="verticalHeaders() ? 'Headers horizontales' : 'Headers verticales'"
+      [icon]="verticalHeaders() ? 'pi pi-align-left' : 'pi pi-align-center'"
+      severity="secondary"
+      [outlined]="true"
+      size="small"
+      (onClick)="toggleVerticalHeaders()"
+      [pTooltip]="verticalHeaders() ? 'Mostrar nombres horizontales' : 'Mostrar nombres verticales'"
+      tooltipPosition="bottom" />
+  </div>
+</div>
+
+<div class="matrix-container">
+  @if (loading()) {
+    <p-progressBar mode="indeterminate" />
+  }
+
+  <div class="matrix-viewport">
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th class="col-order col-order--header">Orden</th>
+          @for (status of activeStatuses(); track status) {
+            <th class="col-status" [title]="statusLabels[status]">
+              <span class="status-header-label" [class.vertical]="verticalHeaders()">
+                {{ statusLabels[status] }}
+              </span>
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (order of orders(); track order.id) {
+          <tr [class.terminal-row]="isTerminal(order.status)">
+            <td class="col-order" (click)="openDetail(order)">
+              <div class="order-cell">
+                <span class="order-id">{{ order.displayId }}</span>
+                <span class="order-total">{{ order.priceTotal | currency }}</span>
+                <span class="order-items">{{ order.totalItems }} items</span>
+                <span class="order-time">{{ order.createdAtUtc | date:'shortTime' }}</span>
+              </div>
+            </td>
+            @for (status of activeStatuses(); track status) {
+              <td
+                class="col-status"
+                [class.cell-completed]="cellMatrix().get(order.id)?.get(status)?.type === 'completed'"
+                [class.cell-active]="cellMatrix().get(order.id)?.get(status)?.type === 'active'"
+                [class.cell-pending]="cellMatrix().get(order.id)?.get(status)?.type === 'pending'"
+                [class.cell-terminal]="cellMatrix().get(order.id)?.get(status)?.type === 'terminal'"
+                [class.cell-reverted]="cellMatrix().get(order.id)?.get(status)?.type === 'reverted'"
+                [class.cell-unreachable]="cellMatrix().get(order.id)?.get(status)?.type === 'unreachable'"
+                [class.cell-clickable]="cellMatrix().get(order.id)?.get(status)?.clickable"
+                (click)="cellMatrix().get(order.id)?.get(status)?.clickable && onCellClick(order, status)">
+                @switch (cellMatrix().get(order.id)?.get(status)?.type) {
+                  @case ('completed') {
+                    <span class="cell-icon">&#10003;</span>
+                  }
+                  @case ('active') {
+                    <span class="cell-radio active">&#9679;</span>
+                  }
+                  @case ('terminal') {
+                    <span class="cell-icon terminal">&#10007;</span>
+                  }
+                  @case ('reverted') {
+                    <span class="cell-icon reverted">&#10007;</span>
+                  }
+                  @case ('unreachable') {
+                    <span class="cell-icon">&#10003;</span>
+                  }
+                  @default {
+                    <span class="cell-radio pending">&#9675;</span>
+                  }
+                }
+              </td>
+            }
+          </tr>
+        } @empty {
+          <tr>
+            <td [attr.colspan]="activeStatuses().length + 1" class="empty-state">
+              No hay órdenes para esta fecha
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (totalCount() > pageSize) {
+    <div class="matrix-paginator">
+      <span class="paginator-info">
+        {{ pageStart }}–{{ pageEnd }}
+        de {{ totalCount() }} órdenes
+      </span>
+      <div class="paginator-controls">
+        <p-button
+          icon="pi pi-chevron-left"
+          [disabled]="currentPage() === 0"
+          severity="secondary"
+          [text]="true"
+          size="small"
+          (onClick)="prevPage()" />
+        @for (page of pages(); track page) {
+          <p-button
+            [label]="pageLabel(page)"
+            size="small"
+            [severity]="page === currentPage() ? 'primary' : 'secondary'"
+            [text]="page !== currentPage()"
+            (onClick)="goToPage(page)" />
+        }
+        <p-button
+          icon="pi pi-chevron-right"
+          [disabled]="currentPage() >= totalPages() - 1"
+          severity="secondary"
+          [text]="true"
+          size="small"
+          (onClick)="nextPage()" />
+      </div>
+    </div>
+  }
+</div>
+
+<p-drawer
+  [(visible)]="drawerVisible"
+  [style]="{ width: 'min(550px, 95vw)' }"
+  position="right"
+  header="Detalle de Orden"
+  [dismissible]="true">
+  @if (selectedOrder(); as order) {
+    <div class="detail-section">
+      <div class="detail-header">
+        <p-tag [value]="statusLabels[order.status]" [severity]="statusSeverity[order.status]" />
+        <span class="detail-id">{{ order.displayId }}</span>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Sucursal</span>
+          <span class="detail-value">{{ getBranchName(order.branchId) }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Total</span>
+          <span class="detail-value">{{ order.priceTotal | currency }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Items</span>
+          <span class="detail-value">{{ order.totalItems }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Creada</span>
+          <span class="detail-value">{{ order.createdAtUtc | date:'medium' }}</span>
+        </div>
+        @if (order.notes) {
+          <div class="detail-item detail-item--full">
+            <span class="detail-label">Notas</span>
+            <span class="detail-value">{{ order.notes }}</span>
+          </div>
+        }
+      </div>
+
+      @if (drawerLoading()) {
+        <p-progressBar mode="indeterminate" />
+      }
+
+      @if (drawerOrder(); as fullOrder) {
+        @if (fullOrder.items && fullOrder.items.length > 0) {
+          <h4 class="items-title">Productos</h4>
+          <div class="items-list">
+            @for (item of fullOrder.items; track item.id) {
+              <div class="item-row">
+                <div class="item-info">
+                  <span class="item-type">{{ item.itemType === 'product' ? 'Prod' : 'Combo' }}</span>
+                  <span class="item-id">{{ item.productId ?? item.bundleId }}</span>
+                </div>
+                <div class="item-details">
+                  <span class="item-qty">{{ item.quantity }} x {{ item.unitPrice | currency }}</span>
+                  <span class="item-subtotal">{{ item.subtotal | currency }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <h4 class="timeline-title">Línea de Tiempo</h4>
+      <div class="timeline">
+        @for (entry of order.history; track entry.id) {
+          <div class="timeline-entry">
+            <div class="timeline-content">
+              <p-tag [value]="statusLabels[entry.toStatus]" [severity]="statusSeverity[entry.toStatus]" size="small" />
+              <span class="timeline-date">{{ entry.createdAtUtc | date:'short' }}</span>
+              @if (entry.notes) {
+                <span class="timeline-notes">{{ entry.notes }}</span>
+              }
+            </div>
+          </div>
+        } @empty {
+          <p class="timeline-empty">Sin historial de cambios</p>
+        }
+      </div>
+    </div>
+  }
+</p-drawer>
+
+<p-toast />
