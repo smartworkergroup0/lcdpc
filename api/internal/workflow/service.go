@@ -21,7 +21,9 @@ func NewService(pool *pgxpool.Pool) *Service {
 func (s *Service) ListOrderStatuses(ctx context.Context) ([]OrderStatus, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, code, label, color, is_initial, is_final, description, sort_order, created_at_utc, updated_at_utc
-		FROM order_statuses ORDER BY sort_order
+		FROM order_statuses
+		WHERE is_active = true
+		ORDER BY sort_order
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list order statuses: %w", err)
@@ -90,6 +92,7 @@ func (s *Service) GetAllowedTransitions(ctx context.Context) (map[string][]strin
 		FROM order_transitions t
 		JOIN order_statuses s ON s.id = t.source_status_id
 		JOIN order_statuses e ON e.id = t.target_status_id
+		WHERE s.is_active = true AND e.is_active = true
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("get allowed transitions: %w", err)
@@ -391,4 +394,105 @@ func (s *Service) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("NOT_FOUND")
 	}
 	return nil
+}
+
+// DeactivateStatus deactivates a status and reverts orders to their previous status.
+func (s *Service) DeactivateStatus(ctx context.Context, code string) (*DeactivateStatusResponse, error) {
+	// Terminal statuses should not revert orders
+	terminalStatuses := map[string]bool{
+		"REJECTED_BY_VALIDATION": true,
+		"DELIVERY_FAILED":       true,
+		"COMPLETED":             true,
+		"CANCELLED_BY_CUSTOMER": true,
+	}
+
+	// Check if status exists
+	var statusExists bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM order_statuses WHERE code = $1 AND is_active = true)`, code).Scan(&statusExists)
+	if err != nil {
+		return nil, fmt.Errorf("check status exists: %w", err)
+	}
+	if !statusExists {
+		return nil, fmt.Errorf("STATUS_NOT_FOUND")
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Deactivate the status
+	_, err = tx.Exec(ctx, `UPDATE order_statuses SET is_active = false, updated_at_utc = now() WHERE code = $1`, code)
+	if err != nil {
+		return nil, fmt.Errorf("deactivate status: %w", err)
+	}
+
+	ordersReverted := 0
+
+	// Revert orders if not terminal status
+	if !terminalStatuses[code] {
+		// Find all active orders with this status
+		rows, err := tx.Query(ctx, `
+			SELECT id FROM orders 
+			WHERE status = $1 AND deleted_at IS NULL
+		`, code)
+		if err != nil {
+			return nil, fmt.Errorf("find orders: %w", err)
+		}
+
+		var orderIDs []uuid.UUID
+		for rows.Next() {
+			var id uuid.UUID
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("scan order id: %w", err)
+			}
+			orderIDs = append(orderIDs, id)
+		}
+		rows.Close()
+
+		for _, orderID := range orderIDs {
+			// Get previous status from history
+			var prevStatus string
+			err := tx.QueryRow(ctx, `
+				SELECT from_status FROM order_status_history 
+				WHERE order_id = $1 AND to_status = $2
+				ORDER BY created_at_utc DESC LIMIT 1
+			`, orderID, code).Scan(&prevStatus)
+
+			if err != nil || prevStatus == "" {
+				// Fallback to PENDING_REVIEW
+				prevStatus = "PENDING_REVIEW"
+			}
+
+			// Update order status
+			_, err = tx.Exec(ctx, `
+				UPDATE orders SET status = $2, updated_at_utc = now() WHERE id = $1
+			`, orderID, prevStatus)
+			if err != nil {
+				return nil, fmt.Errorf("update order status: %w", err)
+			}
+
+			// Insert history record
+			_, err = tx.Exec(ctx, `
+				INSERT INTO order_status_history (id, order_id, from_status, to_status, notes, created_at_utc)
+				VALUES ($1, $2, $3, $4, $5, now())
+			`, uuid.New(), orderID, code, prevStatus, fmt.Sprintf("Status '%s' deactivated, reverted to '%s'", code, prevStatus))
+			if err != nil {
+				return nil, fmt.Errorf("insert history: %w", err)
+			}
+
+			ordersReverted++
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+
+	return &DeactivateStatusResponse{
+		Deactivated:    code,
+		OrdersReverted: ordersReverted,
+	}, nil
 }

@@ -133,6 +133,21 @@ export class WorkflowApiService {
       .pipe(map(() => undefined));
   }
 
+  deactivateStatus(code: string): Observable<{ deactivated: string; ordersReverted: number }> {
+    return this.http
+      .post<JsendEnvelope<{ deactivated: string; orders_reverted: number }>>(
+        `${this.baseUrl}/api/v1/order-statuses/${code}/deactivate`,
+        {},
+        { withCredentials: true }
+      )
+      .pipe(
+        map((res) => ({
+          deactivated: res.data.deactivated,
+          ordersReverted: res.data.orders_reverted,
+        }))
+      );
+  }
+
   getOrderStatuses(): Observable<OrderStatus[]> {
     return this.http
       .get<JsendEnvelope<OrderStatusGoData[]>>(`${this.baseUrl}/api/v1/order-statuses`, {

@@ -187,6 +187,11 @@ type WorkflowInfo struct {
 	Edges []WorkflowEdgeInfo
 }
 
+type DeactivateStatusResponse struct {
+	Deactivated    string `json:"deactivated"`
+	OrdersReverted int    `json:"orders_reverted"`
+}
+
 // WorkflowReader is the interface that the order package depends on.
 type WorkflowReader interface {
 	GetActiveWorkflow(ctx context.Context, entityType string) (*WorkflowInfo, error)

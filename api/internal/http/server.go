@@ -679,6 +679,14 @@ func NewServer(
 	r.Get("/api/v1/order-statuses", workflowH.ListOrderStatuses)
 	r.Get("/api/v1/order-transitions", workflowH.ListOrderTransitions)
 
+	// Deactivate order status (protected)
+	r.Route("/api/v1/order-statuses", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+		r.Use(middleware.RequirePermission(rbacStore, "workflow:update"))
+		r.Patch("/{code}/deactivate", workflowH.DeactivateStatus)
+	})
+
 	// Workflows (protected CRUD)
 	r.Route("/api/v1/workflows", func(r chi.Router) {
 		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))

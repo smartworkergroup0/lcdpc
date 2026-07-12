@@ -545,7 +545,63 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       });
     }
 
+    // Validate path from initial to final
+    if (initialNodes.length === 1 && finalNodes.length > 0) {
+      if (!this.hasPathToFinal(currentNodes, currentEdges, initialNodes[0])) {
+        errors.push({
+          field: 'path',
+          message: 'El flujo no llega a ningún nodo final desde el nodo inicial',
+        });
+      }
+    }
+
+    // Validate all nodes reachable from initial
+    if (initialNodes.length === 1) {
+      const unreachable = this.getUnreachableNodes(currentNodes, currentEdges, initialNodes[0]);
+      if (unreachable.length > 0) {
+        errors.push({
+          field: 'reachability',
+          message: `${unreachable.length} nodo(s) no alcanzables desde el inicial: ${unreachable.map((n) => n.data.label).join(', ')}`,
+        });
+      }
+    }
+
     return errors;
+  }
+
+  private hasPathToFinal(nodes: WorkflowNode[], edges: WorkflowEdge[], initialNode: WorkflowNode): boolean {
+    const visited = new Set<string>();
+    const queue = [initialNode.id];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const currentNode = nodes.find((n) => n.id === currentId);
+      if (currentNode?.data.isFinal) return true;
+
+      const neighbors = edges.filter((e) => e.source === currentId).map((e) => e.target);
+      queue.push(...neighbors);
+    }
+
+    return false;
+  }
+
+  private getUnreachableNodes(nodes: WorkflowNode[], edges: WorkflowEdge[], initialNode: WorkflowNode): WorkflowNode[] {
+    const visited = new Set<string>();
+    const queue = [initialNode.id];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const neighbors = edges.filter((e) => e.source === currentId).map((e) => e.target);
+      queue.push(...neighbors);
+    }
+
+    return nodes.filter((n) => !visited.has(n.id));
   }
 
   // ── Load / Save ────────────────────────────────────────
@@ -1120,22 +1176,49 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     if (!node) return;
 
     this.confirmationService.confirm({
-      message: `¿Eliminar el estatus "${node.data.label}"? Las transiciones conectadas también se eliminarán.`,
-      header: 'Confirmar eliminación',
+      message: `¿Desactivar el estatus "${node.data.label}"? Las órdenes en este status serán revertidas al estado anterior. Las transiciones conectadas también se eliminarán.`,
+      header: 'Desactivar estatus',
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Eliminar',
+      acceptLabel: 'Desactivar',
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
-        const x6Node = this.graph.getCellById(node.id);
-        if (x6Node && x6Node.isNode()) {
-          this.graph.removeNode(x6Node as Node);
-        }
-        this.closeNodePanel();
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Eliminado',
-          detail: `Estatus "${node.data.label}" eliminado`,
+        this.loading.set(true);
+        this.workflowApi.deactivateStatus(node.data.code).subscribe({
+          next: (result) => {
+            // Remove node from graph
+            const x6Node = this.graph.getCellById(node.id);
+            if (x6Node && x6Node.isNode()) {
+              this.graph.removeNode(x6Node as Node);
+            }
+            this.closeNodePanel();
+            this.syncNodesFromGraph();
+            this.syncEdgesFromGraph();
+            this.loading.set(false);
+
+            // Refresh available statuses
+            this.workflowApi.getOrderStatuses().subscribe({
+              next: (statuses) => this.orderStatuses.set(statuses),
+            });
+
+            const revertMsg = result.ordersReverted > 0
+              ? ` ${result.ordersReverted} orden(es) revertida(s).`
+              : '';
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Estatus desactivado',
+              detail: `"${node.data.label}" desactivado.${revertMsg}`,
+              life: 5000,
+            });
+          },
+          error: (err) => {
+            this.loading.set(false);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: err.error?.message || 'No se pudo desactivar el estatus',
+            });
+          },
         });
       },
     });

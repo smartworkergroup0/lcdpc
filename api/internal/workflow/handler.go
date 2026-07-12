@@ -134,3 +134,23 @@ func (h *Handler) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, nil)
 }
+
+func (h *Handler) DeactivateStatus(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	if code == "" {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"code": "required"})
+		return
+	}
+
+	result, err := h.svc.DeactivateStatus(r.Context(), code)
+	if err != nil {
+		if err.Error() == "STATUS_NOT_FOUND" {
+			response.Error(w, http.StatusNotFound, err.Error())
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(w, result)
+}
