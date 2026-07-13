@@ -47,7 +47,7 @@
         <td>
           <p-button icon="pi pi-eye" [text]="true" [rounded]="true"
                     (onClick)="viewDetail(order)" pTooltip="Ver detalle"></p-button>
-          @if (canChangeStatus() && !isTerminal(order.status) && (ORDER_STATUS_TRANSITIONS[order.status]?.length ?? 0) > 0) {
+          @if (canChangeStatus() && !isTerminal(order.status)) {
             <p-button icon="pi pi-arrow-right" [text]="true" [rounded]="true" severity="success"
                       (onClick)="openStatusDialog(order)" pTooltip="Cambiar estado"></p-button>
           }
@@ -96,24 +96,30 @@
 <!-- Status Change Dialog -->
 <p-dialog header="Cambiar Estado" [visible]="statusDialogVisible()"
           (visibleChange)="statusDialogVisible.set($event)"
-          [modal]="true" [dismissableMask]="true" [style]="{width: '400px'}">
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: '400px'}">
   <div class="status-form">
-    <div class="field">
-      <p-select [options]="nextStatusOptions()" [(ngModel)]="newStatus"
-                optionLabel="label" optionValue="value"
-                placeholder="Nuevo Estado" [style]="{'width':'100%'}"
-                appendTo="body" />
-    </div>
-    <div class="field">
-      <textarea pInputText [(ngModel)]="statusNotes" rows="3" style="width: 100%"
-                placeholder="Notas opcionales..."></textarea>
-    </div>
+    @if (nextStatusOptions().length > 0) {
+      <div class="field">
+        <p-select [options]="nextStatusOptions()" [(ngModel)]="newStatus"
+                  optionLabel="label" optionValue="value"
+                  placeholder="Nuevo Estado" [style]="{'width':'100%'}"
+                  appendTo="body" />
+      </div>
+      <div class="field">
+        <textarea pInputText [(ngModel)]="statusNotes" rows="3" style="width: 100%"
+                  placeholder="Notas opcionales..."></textarea>
+      </div>
+    } @else {
+      <p>No hay transiciones disponibles para esta orden.</p>
+    }
   </div>
   <ng-template pTemplate="footer">
     <p-button label="Cancelar" severity="secondary"
               (onClick)="statusDialogVisible.set(false)"></p-button>
-    <p-button label="Confirmar" icon="pi pi-check" [disabled]="!newStatus"
-              (onClick)="changeStatus()"></p-button>
+    @if (nextStatusOptions().length > 0) {
+      <p-button label="Confirmar" icon="pi pi-check" [disabled]="!newStatus"
+                (onClick)="changeStatus()"></p-button>
+    }
   </ng-template>
 </p-dialog>
 

@@ -68,6 +68,18 @@ type StatusChangeRequest struct {
 	Notes    string `json:"notes"`
 }
 
+type StatusOption struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+	Color string `json:"color"`
+}
+
+type ValidTransitionsResponse struct {
+	CurrentStatus string         `json:"current_status"`
+	IsTerminal    bool           `json:"is_terminal"`
+	Statuses      []StatusOption `json:"statuses"`
+}
+
 type StatusHistoryEntry struct {
 	ID              uuid.UUID  `json:"id"`
 	OrderID         uuid.UUID  `json:"order_id"`

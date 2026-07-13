@@ -362,6 +362,12 @@ func (s *Service) CreateWorkflow(ctx context.Context, req CreateWorkflowRequest)
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}
+
+	// Activate order statuses referenced by workflow nodes
+	if err := s.activateWorkflowStatuses(ctx, req.Definition); err != nil {
+		return nil, err
+	}
+
 	return w, nil
 }
 
@@ -405,6 +411,12 @@ func (s *Service) UpdateWorkflow(ctx context.Context, id uuid.UUID, req UpdateWo
 	if err := json.Unmarshal(defJSON, &w.Definition); err != nil {
 		return nil, fmt.Errorf("unmarshal definition: %w", err)
 	}
+
+	// Activate order statuses referenced by workflow nodes
+	if err := s.activateWorkflowStatuses(ctx, req.Definition); err != nil {
+		return nil, err
+	}
+
 	return w, nil
 }
 
@@ -415,6 +427,29 @@ func (s *Service) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("NOT_FOUND")
+	}
+	return nil
+}
+
+func (s *Service) activateWorkflowStatuses(ctx context.Context, definition Definition) error {
+	if len(definition.Nodes) == 0 {
+		return nil
+	}
+	codes := make([]string, 0, len(definition.Nodes))
+	for _, node := range definition.Nodes {
+		if node.Data.Code != "" {
+			codes = append(codes, node.Data.Code)
+		}
+	}
+	if len(codes) == 0 {
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `
+		UPDATE order_statuses SET is_active = true, updated_at_utc = now()
+		WHERE code = ANY($1)
+	`, codes)
+	if err != nil {
+		return fmt.Errorf("activate workflow statuses: %w", err)
 	}
 	return nil
 }

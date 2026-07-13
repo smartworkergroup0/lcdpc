@@ -15,22 +15,28 @@ import { AuthStore } from '../../../core/auth/auth.store';
 import {
   MatrixFilter,
   Order,
-  ORDER_STATUS_COLUMNS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_SEVERITY,
-  ORDER_STATUS_TRANSITIONS,
-  ORDER_TERMINAL_STATUSES,
   OrderWithHistory,
   StatusHistoryEntry,
 } from '../../../core/models/order.model';
+import { WorkflowNodeData, WorkflowEdge } from '../../../core/models/workflow.model';
 import { OrderApiService } from '../../../core/services/order-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
+import { WorkflowApiService } from '../../../core/services/workflow-api.service';
 
-type CellType = 'completed' | 'active' | 'pending' | 'terminal' | 'reverted' | 'unreachable';
+type CellType = 'terminal' | 'current' | 'visited' | 'reverted' | 'pending';
 
 interface CellInfo {
   type: CellType;
   clickable: boolean;
+}
+
+interface WorkflowNodeEntry {
+  code: string;
+  label: string;
+  isFinal: boolean;
+  isInitial: boolean;
 }
 
 @Component({
@@ -58,16 +64,18 @@ export class OrderMatrixPageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly orderApi = inject(OrderApiService);
   private readonly branchApi = inject(BranchApiService);
+  private readonly workflowApi = inject(WorkflowApiService);
   private readonly messageService = inject(MessageService);
-
-  private readonly statusIndex = new Map<string, number>(
-    ORDER_STATUS_COLUMNS.map((s, i) => [s, i])
-  );
 
   readonly statusLabels = ORDER_STATUS_LABELS;
   readonly statusSeverity = ORDER_STATUS_SEVERITY;
-  readonly statusTransitions = ORDER_STATUS_TRANSITIONS;
-  readonly terminalStatuses = ORDER_TERMINAL_STATUSES;
+
+  workflowLoaded = signal(false);
+  workflowNodes = signal<WorkflowNodeEntry[]>([]);
+  workflowFinalCodes = signal<Set<string>>(new Set());
+
+  private workflowEdges = new Map<string, Set<string>>();
+  private workflowIncoming = new Map<string, Set<string>>();
 
   orders = signal<OrderWithHistory[]>([]);
   loading = signal(false);
@@ -93,8 +101,9 @@ export class OrderMatrixPageComponent implements OnInit {
   readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
 
   activeStatuses = computed(() => {
+    const nodes = this.workflowNodes();
     if (this.showAllColumns()) {
-      return ORDER_STATUS_COLUMNS;
+      return nodes;
     }
     const present = new Set<string>();
     for (const order of this.orders()) {
@@ -103,7 +112,7 @@ export class OrderMatrixPageComponent implements OnInit {
         present.add(entry.toStatus);
       }
     }
-    return ORDER_STATUS_COLUMNS.filter((s) => present.has(s));
+    return nodes.filter((n) => present.has(n.code));
   });
 
   cellMatrix = computed(() => {
@@ -113,8 +122,9 @@ export class OrderMatrixPageComponent implements OnInit {
       const row = new Map<string, CellInfo>();
       const visited = new Set(order.history.map((h) => h.toStatus));
       const reverted = this.getRevertedStatuses(order.history);
-      for (const status of statuses) {
-        row.set(status, this.buildCellInfo(order, status, visited, reverted));
+      const validTargets = this.getValidTargets(order.status);
+      for (const node of statuses) {
+        row.set(node.code, this.buildCellInfo(order, node, visited, reverted, validTargets));
       }
       result.set(order.id, row);
     }
@@ -138,14 +148,70 @@ export class OrderMatrixPageComponent implements OnInit {
       },
       error: () => {},
     });
+    this.loadWorkflow();
     this.loadMatrix();
+  }
+
+  private loadWorkflow(): void {
+    this.workflowApi.list({ entity_type: 'order', is_active: true }).subscribe({
+      next: (res) => {
+        const workflow = res.items[0];
+        if (!workflow) {
+          this.workflowLoaded.set(true);
+          this.workflowNodes.set([]);
+          this.workflowFinalCodes.set(new Set());
+          return;
+        }
+
+        const nodes: WorkflowNodeEntry[] = workflow.nodes.map((n) => ({
+          code: n.data.code,
+          label: n.data.label || ORDER_STATUS_LABELS[n.data.code] || n.data.code,
+          isFinal: n.data.isFinal,
+          isInitial: n.data.isInitial,
+        }));
+
+        const finalCodes = new Set(nodes.filter((n) => n.isFinal).map((n) => n.code));
+
+        const edges = new Map<string, Set<string>>();
+        const incoming = new Map<string, Set<string>>();
+        const nodeIdToCode = new Map<string, string>();
+        for (const node of workflow.nodes) {
+          nodeIdToCode.set(node.id, node.data.code);
+        }
+        for (const edge of workflow.edges) {
+          const srcCode = nodeIdToCode.get(edge.source);
+          const tgtCode = nodeIdToCode.get(edge.target);
+          if (!srcCode || !tgtCode) continue;
+          if (!edges.has(srcCode)) edges.set(srcCode, new Set());
+          edges.get(srcCode)!.add(tgtCode);
+          if (!incoming.has(tgtCode)) incoming.set(tgtCode, new Set());
+          incoming.get(tgtCode)!.add(srcCode);
+        }
+
+        this.workflowNodes.set(nodes);
+        this.workflowFinalCodes.set(finalCodes);
+        this.workflowEdges = edges;
+        this.workflowIncoming = incoming;
+        this.workflowLoaded.set(true);
+      },
+      error: () => {
+        this.workflowLoaded.set(true);
+        this.workflowNodes.set([]);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'No se pudo cargar el workflow',
+        });
+      },
+    });
   }
 
   loadMatrix(): void {
     this.loading.set(true);
     const date = this.selectedDate();
-    const dateFrom = this.formatDate(date);
-    const nextDay = new Date(date.getTime() + 86400000);
+    const utcMidnight = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dateFrom = this.formatDate(utcMidnight);
+    const nextDay = new Date(utcMidnight.getTime() + 86400000);
     const dateTo = this.formatDate(nextDay);
 
     const filter: MatrixFilter = {
@@ -236,18 +302,7 @@ export class OrderMatrixPageComponent implements OnInit {
   }
 
   onCellClick(order: OrderWithHistory, targetStatus: string): void {
-    const allowed = this.statusTransitions[order.status]?.includes(targetStatus);
-    if (!allowed) {
-      const validTargets = (this.statusTransitions[order.status] ?? [])
-        .map((s) => this.statusLabels[s])
-        .join(', ');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Transición no válida',
-        detail: `Desde "${this.statusLabels[order.status]}" solo puede ir a: ${validTargets}`,
-      });
-      return;
-    }
+    if (targetStatus === order.status) return;
 
     const originalStatus = order.status;
     const originalHistory = [...order.history];
@@ -281,26 +336,34 @@ export class OrderMatrixPageComponent implements OnInit {
           this.messageService.add({
             severity: 'success',
             summary: 'Estado actualizado',
-            detail: `Orden ${order.displayId} → ${this.statusLabels[targetStatus]}`,
+            detail: `Orden ${order.displayId} → ${this.getNodeLabel(targetStatus)}`,
           });
         },
-        error: () => {
+        error: (err) => {
           this.orders.update((orders) =>
             orders.map((o) =>
               o.id === order.id ? { ...o, status: originalStatus, history: originalHistory } : o
             )
           );
+          const msg = err?.error?.message === 'INVALID_TRANSITION'
+            ? `Transición no válida desde "${this.getNodeLabel(originalStatus)}"`
+            : 'No se pudo cambiar el estado. Intente de nuevo.';
           this.messageService.add({
             severity: 'error',
             summary: 'Error',
-            detail: 'No se pudo cambiar el estado. Intente de nuevo.',
+            detail: msg,
           });
         },
       });
   }
 
-  isTerminal(status: string): boolean {
-    return !!this.terminalStatuses[status];
+  getNodeLabel(code: string): string {
+    const node = this.workflowNodes().find((n) => n.code === code);
+    return node?.label || ORDER_STATUS_LABELS[code] || code;
+  }
+
+  isTerminalStatus(code: string): boolean {
+    return this.workflowFinalCodes().has(code);
   }
 
   onPageInputChange(event: Event, input: HTMLInputElement): void {
@@ -324,65 +387,80 @@ export class OrderMatrixPageComponent implements OnInit {
     return Math.min((this.currentPage() + 1) * this.pageSize, this.totalCount());
   }
 
-  private isBackwardTransition(from: string, to: string): boolean {
-    const fromIdx = this.statusIndex.get(from) ?? 0;
-    const toIdx = this.statusIndex.get(to) ?? 0;
-    return toIdx < fromIdx;
+  private getValidTargets(currentStatus: string): Set<string> {
+    return this.workflowEdges.get(currentStatus) ?? new Set();
   }
 
   private getRevertedStatuses(history: StatusHistoryEntry[]): Set<string> {
     const reverted = new Set<string>();
-    for (let i = 0; i < history.length - 1; i++) {
-      const current = history[i];
-      const next = history[i + 1];
-      if (this.isBackwardTransition(current.toStatus, next.toStatus)) {
-        reverted.add(current.toStatus);
+    const activeAtStep: string[] = [];
+
+    for (const entry of history) {
+      const status = entry.toStatus;
+
+      if (activeAtStep.length >= 2) {
+        const prev = activeAtStep[activeAtStep.length - 2];
+        if (status === prev) {
+          const popped = activeAtStep.pop()!;
+          reverted.add(popped);
+          continue;
+        }
       }
+
+      if (this.workflowIncoming.has(status)) {
+        const expectedSources = this.workflowIncoming.get(status)!;
+        if (activeAtStep.length > 0) {
+          const current = activeAtStep[activeAtStep.length - 1];
+          if (!expectedSources.has(current) && current !== status) {
+            reverted.add(current);
+            activeAtStep.pop();
+          }
+        }
+      }
+
+      activeAtStep.push(status);
     }
+
     return reverted;
   }
 
   private buildCellInfo(
     order: OrderWithHistory,
-    statusCode: string,
+    node: WorkflowNodeEntry,
     visited: Set<string>,
-    reverted: Set<string>
+    reverted: Set<string>,
+    validTargets: Set<string>
   ): CellInfo {
     const current = order.status;
-    const isTerminalStatus = !!this.terminalStatuses[statusCode];
+    const isFinal = node.isFinal;
 
     let type: CellType;
-    if (statusCode === current && isTerminalStatus) {
+    if (node.code === current && isFinal) {
       type = 'terminal';
-    } else if (statusCode === current) {
-      type = 'active';
-    } else if (visited.has(statusCode) && reverted.has(statusCode)) {
+    } else if (node.code === current) {
+      type = 'current';
+    } else if (visited.has(node.code) && reverted.has(node.code)) {
       type = 'reverted';
-    } else if (
-      visited.has(statusCode) &&
-      this.canChangeStatus() &&
-      !this.isTerminal(current) &&
-      (this.statusTransitions[current] ?? []).includes(statusCode)
-    ) {
-      type = 'completed';
-    } else if (visited.has(statusCode)) {
-      type = 'unreachable';
+    } else if (visited.has(node.code)) {
+      type = 'visited';
     } else {
       type = 'pending';
     }
 
+    const isCurrentTerminal = this.workflowFinalCodes().has(current);
     const clickable =
       this.canChangeStatus() &&
-      !this.isTerminal(current) &&
-      (this.statusTransitions[current] ?? []).includes(statusCode);
+      !isCurrentTerminal &&
+      node.code !== current &&
+      validTargets.has(node.code);
 
     return { type, clickable };
   }
 
   private formatDate(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
 }
