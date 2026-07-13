@@ -8,19 +8,28 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lcdpc/lcdpc-go/internal/workflow"
 )
 
 type SystemConfigReader interface {
 	GetNegativeStock(ctx context.Context) (bool, error)
 }
 
-type Service struct {
-	pool   *pgxpool.Pool
-	sysCfg SystemConfigReader
+type TransitionReader interface {
+	GetAllowedTransitions(ctx context.Context) (map[string][]string, error)
+	GetTerminalStatuses(ctx context.Context) (map[string]bool, error)
+	GetEditableStatuses(ctx context.Context) (map[string]bool, error)
 }
 
-func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader) *Service {
-	return &Service{pool: pool, sysCfg: sysCfg}
+type Service struct {
+	pool      *pgxpool.Pool
+	sysCfg    SystemConfigReader
+	transRepo TransitionReader
+	wfReader  workflow.WorkflowReader
+}
+
+func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader, transRepo TransitionReader, wfReader workflow.WorkflowReader) *Service {
+	return &Service{pool: pool, sysCfg: sysCfg, transRepo: transRepo, wfReader: wfReader}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByUserID *uuid.UUID) (*Order, error) {
@@ -301,6 +310,126 @@ func (s *Service) List(ctx context.Context, filter OrderFilter) ([]Order, int, e
 	return orders, totalCount, nil
 }
 
+func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]OrderWithHistory, int, error) {
+	countQuery := `SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL`
+	dataQuery := `SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, deleted_at, created_at_utc, updated_at_utc FROM orders WHERE deleted_at IS NULL`
+	args := []interface{}{}
+	argIdx := 1
+
+	if filter.BranchID != nil {
+		clause := fmt.Sprintf(" AND branch_id = $%d", argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.BranchID)
+		argIdx++
+	}
+	if filter.DateFrom != nil {
+		clause := fmt.Sprintf(" AND created_at_utc >= $%d", argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.DateFrom)
+		argIdx++
+	}
+	if filter.DateTo != nil {
+		clause := fmt.Sprintf(" AND created_at_utc < $%d", argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.DateTo)
+		argIdx++
+	}
+
+	var totalCount int
+	if err := s.pool.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("count orders: %w", err)
+	}
+
+	dataQuery += " ORDER BY created_at_utc DESC"
+	limit := filter.GetLimit()
+	offset := filter.GetOffset()
+	dataQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	rows, err := s.pool.Query(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list orders: %w", err)
+	}
+	defer rows.Close()
+
+	orders := make([]Order, 0)
+	for rows.Next() {
+		var o Order
+		if err := rows.Scan(&o.ID, &o.DisplayID, &o.BranchID, &o.personIDRaw, &o.clientUserIDRaw, &o.Status, &o.PriceTotal, &o.TotalItems,
+			&o.Currency, &o.Notes, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc); err != nil {
+			return nil, 0, fmt.Errorf("scan order: %w", err)
+		}
+		if o.personIDRaw != "" {
+			parsed, parseErr := uuid.Parse(o.personIDRaw)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("parse person id: %w", parseErr)
+			}
+			o.PersonID = &parsed
+		}
+		if o.clientUserIDRaw != "" {
+			parsed, parseErr := uuid.Parse(o.clientUserIDRaw)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("parse client user id: %w", parseErr)
+			}
+			o.ClientUserID = &parsed
+		}
+		orders = append(orders, o)
+	}
+
+	if len(orders) == 0 {
+		return []OrderWithHistory{}, totalCount, nil
+	}
+
+	orderIDs := make([]uuid.UUID, len(orders))
+	for i, o := range orders {
+		orderIDs[i] = o.ID
+	}
+
+	historyRows, err := s.pool.Query(ctx, `
+		SELECT id, order_id, from_status, to_status, COALESCE(changed_by_user_id::text, ''), notes, created_at_utc
+		FROM order_status_history
+		WHERE order_id = ANY($1::uuid[])
+		ORDER BY created_at_utc
+	`, orderIDs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("batch get history: %w", err)
+	}
+	defer historyRows.Close()
+
+	historyMap := make(map[uuid.UUID][]StatusHistoryEntry)
+	for historyRows.Next() {
+		var e StatusHistoryEntry
+		var changedBy string
+		if err := historyRows.Scan(&e.ID, &e.OrderID, &e.FromStatus, &e.ToStatus, &changedBy, &e.Notes, &e.CreatedAtUtc); err != nil {
+			return nil, 0, fmt.Errorf("scan history: %w", err)
+		}
+		if changedBy != "" {
+			parsed, parseErr := uuid.Parse(changedBy)
+			if parseErr != nil {
+				return nil, 0, fmt.Errorf("parse history user id: %w", parseErr)
+			}
+			e.ChangedByUserID = &parsed
+		}
+		historyMap[e.OrderID] = append(historyMap[e.OrderID], e)
+	}
+
+	result := make([]OrderWithHistory, len(orders))
+	for i, o := range orders {
+		result[i] = OrderWithHistory{
+			Order:   o,
+			History: historyMap[o.ID],
+		}
+		if result[i].History == nil {
+			result[i].History = []StatusHistoryEntry{}
+		}
+	}
+
+	return result, totalCount, nil
+}
+
 func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderRequest) (*Order, error) {
 	o, err := s.GetByID(ctx, id)
 	if err != nil {
@@ -308,7 +437,13 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderReque
 	}
 
 	if !IsEditable(o.Status) {
-		return nil, fmt.Errorf("ORDER_NOT_EDITABLE")
+		editable, err := s.transRepo.GetEditableStatuses(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get editable statuses: %w", err)
+		}
+		if !editable[o.Status] {
+			return nil, fmt.Errorf("ORDER_NOT_EDITABLE")
+		}
 	}
 
 	if req.Items != nil {
@@ -490,8 +625,43 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 		return nil, err
 	}
 
-	if !IsTransitionAllowed(o.Status, req.ToStatus) {
-		return nil, fmt.Errorf("INVALID_TRANSITION")
+	// Try workflow-based transition validation first
+	var activeEdge *workflow.WorkflowEdgeInfo
+	wf, wfErr := s.wfReader.GetActiveWorkflow(ctx, "order")
+	if wfErr == nil && wf != nil {
+		// Find matching edge in workflow
+		for _, edge := range wf.Edges {
+			if edge.SourceCode == o.Status && edge.TargetCode == req.ToStatus {
+				activeEdge = &edge
+				break
+			}
+		}
+		if activeEdge == nil {
+			return nil, fmt.Errorf("INVALID_TRANSITION")
+		}
+		// Evaluate conditions
+		if err := s.evaluateConditions(ctx, o, activeEdge.Conditions); err != nil {
+			return nil, err
+		}
+	} else {
+		// Fallback to order_transitions table
+		if !IsTransitionAllowed(o.Status, req.ToStatus) {
+			allowed, err := s.transRepo.GetAllowedTransitions(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("get allowed transitions: %w", err)
+			}
+			targets := allowed[o.Status]
+			found := false
+			for _, t := range targets {
+				if t == req.ToStatus {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("INVALID_TRANSITION")
+			}
+		}
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -529,7 +699,76 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
+	// Execute post-transition actions
+	if activeEdge != nil {
+		s.executeActions(ctx, o, activeEdge.Actions)
+	}
+
 	return s.GetByID(ctx, id)
+}
+
+func (s *Service) evaluateConditions(ctx context.Context, o *Order, conditions []workflow.WorkflowConditionInfo) error {
+	for _, cond := range conditions {
+		if err := s.evaluateCondition(ctx, o, cond); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) evaluateCondition(ctx context.Context, o *Order, cond workflow.WorkflowConditionInfo) error {
+	var actual string
+	switch cond.Field {
+	case "total":
+		actual = fmt.Sprintf("%.2f", o.PriceTotal)
+	case "item_count":
+		actual = fmt.Sprintf("%d", o.TotalItems)
+	case "branch_id":
+		actual = o.BranchID.String()
+	case "notes":
+		if o.Notes != nil {
+			actual = *o.Notes
+		}
+	default:
+		return nil
+	}
+
+	switch cond.Operator {
+	case "equals":
+		if actual != cond.Value {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "not_equals":
+		if actual == cond.Value {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "contains":
+		if !strings.Contains(actual, cond.Value) {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "is_empty":
+		if actual != "" {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	case "is_not_empty":
+		if actual == "" {
+			return fmt.Errorf("CONDITION_NOT_MET: %s", cond.Field)
+		}
+	}
+	return nil
+}
+
+func (s *Service) executeActions(ctx context.Context, o *Order, actions []workflow.WorkflowActionInfo) {
+	for _, action := range actions {
+		switch action.Type {
+		case "send_email":
+			// TODO: implement email sending
+		case "webhook":
+			// TODO: implement webhook call
+		case "update_field":
+			// TODO: implement field update
+		}
+	}
 }
 
 func (s *Service) GetHistory(ctx context.Context, orderID uuid.UUID) ([]StatusHistoryEntry, error) {

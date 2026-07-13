@@ -29,12 +29,42 @@ importers:
       '@angular/router':
         specifier: ^20.3.0
         version: 20.3.23(@angular/common@20.3.23(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))(@angular/platform-browser@20.3.23(@angular/animations@20.3.23(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1)))(@angular/common@20.3.23(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1)))(rxjs@7.8.2)
+      '@antv/x6':
+        specifier: ^2.19.2
+        version: 2.19.2
+      '@antv/x6-angular-shape':
+        specifier: ^2.0.2
+        version: 2.0.2(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))(@antv/x6@2.19.2)
+      '@antv/x6-plugin-export':
+        specifier: ^2.1.6
+        version: 2.1.6(@antv/x6@2.19.2)
+      '@antv/x6-plugin-history':
+        specifier: ^2.2.4
+        version: 2.2.4(@antv/x6@2.19.2)
+      '@antv/x6-plugin-minimap':
+        specifier: ^2.0.7
+        version: 2.0.7(@antv/x6@2.19.2)
+      '@antv/x6-plugin-scroller':
+        specifier: ^2.0.10
+        version: 2.0.10(@antv/x6@2.19.2)
+      '@antv/x6-plugin-selection':
+        specifier: ^2.2.2
+        version: 2.2.2(@antv/x6@2.19.2)
+      '@antv/x6-plugin-snapline':
+        specifier: ^2.1.7
+        version: 2.1.7(@antv/x6@2.19.2)
       '@primeuix/themes':
         specifier: ^2.0.3
         version: 2.0.3
+      '@types/dagre':
+        specifier: ^0.7.54
+        version: 0.7.54
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
+      dagre:
+        specifier: ^0.8.5
+        version: 0.8.5
       primeicons:
         specifier: ^7.0.0
         version: 7.0.0
@@ -292,6 +322,51 @@ packages:
       '@angular/core': 20.3.23
       '@angular/platform-browser': 20.3.23
       rxjs: ^6.5.3 || ^7.4.0
+
+  '@antv/x6-angular-shape@2.0.2':
+    resolution: {integrity: sha512-3MUkGd4bCCf1lykTuo8TmWwfb8ihVCXuDIIqSoh2XXJKAU1vS9Io4kyDs6A+dNCmGFoPJD6QWUOXbZJkJ+uOmQ==}
+    peerDependencies:
+      '@angular/core': '>= 14'
+      '@antv/x6': ^2.x
+
+  '@antv/x6-common@2.0.17':
+    resolution: {integrity: sha512-37g7vmRkNdYzZPdwjaMSZEGv/MMH0S4r70/Jwoab1mioycmuIBN73iyziX8m56BvJSDucZ3J/6DU07otWqzS6A==}
+
+  '@antv/x6-geometry@2.0.5':
+    resolution: {integrity: sha512-MId6riEQkxphBpVeTcL4ZNXL4lScyvDEPLyIafvWMcWNTGK0jgkK7N20XSzqt8ltJb0mGUso5s56mrk8ysHu2A==}
+
+  '@antv/x6-plugin-export@2.1.6':
+    resolution: {integrity: sha512-m0ukMmZhrFE5n7uCR43DVQBdiUfpjGN+vm1mc+6RTZdHK8pa6Mxr0RZztaxPy34YA4tli+bGY3ePslsNPfh6PQ==}
+    peerDependencies:
+      '@antv/x6': ^2.x
+
+  '@antv/x6-plugin-history@2.2.4':
+    resolution: {integrity: sha512-9gHHvEW4Fla+1hxUV49zNgJyIMoV9CjVM52MrFgAJcvyRn1Kvxz4MfxiKlG+DEZUs+/zvfjl9pS6gJOd8laRkg==}
+    peerDependencies:
+      '@antv/x6': ^2.x
+
+  '@antv/x6-plugin-minimap@2.0.7':
+    resolution: {integrity: sha512-8zzESCx0jguFPCOKCA0gPFb6JmRgq81CXXtgJYe34XhySdZ6PB23I5Po062lNsEuTjTjnzli4lju8vvU+jzlGw==}
+    peerDependencies:
+      '@antv/x6': ^2.x
+
+  '@antv/x6-plugin-scroller@2.0.10':
+    resolution: {integrity: sha512-CrC5zCbtPe7LJEKK8ucLcDN+9lMtTJNApFmFObAiR/y2LO1QFCHz8GGLVeNOZaIEmJbR/Z/etpJkvc1LE7WhTg==}
+    peerDependencies:
+      '@antv/x6': ^2.x
+
+  '@antv/x6-plugin-selection@2.2.2':
+    resolution: {integrity: sha512-s2gtR9Onlhr7HOHqyqg0d+4sG76JCcQEbvrZZ64XmSChlvieIPlC3YtH4dg1KMNhYIuBmBmpSum6S0eVTEiPQw==}
+    peerDependencies:
+      '@antv/x6': ^2.x
+
+  '@antv/x6-plugin-snapline@2.1.7':
+    resolution: {integrity: sha512-AsysoCb9vES0U2USNhEpYuO/W8I0aYfkhlbee5Kt4NYiMfQfZKQyqW/YjDVaS2pm38C1NKu1LdPVk/BBr4CasA==}
+    peerDependencies:
+      '@antv/x6': ^2.x
+
+  '@antv/x6@2.19.2':
+    resolution: {integrity: sha512-lr9sUAlrR7eSVANru8kUNZUqCRl7eOCgb36M61FMDonUYREwkHpRN+0zq+1egSSOdz3HHSDBjs7UMtGH1ZEg2w==}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -1382,6 +1457,9 @@ packages:
   '@types/cors@2.8.19':
     resolution: {integrity: sha512-mFNylyeyqN93lfe/9CSxOGREz8cpzAhH+E93xJ4xWQf62V8sQ/24reV2nyzUWM6H6Xji+GGHpkbLe7pVoUEskg==}
 
+  '@types/dagre@0.7.54':
+    resolution: {integrity: sha512-QjcRY+adGbYvBFS7cwv5txhVIwX1XXIUswWl+kSQTbI6NjgZydrZkEKX/etzVd7i+bCsCb40Z/xlBY5eoFuvWQ==}
+
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
@@ -1640,6 +1718,9 @@ packages:
 
   custom-event@1.0.1:
     resolution: {integrity: sha512-GAj5FOq0Hd+RsCGVJxZuKaIDXDf3h6GQoNEjFgbLLI/trgtavwUbSnZ5pVfg27DVCaWjIohryS0JFwIJyT2cMg==}
+
+  dagre@0.8.5:
+    resolution: {integrity: sha512-/aTqmnRta7x7MCCpExk7HQL2O4owCT2h8NT//9I1OQ9vt29Pa0BzSAkR5lwFUcQ7491yVi/3CXU9jQ5o0Mn2Sw==}
 
   date-format@4.0.14:
     resolution: {integrity: sha512-39BOQLs9ZjKh0/patS9nrT8wc3ioX3/eA/zgbKNopnF2wCqJEoxywwwElATYvRsXdnOxA/OQeQoFZ3rFjVajhg==}
@@ -1927,6 +2008,9 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
+  graphlib@2.1.8:
+    resolution: {integrity: sha512-jcLLfkpoVGmH7/InMC/1hIvOPSUh38oJtGhvrOFGzioE1DZ+0YW16RgmOJhHiuWTvGiJQ9Z1Ik43JvkRPRvE+A==}
+
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
@@ -2174,6 +2258,9 @@ packages:
   lmdb@3.4.2:
     resolution: {integrity: sha512-nwVGUfTBUwJKXd6lRV8pFNfnrCC1+l49ESJRM19t/tFb/97QfJEixe5DYRvug5JO7DSFKoKaVy7oGMt5rVqZvg==}
     hasBin: true
+
+  lodash-es@4.18.1:
+    resolution: {integrity: sha512-J8xewKD/Gk22OZbhpOVSwcs60zhd95ESDwezOFuA3/099925PdHJ7OFHNTGtajL3AlZkykD32HykiMo+BIBI8A==}
 
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
@@ -2830,6 +2917,10 @@ packages:
     peerDependencies:
       browserslist: '>= 4.21.0'
 
+  utility-types@3.11.0:
+    resolution: {integrity: sha512-6Z7Ma2aVEWisaL6TvBCy7P8rm2LQoPv6dJ7ecIaIixHcwfbJ0x7mWdbcwlIM5IGQxPZSFYeqRCqlOOeKoJYMkw==}
+    engines: {node: '>= 4'}
+
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
@@ -3245,6 +3336,48 @@ snapshots:
       '@angular/platform-browser': 20.3.23(@angular/animations@20.3.23(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1)))(@angular/common@20.3.23(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))
       rxjs: 7.8.2
       tslib: 2.8.1
+
+  '@antv/x6-angular-shape@2.0.2(@angular/core@20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1))(@antv/x6@2.19.2)':
+    dependencies:
+      '@angular/core': 20.3.23(@angular/compiler@20.3.23)(rxjs@7.8.2)(zone.js@0.15.1)
+      '@antv/x6': 2.19.2
+
+  '@antv/x6-common@2.0.17':
+    dependencies:
+      lodash-es: 4.18.1
+      utility-types: 3.11.0
+
+  '@antv/x6-geometry@2.0.5': {}
+
+  '@antv/x6-plugin-export@2.1.6(@antv/x6@2.19.2)':
+    dependencies:
+      '@antv/x6': 2.19.2
+
+  '@antv/x6-plugin-history@2.2.4(@antv/x6@2.19.2)':
+    dependencies:
+      '@antv/x6': 2.19.2
+
+  '@antv/x6-plugin-minimap@2.0.7(@antv/x6@2.19.2)':
+    dependencies:
+      '@antv/x6': 2.19.2
+
+  '@antv/x6-plugin-scroller@2.0.10(@antv/x6@2.19.2)':
+    dependencies:
+      '@antv/x6': 2.19.2
+
+  '@antv/x6-plugin-selection@2.2.2(@antv/x6@2.19.2)':
+    dependencies:
+      '@antv/x6': 2.19.2
+
+  '@antv/x6-plugin-snapline@2.1.7(@antv/x6@2.19.2)':
+    dependencies:
+      '@antv/x6': 2.19.2
+
+  '@antv/x6@2.19.2':
+    dependencies:
+      '@antv/x6-common': 2.0.17
+      '@antv/x6-geometry': 2.0.5
+      utility-types: 3.11.0
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -4106,6 +4239,8 @@ snapshots:
     dependencies:
       '@types/node': 25.9.1
 
+  '@types/dagre@0.7.54': {}
+
   '@types/estree@1.0.8': {}
 
   '@types/jasmine@5.1.15': {}
@@ -4406,6 +4541,11 @@ snapshots:
   css-what@7.0.0: {}
 
   custom-event@1.0.1: {}
+
+  dagre@0.8.5:
+    dependencies:
+      graphlib: 2.1.8
+      lodash: 4.18.1
 
   date-format@4.0.14: {}
 
@@ -4742,6 +4882,10 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
+  graphlib@2.1.8:
+    dependencies:
+      lodash: 4.18.1
+
   has-flag@4.0.0: {}
 
   has-symbols@1.1.0: {}
@@ -5025,6 +5169,8 @@ snapshots:
       '@lmdb/lmdb-win32-arm64': 3.4.2
       '@lmdb/lmdb-win32-x64': 3.4.2
     optional: true
+
+  lodash-es@4.18.1: {}
 
   lodash@4.18.1: {}
 
@@ -5783,6 +5929,8 @@ snapshots:
       browserslist: 4.28.2
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  utility-types@3.11.0: {}
 
   utils-merge@1.0.1: {}
 

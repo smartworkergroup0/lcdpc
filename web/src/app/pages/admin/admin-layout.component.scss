@@ -209,10 +209,11 @@ $transition-speed: 0.25s;
 .admin-content {
   flex: 1;
   margin-left: calc(#{$sidebar-width} - 60px);
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1rem;
   background: transparent;
   min-height: 100vh;
   transition: margin-left $transition-speed ease;
+  overflow-x: hidden;
 }
 
 .nav-label {

@@ -28,6 +28,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/sync"
 	"github.com/lcdpc/lcdpc-go/internal/systemconfig"
 	"github.com/lcdpc/lcdpc-go/internal/user"
+	"github.com/lcdpc/lcdpc-go/internal/workflow"
 )
 
 func NewServer(
@@ -52,6 +53,7 @@ func NewServer(
 	dashboardSvc *dashboard.Service,
 	apiTokenSvc *apitoken.Service,
 	svcAccountSvc *serviceaccount.Service,
+	workflowSvc *workflow.Service,
 	frontendFS fs.FS,
 ) *chi.Mux {
 	r := chi.NewRouter()
@@ -92,6 +94,7 @@ func NewServer(
 	svcAccountH := serviceaccount.NewHandler(svcAccountSvc)
 	saPricingH := handler.NewSAPricingHandler(pricingSvc, rbacStore, cfg.CatalogDomain)
 	saBranchH := handler.NewSABranchHandler(branchSvc, rbacStore)
+	workflowH := workflow.NewHandler(workflowSvc)
 
 	// Public
 	if frontendFS == nil {
@@ -572,6 +575,7 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "order:view"))
 			r.Get("/", orderH.List)
+			r.Get("/matrix", orderH.ListMatrix)
 			r.Get("/{id}", orderH.GetByID)
 			r.Get("/{id}/history", orderH.GetHistory)
 		})
@@ -673,6 +677,45 @@ func NewServer(
 		r.Get("/products", saPricingH.ListProducts)
 		r.Get("/bundles", saPricingH.ListBundles)
 		r.Get("/branches", saBranchH.List)
+	})
+
+	// Order Statuses (public read + protected deactivate)
+	r.Route("/api/v1/order-statuses", func(r chi.Router) {
+		r.Get("/", workflowH.ListOrderStatuses)
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+			r.Use(middleware.RequireAuth())
+			r.Use(middleware.RequirePermission(rbacStore, "workflow:update"))
+			r.Patch("/{code}/deactivate", workflowH.DeactivateStatus)
+		})
+	})
+
+	// Order Transitions (public read)
+	r.Get("/api/v1/order-transitions", workflowH.ListOrderTransitions)
+
+	// Workflows (protected CRUD)
+	r.Route("/api/v1/workflows", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "workflow:view"))
+			r.Get("/", workflowH.ListWorkflows)
+			r.Get("/{id}", workflowH.GetWorkflowByID)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "workflow:create"))
+			r.Post("/", workflowH.CreateWorkflow)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "workflow:update"))
+			r.Put("/{id}", workflowH.UpdateWorkflow)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "workflow:delete"))
+			r.Delete("/{id}", workflowH.DeleteWorkflow)
+		})
 	})
 
 	// SPA frontend (embedded)

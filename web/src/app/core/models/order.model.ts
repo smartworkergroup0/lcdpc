@@ -78,6 +78,18 @@ export interface OrderFilter {
   offset?: number;
 }
 
+export interface OrderWithHistory extends Order {
+  history: StatusHistoryEntry[];
+}
+
+export interface MatrixFilter {
+  branch_id?: string;
+  date_from?: string;
+  date_to?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   PENDING_REVIEW: 'Pendiente de revisión',
   UNDER_REVIEW: 'En revisión',
@@ -139,3 +151,21 @@ export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   DELIVERED: ['COMPLETED'],
   PICKED_UP: ['COMPLETED'],
 };
+
+export const ORDER_STATUS_COLUMNS: string[] = [
+  'PENDING_REVIEW',
+  'UNDER_REVIEW',
+  'APPROVED_FOR_FULFILLMENT',
+  'IN_PREPARATION',
+  'AWAITING_INVENTORY',
+  'PREPARATION_COMPLETED',
+  'READY_FOR_PICKUP',
+  'READY_FOR_DISPATCH',
+  'IN_TRANSIT',
+  'DELIVERED',
+  'PICKED_UP',
+  'REJECTED_BY_VALIDATION',
+  'DELIVERY_FAILED',
+  'COMPLETED',
+  'CANCELLED_BY_CUSTOMER',
+];

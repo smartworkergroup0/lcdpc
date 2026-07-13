@@ -3,6 +3,7 @@ package order
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -108,6 +109,58 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items, total, err := h.svc.List(r.Context(), filter)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Paginated(w, items, total, filter.GetLimit(), filter.GetOffset())
+}
+
+func (h *Handler) ListMatrix(w http.ResponseWriter, r *http.Request) {
+	filter := MatrixFilter{}
+
+	if branchIDStr := r.URL.Query().Get("branch_id"); branchIDStr != "" {
+		if branchID, err := uuid.Parse(branchIDStr); err == nil {
+			filter.BranchID = &branchID
+		}
+	}
+	if dateFromStr := r.URL.Query().Get("date_from"); dateFromStr != "" {
+		if t, err := time.Parse("2006-01-02", dateFromStr); err == nil {
+			filter.DateFrom = &t
+		} else if t, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filter.DateFrom = &t
+		}
+	}
+	if dateToStr := r.URL.Query().Get("date_to"); dateToStr != "" {
+		if t, err := time.Parse("2006-01-02", dateToStr); err == nil {
+			filter.DateTo = &t
+		} else if t, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filter.DateTo = &t
+		}
+	}
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil {
+			filter.Limit = limit
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil {
+			filter.Offset = offset
+		}
+	}
+
+	// Auto-filter by assigned branch if user lacks view:branch:all
+	if !middleware.HasPermission(r.Context(), h.rbacStore, "view:branch:all") {
+		branchIDStr := middleware.GetBranchID(r.Context())
+		if branchIDStr != "" {
+			if id, err := uuid.Parse(branchIDStr); err == nil {
+				filter.BranchID = &id
+			}
+		}
+	}
+
+	items, total, err := h.svc.ListWithHistory(r.Context(), filter)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, err.Error())
 		return

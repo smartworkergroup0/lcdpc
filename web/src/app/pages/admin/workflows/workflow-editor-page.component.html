@@ -1,0 +1,631 @@
+<p-toast />
+<p-confirmDialog />
+
+<!-- Status node template for x6 -->
+<ng-template #statusNodeTemplate let-data="ngArguments">
+  <div
+    class="status-node"
+    [class.is-initial]="data?.isInitial"
+    [class.is-final]="data?.isFinal"
+    [class.has-error]="data?.hasError"
+  >
+    <div class="status-node-header">
+      <span class="status-dot" [style.background]="data?.color"></span>
+      <span class="status-label">{{ data?.label }}</span>
+    </div>
+    <div class="status-node-code">{{ data?.code }}</div>
+    <div class="status-node-badges">
+      @if (data?.isInitial) {
+        <span class="badge badge-initial">Inicio</span>
+      }
+      @if (data?.isFinal) {
+        <span class="badge badge-final">Final</span>
+      }
+    </div>
+  </div>
+</ng-template>
+
+<div class="workflow-editor">
+  <p-toolbar styleClass="admin-toolbar">
+    <div class="p-toolbar-start">
+      <h2 class="workflow-title">{{ workflowName() }}</h2>
+      <span class="node-count">{{ nodes().length }} nodos · {{ edges().length }} transiciones</span>
+      @if (workflowId()) {
+        <p-tag [value]="'Guardado'" severity="success" styleClass="ml-2" />
+      }
+    </div>
+    <div class="p-toolbar-end">
+      <p-button
+        label="Deshacer"
+        icon="pi pi-undo"
+        severity="secondary"
+        [text]="true"
+        [disabled]="!canUndo()"
+        (onClick)="undo()"
+        pTooltip="Deshacer"
+      />
+      <p-button
+        label="Rehacer"
+        icon="pi pi-redo"
+        severity="secondary"
+        [text]="true"
+        [disabled]="!canRedo()"
+        (onClick)="redo()"
+        pTooltip="Rehacer"
+      />
+      <p-button
+        icon="pi pi-sitemap"
+        severity="secondary"
+        [text]="true"
+        (onClick)="autoLayout()"
+        pTooltip="Auto-organizar nodos"
+      />
+      <p-button
+        label="Reiniciar"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [text]="true"
+        (onClick)="newWorkflow()"
+        pTooltip="Reiniciar canvas"
+      />
+      @if (availableStatuses().length > 0) {
+        <p-select
+          [options]="availableStatuses()"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar estatus..."
+          [style]="{ width: '220px' }"
+          appendTo="body"
+          [(ngModel)]="selectedStatusToAdd"
+        >
+          <ng-template pTemplate="selectedItem" let-option>
+            <div class="status-option-item">
+              <span class="status-option-dot" [style.background]="option?.color"></span>
+              <span>{{ option?.label }}</span>
+            </div>
+          </ng-template>
+          <ng-template pTemplate="item" let-option>
+            <div class="status-option-item">
+              <span class="status-option-dot" [style.background]="option.color"></span>
+              <span>{{ option.label }}</span>
+            </div>
+          </ng-template>
+        </p-select>
+        <p-button
+          label="Agregar"
+          icon="pi pi-plus"
+          severity="secondary"
+          (onClick)="addNewNode(selectedStatusToAdd)"
+          [disabled]="loading() || !selectedStatusToAdd"
+        />
+      } @else {
+        <p-tag value="Todos los estatus agregados" severity="success" styleClass="all-statuses-tag" />
+      }
+      @if (nodes().length >= 2) {
+        <p-button
+          label="Agregar Transición"
+          icon="pi pi-arrow-right-arrow-left"
+          severity="secondary"
+          (onClick)="openAddEdgeDialog()"
+          [disabled]="loading()"
+        />
+      }
+      <p-button
+        icon="pi pi-download"
+        severity="secondary"
+        [text]="true"
+        (onClick)="exportJson()"
+        pTooltip="Exportar JSON"
+      />
+      <p-button
+        icon="pi pi-upload"
+        severity="secondary"
+        [text]="true"
+        (onClick)="importJson()"
+        pTooltip="Importar JSON"
+      />
+      <p-button
+        [label]="workflowId() ? 'Actualizar' : 'Guardar Flujo'"
+        icon="pi pi-save"
+        (onClick)="saveWorkflow()"
+        [loading]="loading()"
+        [disabled]="!canSave()"
+      />
+    </div>
+  </p-toolbar>
+
+  <div class="editor-container">
+    <div class="canvas-area">
+      <div #graphContainer class="graph-container"></div>
+      <div #minimapContainer class="minimap-container"></div>
+    </div>
+
+    <p-drawer
+      [(visible)]="showNodePanel"
+      position="right"
+      [style]="{ width: '380px' }"
+      header="Configurar Estatus"
+      (onHide)="closeNodePanel()"
+    >
+      @if (selectedNode(); as node) {
+        <div class="config-panel">
+          <div class="config-preview">
+            <div class="config-preview-node" [style.border-color]="node.data.color">
+              <span class="status-dot" [style.background]="node.data.color"></span>
+              <span class="status-label">{{ node.data.label }}</span>
+            </div>
+          </div>
+
+          <div class="config-field">
+            <p-floatlabel>
+              <input
+                pInputText
+                id="node-label"
+                [ngModel]="node.data.label"
+                (ngModelChange)="updateNodeData('label', $event)"
+                style="width: 100%"
+                placeholder=" "
+              />
+              <label for="node-label">Nombre</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="config-field">
+            <p-floatlabel>
+              <input
+                pInputText
+                id="node-code"
+                [ngModel]="node.data.code"
+                (ngModelChange)="updateNodeData('code', $event)"
+                style="width: 100%"
+                placeholder=" "
+              />
+              <label for="node-code">Código</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="config-field">
+            <label class="config-field-label">Color</label>
+            <div class="color-field">
+              <input
+                type="color"
+                [ngModel]="node.data.color"
+                (ngModelChange)="updateNodeData('color', $event)"
+                class="color-picker"
+              />
+              <p-floatlabel>
+                <input
+                  pInputText
+                  id="node-color"
+                  [ngModel]="node.data.color"
+                  (ngModelChange)="updateNodeData('color', $event)"
+                  style="width: 100%"
+                  placeholder=" "
+                />
+                <label for="node-color">Hex</label>
+              </p-floatlabel>
+            </div>
+          </div>
+
+          <div class="config-field">
+            <p-floatlabel>
+              <input
+                pInputText
+                id="node-description"
+                [ngModel]="node.data.description"
+                (ngModelChange)="updateNodeData('description', $event)"
+                style="width: 100%"
+                placeholder=" "
+              />
+              <label for="node-description">Descripción</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="config-field-row">
+            <div class="config-checkbox">
+              <p-checkbox
+                [binary]="true"
+                [ngModel]="node.data.isInitial"
+                (ngModelChange)="updateNodeData('isInitial', $event)"
+                inputId="node-initial"
+              />
+              <label for="node-initial">Estado inicial</label>
+            </div>
+            <div class="config-checkbox">
+              <p-checkbox
+                [binary]="true"
+                [ngModel]="node.data.isFinal"
+                (ngModelChange)="updateNodeData('isFinal', $event)"
+                inputId="node-final"
+              />
+              <label for="node-final">Estado final</label>
+            </div>
+          </div>
+
+          <div class="config-actions">
+            <p-button
+              label="Eliminar Nodo"
+              icon="pi pi-trash"
+              severity="danger"
+              (onClick)="confirmDeleteNode()"
+              styleClass="w-full"
+            />
+          </div>
+        </div>
+      }
+    </p-drawer>
+
+    <p-drawer
+      [(visible)]="showEdgePanel"
+      position="right"
+      [style]="{ width: '420px' }"
+      header="Configurar Transición"
+      (onHide)="closeEdgePanel()"
+    >
+      @if (selectedEdge(); as edge) {
+        <div class="config-panel">
+          <div class="config-edge-info">
+            <div class="edge-endpoint">
+              <span class="endpoint-label">Origen</span>
+              <span class="endpoint-code">{{ getSourceLabel(edge.source) }}</span>
+            </div>
+            <span class="pi pi-arrow-right edge-arrow"></span>
+            <div class="edge-endpoint">
+              <span class="endpoint-label">Destino</span>
+              <span class="endpoint-code">{{ getTargetLabel(edge.target) }}</span>
+            </div>
+          </div>
+
+          <div class="config-field">
+            <p-floatlabel>
+              <input
+                pInputText
+                id="edge-label"
+                [ngModel]="edge.data.label"
+                (ngModelChange)="updateEdgeData('label', $event)"
+                style="width: 100%"
+                placeholder=" "
+              />
+              <label for="edge-label">Nombre de la transición</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="config-field">
+            <p-floatlabel>
+              <input
+                pInputText
+                id="edge-code"
+                [ngModel]="edge.data.code"
+                (ngModelChange)="updateEdgeData('code', $event)"
+                style="width: 100%"
+                placeholder=" "
+              />
+              <label for="edge-code">Código</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="config-field">
+            <p-floatlabel>
+              <p-select
+                [options]="triggerTypeOptions"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="edge.data.rules.triggerType"
+                (ngModelChange)="onTriggerTypeChange($event)"
+                [style]="{ width: '100%' }"
+                placeholder=" "
+                appendTo="body"
+              />
+              <label for="edge-trigger">Tipo de disparo</label>
+            </p-floatlabel>
+          </div>
+
+          <div class="config-field">
+            <label class="config-field-label">Roles requeridos</label>
+            <p-multiSelect
+              [options]="roleOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="edge.data.rules.requiredRoles"
+              (ngModelChange)="onRequiredRolesChange($event)"
+              placeholder="Seleccionar roles..."
+              display="chip"
+              [filter]="true"
+              [style]="{ width: '100%' }"
+              appendTo="body"
+            />
+          </div>
+
+          <div class="config-field">
+            <div class="section-header">
+              <label class="config-field-label">Condiciones</label>
+              <p-button
+                icon="pi pi-plus"
+                size="small"
+                severity="secondary"
+                [text]="true"
+                (onClick)="addCondition()"
+                pTooltip="Agregar condición"
+              />
+            </div>
+            @if (edge.data.rules.conditions.length > 0) {
+              <div class="conditions-list">
+                @for (condition of edge.data.rules.conditions; track $index; let i = $index) {
+                  <div class="condition-row">
+                    <input
+                      pInputText
+                      [ngModel]="condition.field"
+                      (ngModelChange)="updateConditionField(i, 'field', $event)"
+                      placeholder="Campo"
+                      class="condition-field"
+                    />
+                    <p-select
+                      [options]="conditionOperators"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="condition.operator"
+                      (ngModelChange)="updateConditionField(i, 'operator', $event)"
+                      class="condition-operator"
+                      appendTo="body"
+                    />
+                    <input
+                      pInputText
+                      [ngModel]="condition.value"
+                      (ngModelChange)="updateConditionField(i, 'value', $event)"
+                      placeholder="Valor"
+                      class="condition-value"
+                    />
+                    <p-button
+                      icon="pi pi-times"
+                      size="small"
+                      severity="danger"
+                      [text]="true"
+                      (onClick)="removeCondition(i)"
+                    />
+                  </div>
+                }
+              </div>
+            } @else {
+              <span class="no-items">Sin condiciones</span>
+            }
+          </div>
+
+          <div class="config-field">
+            <div class="section-header">
+              <label class="config-field-label">Acciones post-transición</label>
+              <p-button
+                icon="pi pi-plus"
+                size="small"
+                severity="secondary"
+                [text]="true"
+                (onClick)="addAction()"
+                pTooltip="Agregar acción"
+              />
+            </div>
+            @if (edge.data.actions.length > 0) {
+              <div class="actions-list">
+                @for (action of edge.data.actions; track $index; let i = $index) {
+                  <div class="action-row">
+                    <p-select
+                      [options]="actionTypes"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="action.type"
+                      (ngModelChange)="updateActionType(i, $event)"
+                      class="action-type"
+                      appendTo="body"
+                    />
+                    @if (action.type === 'send_email' || action.type === 'update_field') {
+                      <input
+                        pInputText
+                        [ngModel]="action.templateId"
+                        (ngModelChange)="updateActionField(i, 'templateId', $event)"
+                        placeholder="Template ID"
+                        class="action-param"
+                      />
+                    }
+                    @if (action.type === 'webhook') {
+                      <input
+                        pInputText
+                        [ngModel]="action.url"
+                        (ngModelChange)="updateActionField(i, 'url', $event)"
+                        placeholder="URL"
+                        class="action-param"
+                      />
+                    }
+                    <p-button
+                      icon="pi pi-times"
+                      size="small"
+                      severity="danger"
+                      [text]="true"
+                      (onClick)="removeAction(i)"
+                    />
+                  </div>
+                }
+              </div>
+            } @else {
+              <span class="no-items">Sin acciones</span>
+            }
+          </div>
+
+          <div class="config-actions">
+            <p-button
+              label="Eliminar Transición"
+              icon="pi pi-trash"
+              severity="danger"
+              (onClick)="confirmDeleteEdge()"
+              styleClass="w-full"
+            />
+          </div>
+        </div>
+      }
+    </p-drawer>
+  </div>
+</div>
+
+<p-dialog
+  header="Cargar Flujo"
+  [(visible)]="showLoadDialog"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(700px, 95vw)' }"
+>
+  @if (loadingWorkflows()) {
+    <div class="load-dialog-loading">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+    </div>
+  } @else if (savedWorkflows().length === 0) {
+    <div class="load-dialog-empty">
+      <i class="pi pi-inbox" style="font-size: 2rem; opacity: 0.4"></i>
+      <p>No hay flujos guardados</p>
+    </div>
+  } @else {
+    <p-table [value]="savedWorkflows()" [rows]="10" styleClass="p-datatable-striped">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nombre</th>
+          <th>Versión</th>
+          <th>Nodos</th>
+          <th>Transiciones</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-workflow>
+        <tr>
+          <td>
+            <strong>{{ workflow.name }}</strong>
+            @if (workflow.description) {
+              <br />
+              <small class="text-muted">{{ workflow.description }}</small>
+            }
+          </td>
+          <td>{{ workflow.version }}</td>
+          <td>{{ workflow.nodes.length }}</td>
+          <td>{{ workflow.edges.length }}</td>
+          <td>
+            @if (workflow.isActive) {
+              <p-tag value="Activo" severity="success" />
+            } @else {
+              <p-tag value="Inactivo" severity="secondary" />
+            }
+          </td>
+          <td>
+            <div class="table-actions">
+              <p-button
+                icon="pi pi-pencil"
+                size="small"
+                [text]="true"
+                (onClick)="loadWorkflow(workflow)"
+                pTooltip="Editar"
+              />
+              <p-button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                [text]="true"
+                (onClick)="deleteWorkflow(workflow)"
+                pTooltip="Eliminar"
+              />
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  }
+</p-dialog>
+
+<p-dialog
+  header="Agregar Transición"
+  [(visible)]="showAddEdgeDialog"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(450px, 95vw)' }"
+>
+  <div class="edge-dialog-fields">
+    <div class="field">
+      <p-select
+        id="edge-source"
+        [options]="nodeOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [(ngModel)]="newEdgeSource"
+        placeholder="Nodo origen *"
+        [style]="{ width: '100%' }"
+        appendTo="body"
+      />
+    </div>
+    <div class="field">
+      <p-select
+        id="edge-target"
+        [options]="nodeOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [(ngModel)]="newEdgeTarget"
+        placeholder="Nodo destino *"
+        [style]="{ width: '100%' }"
+        appendTo="body"
+      />
+    </div>
+    <div class="field">
+      <p-floatlabel>
+        <input
+          pInputText
+          id="edge-name"
+          [(ngModel)]="newEdgeLabel"
+          style="width: 100%"
+          placeholder=" "
+        />
+        <label for="edge-name">Nombre de la transición</label>
+      </p-floatlabel>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="showAddEdgeDialog.set(false)" />
+    <p-button
+      label="Crear Transición"
+      icon="pi pi-check"
+      [disabled]="!newEdgeSource || !newEdgeTarget || newEdgeSource === newEdgeTarget"
+      (onClick)="confirmAddEdge()"
+    />
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  header="Errores de validación"
+  [(visible)]="showValidationErrors"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(550px, 95vw)' }"
+>
+  <div class="validation-errors-content">
+    <p>Corregí los siguientes errores antes de guardar:</p>
+    <div class="validation-errors-list">
+      @for (error of validationErrors(); track error.field) {
+        <div class="validation-error-item">
+          <i class="pi pi-exclamation-circle validation-error-icon"></i>
+          <div class="validation-error-text">
+            <strong>{{ error.fieldLabel }}:</strong> {{ error.detail }}
+            @if (error.nodeNames && error.nodeNames.length > 0) {
+              <div class="validation-error-nodes">
+                @for (name of error.nodeNames; track name) {
+                  <span class="validation-error-node-tag">{{ name }}</span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <p class="validation-errors-hint">
+      <i class="pi pi-info-circle"></i>
+      Los nodos con errores están resaltados en rojo en el canvas.
+    </p>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Entendido" icon="pi pi-check" (onClick)="closeValidationErrors()" />
+  </ng-template>
+</p-dialog>

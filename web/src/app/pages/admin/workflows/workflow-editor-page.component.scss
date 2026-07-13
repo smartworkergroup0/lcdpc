@@ -1,0 +1,616 @@
+:host {
+  display: block;
+  height: calc(100vh - 2rem);
+  min-height: 500px;
+}
+
+.workflow-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.5rem;
+}
+
+.workflow-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.node-count {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  opacity: 0.7;
+  margin-left: 0.5rem;
+}
+
+.editor-container {
+  flex: 1;
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: var(--surface);
+  min-height: 0;
+  position: relative;
+}
+
+.canvas-area {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+}
+
+.graph-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+.minimap-container {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 10;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+// ── Status option in select ──────────────────
+.status-option-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-option-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+// ── Status Node ──────────────────────────────
+.status-node {
+  background: var(--surface);
+  border: 2px solid #22c55e;
+  border-radius: 6px;
+  padding: 4px 8px;
+  width: 120px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  &:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &.is-initial {
+    border-color: #3b82f6;
+    border-width: 2.5px;
+  }
+
+  &.is-final {
+    border-color: #8b5cf6;
+    border-style: double;
+    border-width: 3px;
+  }
+
+  &.has-error {
+    border-color: #ef4444 !important;
+    border-width: 3px !important;
+    border-style: solid !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  }
+}
+
+.status-node-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 1px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-label {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.65rem;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.status-node-code {
+  font-family: monospace;
+  font-size: 0.5rem;
+  color: var(--text-soft);
+  opacity: 0.7;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.status-node-badges {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 0.45rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-family: var(--font-body);
+  line-height: 1;
+}
+
+.badge-initial {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.badge-final {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+// ── Config Panel ─────────────────────────────
+.config-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.5rem 0;
+}
+
+.config-preview {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+.config-preview-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 2px solid;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.config-field-label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  margin-bottom: 0.25rem;
+}
+
+.color-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.color-picker {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+  background: var(--surface);
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 5px;
+  }
+}
+
+.config-field-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.config-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.config-edge-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+}
+
+.edge-endpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.endpoint-label {
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-soft);
+  opacity: 0.7;
+}
+
+.endpoint-code {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edge-arrow {
+  color: var(--text-soft);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.config-actions {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+// ── Section header ────────────────────────────
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.no-items {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+// ── Conditions ────────────────────────────────
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.condition-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.condition-operator {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.condition-value {
+  flex: 1;
+  min-width: 0;
+}
+
+// ── Actions ───────────────────────────────────
+.actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.action-type {
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.action-param {
+  flex: 1;
+  min-width: 0;
+}
+
+// ── Load dialog ───────────────────────────────
+.load-dialog-loading,
+.load-dialog-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: var(--text-soft);
+  opacity: 0.6;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+// ── Add edge dialog ───────────────────────────
+.edge-dialog-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding-top: 20px;
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  :host ::ng-deep .p-select {
+    min-height: 2.75rem;
+  }
+}
+
+// ── All statuses tag ──────────────────────────
+.all-statuses-tag {
+  font-size: 0.75rem;
+}
+
+// ── Validation errors dialog ──────────────────
+.validation-errors-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  p {
+    margin: 0;
+    color: var(--text-soft);
+  }
+}
+
+.validation-errors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.validation-error-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  .validation-error-icon {
+    color: #ef4444;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .validation-error-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    strong {
+      color: #991b1b;
+    }
+  }
+}
+
+.validation-error-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.validation-error-node-tag {
+  display: inline-block;
+  background: #fecaca;
+  color: #991b1b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.validation-errors-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  opacity: 0.7;
+  margin-top: 0.5rem;
+}
+
+.text-muted {
+  color: var(--text-soft);
+  opacity: 0.7;
+}
+
+.ml-2 {
+  margin-left: 0.5rem;
+}
+
+// ── x6 overrides ──────────────────────────────
+:host ::ng-deep {
+  .x6-graph-background {
+    background-color: #f8f9fa;
+  }
+
+  // Constrain foreignObject to prevent height expansion
+  .x6-node foreignObject {
+    overflow: hidden !important;
+  }
+
+  .x6-node foreignObject > body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .x6-widget-minimap {
+    background: var(--surface);
+  }
+
+  .x6-widget-minimap-viewport {
+    border: 2px solid var(--surface-strong);
+  }
+
+  .x6-widget-selection-box {
+    border: 2px solid var(--surface-strong);
+    border-radius: 4px;
+  }
+
+  .x6-widget-selection-inner {
+    border: none;
+  }
+
+  .x6-widget-snapline-horizontal,
+  .x6-widget-snapline-vertical {
+    border-color: var(--surface-strong);
+  }
+}
+
+// ── Responsive ────────────────────────────────
+@media (max-width: 1024px) {
+  .workflow-editor {
+    :host ::ng-deep {
+      .p-toolbar {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .p-toolbar-start,
+      .p-toolbar-end {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+      }
+    }
+  }
+
+  .status-option-item {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  :host {
+    height: calc(100vh - 1rem);
+  }
+
+  .workflow-title {
+    font-size: 1rem;
+  }
+
+  .node-count {
+    display: none;
+  }
+
+  .editor-container {
+    flex-direction: column;
+  }
+
+  :host ::ng-deep {
+    .p-drawer {
+      width: 100% !important;
+      height: 60vh;
+    }
+  }
+
+  .condition-row {
+    flex-wrap: wrap;
+  }
+
+  .condition-field,
+  .condition-value {
+    flex: 1 1 100%;
+  }
+
+  .condition-operator {
+    width: 100%;
+  }
+
+  .action-row {
+    flex-wrap: wrap;
+  }
+
+  .action-type,
+  .action-param {
+    flex: 1 1 100%;
+  }
+}
