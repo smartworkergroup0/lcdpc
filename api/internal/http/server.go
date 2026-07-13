@@ -596,6 +596,7 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "order:status:change"))
 			r.Post("/{id}/status", orderH.ChangeStatus)
+			r.Get("/{id}/transitions", orderH.GetValidTransitions)
 		})
 	})
 

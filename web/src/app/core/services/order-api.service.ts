@@ -169,6 +169,15 @@ export class OrderApiService {
       .pipe(map((res) => this.mapOrder(res.data)));
   }
 
+  getValidTransitions(id: string): Observable<import('../models/order.model').ValidTransitionsResponse> {
+    return this.http
+      .get<JsendEnvelope<import('../models/order.model').ValidTransitionsResponse>>(
+        `${this.baseUrl}/api/v1/orders/${id}/transitions`,
+        { withCredentials: true }
+      )
+      .pipe(map((res) => res.data));
+  }
+
   private mapOrder(raw: OrderGoData): Order {
     return {
       id: raw.id,

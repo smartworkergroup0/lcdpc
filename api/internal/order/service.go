@@ -16,8 +16,6 @@ type SystemConfigReader interface {
 }
 
 type TransitionReader interface {
-	GetAllowedTransitions(ctx context.Context) (map[string][]string, error)
-	GetTerminalStatuses(ctx context.Context) (map[string]bool, error)
 	GetEditableStatuses(ctx context.Context) (map[string]bool, error)
 }
 
@@ -620,48 +618,41 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID, changedByUserID uuid
 }
 
 func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChangeRequest, changedByUserID uuid.UUID) (*Order, error) {
-	o, err := s.GetByID(ctx, id)
+	// Validate transition using centralized method
+	valid, err := s.GetValidTransitions(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	if valid.IsTerminal {
+		return nil, fmt.Errorf("INVALID_TRANSITION")
+	}
 
-	// Try workflow-based transition validation first
+	targetAllowed := false
+	for _, st := range valid.Statuses {
+		if st.Code == req.ToStatus {
+			targetAllowed = true
+			break
+		}
+	}
+	if !targetAllowed {
+		return nil, fmt.Errorf("INVALID_TRANSITION")
+	}
+
+	// Find workflow edge for post-transition actions
 	var activeEdge *workflow.WorkflowEdgeInfo
 	wf, wfErr := s.wfReader.GetActiveWorkflow(ctx, "order")
 	if wfErr == nil && wf != nil {
-		// Find matching edge in workflow
 		for _, edge := range wf.Edges {
-			if edge.SourceCode == o.Status && edge.TargetCode == req.ToStatus {
+			if edge.SourceCode == valid.CurrentStatus && edge.TargetCode == req.ToStatus {
 				activeEdge = &edge
 				break
 			}
 		}
-		if activeEdge == nil {
-			return nil, fmt.Errorf("INVALID_TRANSITION")
-		}
-		// Evaluate conditions
-		if err := s.evaluateConditions(ctx, o, activeEdge.Conditions); err != nil {
-			return nil, err
-		}
-	} else {
-		// Fallback to order_transitions table
-		if !IsTransitionAllowed(o.Status, req.ToStatus) {
-			allowed, err := s.transRepo.GetAllowedTransitions(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("get allowed transitions: %w", err)
-			}
-			targets := allowed[o.Status]
-			found := false
-			for _, t := range targets {
-				if t == req.ToStatus {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return nil, fmt.Errorf("INVALID_TRANSITION")
-			}
-		}
+	}
+
+	o, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -690,7 +681,7 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 	_, err = tx.Exec(ctx, `
 		INSERT INTO order_status_history (id, order_id, from_status, to_status, changed_by_user_id, notes, created_at_utc)
 		VALUES ($1, $2, $3, $4, $5, $6, now())
-	`, uuid.New(), id, o.Status, req.ToStatus, nullableUUID(&changedByUserID), nullString(req.Notes))
+	`, uuid.New(), id, valid.CurrentStatus, req.ToStatus, nullableUUID(&changedByUserID), nullString(req.Notes))
 	if err != nil {
 		return nil, fmt.Errorf("insert history: %w", err)
 	}
@@ -705,6 +696,88 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 	}
 
 	return s.GetByID(ctx, id)
+}
+
+func (s *Service) GetValidTransitions(ctx context.Context, orderID uuid.UUID) (*ValidTransitionsResponse, error) {
+	o, err := s.GetByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	if IsTerminal(o.Status) {
+		return &ValidTransitionsResponse{
+			CurrentStatus: o.Status,
+			IsTerminal:    true,
+			Statuses:      []StatusOption{},
+		}, nil
+	}
+
+	// Load active statuses for labels/colors
+	activeStatusMap, err := s.loadActiveStatusMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try workflow-based transitions
+	wf, wfErr := s.wfReader.GetActiveWorkflow(ctx, "order")
+	if wfErr == nil && wf != nil {
+		return s.getWorkflowTransitions(ctx, o, wf, activeStatusMap)
+	}
+
+	// No workflow active — no transitions available
+	return &ValidTransitionsResponse{
+		CurrentStatus: o.Status,
+		IsTerminal:    false,
+		Statuses:      []StatusOption{},
+	}, nil
+}
+
+func (s *Service) loadActiveStatusMap(ctx context.Context) (map[string]StatusOption, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT code, label, color FROM order_statuses WHERE is_active = true
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("load active statuses: %w", err)
+	}
+	defer rows.Close()
+
+	m := make(map[string]StatusOption)
+	for rows.Next() {
+		var opt StatusOption
+		if err := rows.Scan(&opt.Code, &opt.Label, &opt.Color); err != nil {
+			return nil, fmt.Errorf("scan status: %w", err)
+		}
+		m[opt.Code] = opt
+	}
+	return m, nil
+}
+
+func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *workflow.WorkflowInfo, activeMap map[string]StatusOption) (*ValidTransitionsResponse, error) {
+	result := &ValidTransitionsResponse{
+		CurrentStatus: o.Status,
+		IsTerminal:    false,
+		Statuses:      []StatusOption{},
+	}
+
+	for _, edge := range wf.Edges {
+		if edge.SourceCode != o.Status {
+			continue
+		}
+		// Only include if target is an active status
+		targetOpt, isActive := activeMap[edge.TargetCode]
+		if !isActive {
+			continue
+		}
+		// Evaluate conditions — skip transition if conditions not met
+		if len(edge.Conditions) > 0 {
+			if err := s.evaluateConditions(ctx, o, edge.Conditions); err != nil {
+				continue
+			}
+		}
+		result.Statuses = append(result.Statuses, targetOpt)
+	}
+
+	return result, nil
 }
 
 func (s *Service) evaluateConditions(ctx context.Context, o *Order, conditions []workflow.WorkflowConditionInfo) error {

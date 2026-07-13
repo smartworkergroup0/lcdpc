@@ -26,7 +26,7 @@
       [outlined]="true"
       size="small"
       (onClick)="toggleAllColumns()"
-      [pTooltip]="showAllColumns() ? 'Mostrar solo estatus con datos' : 'Mostrar los 15 estatus siempre'"
+      [pTooltip]="showAllColumns() ? 'Mostrar solo estatus con datos' : 'Mostrar todos los estatus del workflow'"
       tooltipPosition="bottom" />
     <p-button
       [label]="verticalHeaders() ? 'Headers horizontales' : 'Headers verticales'"
@@ -45,75 +45,83 @@
     <p-progressBar mode="indeterminate" />
   }
 
-  <div class="matrix-viewport">
-    <table class="matrix-table">
-      <thead>
-        <tr>
-          <th class="col-order col-order--header">Orden</th>
-          @for (status of activeStatuses(); track status) {
-            <th class="col-status" [title]="statusLabels[status]">
-              <span class="status-header-label" [class.vertical]="verticalHeaders()">
-                {{ statusLabels[status] }}
-              </span>
-            </th>
-          }
-        </tr>
-      </thead>
-      <tbody>
-        @for (order of orders(); track order.id) {
-          <tr [class.terminal-row]="isTerminal(order.status)">
-            <td class="col-order" (click)="openDetail(order)">
-              <div class="order-cell">
-                <span class="order-id">{{ order.displayId }}</span>
-                <span class="order-total">{{ order.priceTotal | currency }}</span>
-                <span class="order-items">{{ order.totalItems }} items</span>
-                <span class="order-time">{{ order.createdAtUtc | date:'shortTime' }}</span>
-              </div>
-            </td>
-            @for (status of activeStatuses(); track status) {
-              <td
-                class="col-status"
-                [class.cell-completed]="cellMatrix().get(order.id)?.get(status)?.type === 'completed'"
-                [class.cell-active]="cellMatrix().get(order.id)?.get(status)?.type === 'active'"
-                [class.cell-pending]="cellMatrix().get(order.id)?.get(status)?.type === 'pending'"
-                [class.cell-terminal]="cellMatrix().get(order.id)?.get(status)?.type === 'terminal'"
-                [class.cell-reverted]="cellMatrix().get(order.id)?.get(status)?.type === 'reverted'"
-                [class.cell-unreachable]="cellMatrix().get(order.id)?.get(status)?.type === 'unreachable'"
-                [class.cell-clickable]="cellMatrix().get(order.id)?.get(status)?.clickable"
-                (click)="cellMatrix().get(order.id)?.get(status)?.clickable && onCellClick(order, status)">
-                @switch (cellMatrix().get(order.id)?.get(status)?.type) {
-                  @case ('completed') {
-                    <span class="cell-icon">&#10003;</span>
-                  }
-                  @case ('active') {
-                    <span class="cell-radio active">&#9679;</span>
-                  }
-                  @case ('terminal') {
-                    <span class="cell-icon terminal">&#10007;</span>
-                  }
-                  @case ('reverted') {
-                    <span class="cell-icon reverted">&#10007;</span>
-                  }
-                  @case ('unreachable') {
-                    <span class="cell-icon">&#10003;</span>
-                  }
-                  @default {
-                    <span class="cell-radio pending">&#9675;</span>
-                  }
-                }
-              </td>
+  @if (!workflowLoaded()) {
+    <div class="matrix-empty-workflow">
+      <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem"></i>
+      <span>Cargando workflow...</span>
+    </div>
+  } @else if (workflowNodes().length === 0) {
+    <div class="matrix-empty-workflow">
+      <i class="pi pi-exclamation-triangle" style="font-size: 1.5rem; color: var(--accent)"></i>
+      <span>No hay un workflow de órdenes configurado. Cree uno en la sección de Workflows.</span>
+    </div>
+  } @else {
+    <div class="matrix-viewport">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th class="col-order col-order--header">Orden</th>
+            @for (node of activeStatuses(); track node.code) {
+              <th class="col-status" [title]="node.label">
+                <span class="status-header-label" [class.vertical]="verticalHeaders()">
+                  {{ node.label }}
+                </span>
+              </th>
             }
           </tr>
-        } @empty {
-          <tr>
-            <td [attr.colspan]="activeStatuses().length + 1" class="empty-state">
-              No hay órdenes para esta fecha
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          @for (order of orders(); track order.id) {
+            <tr [class.terminal-row]="isTerminalStatus(order.status)">
+              <td class="col-order" (click)="openDetail(order)">
+                <div class="order-cell">
+                  <span class="order-id">{{ order.displayId }}</span>
+                  <span class="order-total">{{ order.priceTotal | currency }}</span>
+                  <span class="order-items">{{ order.totalItems }} items</span>
+                  <span class="order-time">{{ order.createdAtUtc | date:'shortTime' }}</span>
+                </div>
+              </td>
+              @for (node of activeStatuses(); track node.code) {
+                <td
+                  class="col-status"
+                  [class.cell-terminal]="cellMatrix().get(order.id)?.get(node.code)?.type === 'terminal'"
+                  [class.cell-current]="cellMatrix().get(order.id)?.get(node.code)?.type === 'current'"
+                  [class.cell-visited]="cellMatrix().get(order.id)?.get(node.code)?.type === 'visited'"
+                  [class.cell-reverted]="cellMatrix().get(order.id)?.get(node.code)?.type === 'reverted'"
+                  [class.cell-pending]="cellMatrix().get(order.id)?.get(node.code)?.type === 'pending'"
+                  [class.cell-clickable]="cellMatrix().get(order.id)?.get(node.code)?.clickable"
+                  (click)="cellMatrix().get(order.id)?.get(node.code)?.clickable && onCellClick(order, node.code)">
+                  @switch (cellMatrix().get(order.id)?.get(node.code)?.type) {
+                    @case ('terminal') {
+                      <span class="cell-icon terminal">&#10007;</span>
+                    }
+                    @case ('current') {
+                      <span class="cell-radio current">&#9679;</span>
+                    }
+                    @case ('visited') {
+                      <span class="cell-icon visited">&#10003;</span>
+                    }
+                    @case ('reverted') {
+                      <span class="cell-icon reverted">&#8617;</span>
+                    }
+                    @default {
+                      <span class="cell-radio pending">&#9675;</span>
+                    }
+                  }
+                </td>
+              }
+            </tr>
+          } @empty {
+            <tr>
+              <td [attr.colspan]="activeStatuses().length + 1" class="empty-state">
+                No hay órdenes para esta fecha
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 
   @if (totalCount() > pageSize) {
     <div class="matrix-paginator">
@@ -158,7 +166,7 @@
   @if (selectedOrder(); as order) {
     <div class="detail-section">
       <div class="detail-header">
-        <p-tag [value]="statusLabels[order.status]" [severity]="statusSeverity[order.status]" />
+        <p-tag [value]="getNodeLabel(order.status)" [severity]="statusSeverity[order.status]" />
         <span class="detail-id">{{ order.displayId }}</span>
       </div>
 
@@ -216,7 +224,7 @@
         @for (entry of order.history; track entry.id) {
           <div class="timeline-entry">
             <div class="timeline-content">
-              <p-tag [value]="statusLabels[entry.toStatus]" [severity]="statusSeverity[entry.toStatus]" size="small" />
+              <p-tag [value]="getNodeLabel(entry.toStatus)" [severity]="statusSeverity[entry.toStatus]" size="small" />
               <span class="timeline-date">{{ entry.createdAtUtc | date:'short' }}</span>
               @if (entry.notes) {
                 <span class="timeline-notes">{{ entry.notes }}</span>

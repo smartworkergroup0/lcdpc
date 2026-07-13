@@ -15,7 +15,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { OrderApiService } from '../../../core/services/order-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
-import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_SEVERITY, ORDER_STATUS_TRANSITIONS, ORDER_TERMINAL_STATUSES } from '../../../core/models/order.model';
+import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_SEVERITY, ORDER_TERMINAL_STATUSES } from '../../../core/models/order.model';
 import { OrderDetailDialogComponent } from './order-detail-dialog.component';
 import { OrderFormDialogComponent } from './order-form-dialog.component';
 import { OrderItemsDialogComponent } from './order-items-dialog.component';
@@ -57,7 +57,6 @@ export class OrdersPageComponent implements OnInit {
   protected searchDisplayId: string = '';
 
   protected readonly statusOptions = Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => ({ label, value }));
-  protected readonly ORDER_STATUS_TRANSITIONS = ORDER_STATUS_TRANSITIONS;
 
   protected readonly detailVisible = signal(false);
   protected readonly selectedOrder = signal<Order | null>(null);
@@ -169,10 +168,17 @@ export class OrdersPageComponent implements OnInit {
     this.selectedOrder.set(order);
     this.newStatus = '';
     this.statusNotes = '';
+    this.nextStatusOptions.set([]);
 
-    const allowed = ORDER_STATUS_TRANSITIONS[order.status] ?? [];
-    this.nextStatusOptions.set(allowed.map((s) => ({ label: ORDER_STATUS_LABELS[s] ?? s, value: s })));
-    this.statusDialogVisible.set(true);
+    this.orderApi.getValidTransitions(order.id).subscribe({
+      next: (res) => {
+        this.nextStatusOptions.set(res.statuses.map((s) => ({ label: s.label, value: s.code })));
+        this.statusDialogVisible.set(true);
+      },
+      error: () => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar las transiciones' });
+      },
+    });
   }
 
   changeStatus(): void {

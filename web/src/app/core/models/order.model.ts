@@ -58,6 +58,18 @@ export interface StatusChangeRequest {
   notes: string;
 }
 
+export interface StatusOption {
+  code: string;
+  label: string;
+  color: string;
+}
+
+export interface ValidTransitionsResponse {
+  current_status: string;
+  is_terminal: boolean;
+  statuses: StatusOption[];
+}
+
 export interface StatusHistoryEntry {
   id: string;
   orderId: string;
@@ -136,20 +148,6 @@ export const ORDER_TERMINAL_STATUSES: Record<string, boolean> = {
 export const ORDER_EDITABLE_STATUSES: Record<string, boolean> = {
   PENDING_REVIEW: true,
   UNDER_REVIEW: true,
-};
-
-export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
-  PENDING_REVIEW: ['UNDER_REVIEW', 'REJECTED_BY_VALIDATION', 'CANCELLED_BY_CUSTOMER'],
-  UNDER_REVIEW: ['APPROVED_FOR_FULFILLMENT', 'REJECTED_BY_VALIDATION', 'CANCELLED_BY_CUSTOMER'],
-  APPROVED_FOR_FULFILLMENT: ['IN_PREPARATION', 'CANCELLED_BY_CUSTOMER'],
-  IN_PREPARATION: ['AWAITING_INVENTORY', 'PREPARATION_COMPLETED', 'CANCELLED_BY_CUSTOMER'],
-  AWAITING_INVENTORY: ['IN_PREPARATION', 'CANCELLED_BY_CUSTOMER'],
-  PREPARATION_COMPLETED: ['READY_FOR_PICKUP', 'READY_FOR_DISPATCH'],
-  READY_FOR_PICKUP: ['PICKED_UP', 'DELIVERY_FAILED'],
-  READY_FOR_DISPATCH: ['IN_TRANSIT', 'DELIVERY_FAILED'],
-  IN_TRANSIT: ['DELIVERED', 'DELIVERY_FAILED'],
-  DELIVERED: ['COMPLETED'],
-  PICKED_UP: ['COMPLETED'],
 };
 
 export const ORDER_STATUS_COLUMNS: string[] = [

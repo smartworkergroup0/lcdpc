@@ -18,20 +18,6 @@ const (
 	StatusCancelledByCustomer     = "CANCELLED_BY_CUSTOMER"
 )
 
-var allowedTransitions = map[string][]string{
-	StatusPendingReview:          {StatusUnderReview, StatusRejectedByValidation, StatusCancelledByCustomer},
-	StatusUnderReview:            {StatusApprovedForFulfillment, StatusRejectedByValidation, StatusCancelledByCustomer},
-	StatusApprovedForFulfillment: {StatusInPreparation, StatusCancelledByCustomer},
-	StatusInPreparation:          {StatusAwaitingInventory, StatusPreparationCompleted, StatusCancelledByCustomer},
-	StatusAwaitingInventory:      {StatusInPreparation, StatusCancelledByCustomer},
-	StatusPreparationCompleted:   {StatusReadyForPickup, StatusReadyForDispatch},
-	StatusReadyForPickup:         {StatusPickedUp, StatusDeliveryFailed},
-	StatusReadyForDispatch:       {StatusInTransit, StatusDeliveryFailed},
-	StatusInTransit:              {StatusDelivered, StatusDeliveryFailed},
-	StatusDelivered:              {StatusCompleted},
-	StatusPickedUp:               {StatusCompleted},
-}
-
 var terminalStatuses = map[string]bool{
 	StatusRejectedByValidation: true,
 	StatusDeliveryFailed:       true,
@@ -44,31 +30,10 @@ var editableStatuses = map[string]bool{
 	StatusUnderReview:   true,
 }
 
-func IsTransitionAllowed(from, to string) bool {
-	targets, ok := allowedTransitions[from]
-	if !ok {
-		return false
-	}
-	for _, t := range targets {
-		if t == to {
-			return true
-		}
-	}
-	return false
-}
-
 func IsTerminal(status string) bool {
 	return terminalStatuses[status]
 }
 
 func IsEditable(status string) bool {
 	return editableStatuses[status]
-}
-
-func IsValidStatus(status string) bool {
-	_, ok := allowedTransitions[status]
-	if ok {
-		return true
-	}
-	return terminalStatuses[status]
 }
