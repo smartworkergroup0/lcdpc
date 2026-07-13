@@ -3,6 +3,7 @@ package workflow
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -18,7 +19,8 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) ListOrderStatuses(w http.ResponseWriter, r *http.Request) {
-	statuses, err := h.svc.ListOrderStatuses(r.Context())
+	statusFilter := r.URL.Query().Get("status")
+	statuses, err := h.svc.ListOrderStatuses(r.Context(), statusFilter)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -75,7 +77,11 @@ func (h *Handler) GetWorkflowByID(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.svc.GetWorkflowByID(r.Context(), id)
 	if err != nil {
-		response.Error(w, http.StatusNotFound, err.Error())
+		if strings.Contains(err.Error(), "NOT_FOUND") {
+			response.Error(w, http.StatusNotFound, "workflow not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -128,7 +134,11 @@ func (h *Handler) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.DeleteWorkflow(r.Context(), id); err != nil {
-		response.Error(w, http.StatusBadRequest, err.Error())
+		if strings.Contains(err.Error(), "NOT_FOUND") {
+			response.Error(w, http.StatusNotFound, "workflow not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

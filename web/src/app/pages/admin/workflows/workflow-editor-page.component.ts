@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, of, switchMap } from 'rxjs';
 import { Graph, Shape, Node, Edge } from '@antv/x6';
 import { register } from '@antv/x6-angular-shape';
 import { MiniMap } from '@antv/x6-plugin-minimap';
@@ -63,12 +64,9 @@ interface RoleOption {
 
 interface ValidationError {
   field: string;
-  message: string;
-}
-
-interface HistoryState {
-  nodes: WorkflowNode[];
-  edges: WorkflowEdge[];
+  fieldLabel: string;
+  detail: string;
+  nodeNames?: string[];
 }
 
 @Component({
@@ -120,11 +118,37 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
   protected readonly orderStatuses = signal<OrderStatus[]>([]);
   protected readonly orderTransitions = signal<OrderTransition[]>([]);
   protected readonly loading = signal(false);
+  protected readonly pendingDeactivations = signal<string[]>([]);
+
+  // Add edge dialog
+  protected readonly showAddEdgeDialog = signal(false);
+  protected newEdgeSource: string | undefined = undefined;
+  protected newEdgeTarget: string | undefined = undefined;
+  protected newEdgeLabel = '';
+
+  // Validation errors dialog
+  protected readonly showValidationErrors = signal(false);
+  protected readonly validationErrors = signal<ValidationError[]>([]);
+
+  protected readonly nodeOptions = computed(() =>
+    this.nodes().map((n) => ({
+      label: n.data.label || n.data.code,
+      value: n.id,
+    }))
+  );
 
   protected readonly roleOptions = signal<RoleOption[]>([]);
 
   protected readonly canCreate = computed(() =>
-    this.authStore.hasPermission('order:view')
+    this.authStore.hasPermission('workflow:create')
+  );
+
+  protected readonly canUpdate = computed(() =>
+    this.authStore.hasPermission('workflow:update')
+  );
+
+  protected readonly canSave = computed(() =>
+    this.workflowId() ? this.canUpdate() : this.canCreate()
   );
 
   protected readonly workflowId = signal<string | null>(null);
@@ -137,22 +161,20 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
   protected readonly loadingWorkflows = signal(false);
 
   // Undo/Redo
-  private history: HistoryState[] = [];
-  private historyIndex = -1;
-  private maxHistory = 50;
-
   protected readonly canUndo = signal(false);
   protected readonly canRedo = signal(false);
 
   protected readonly availableStatuses = computed<StatusOption[]>(() => {
-    const usedCodes = new Set(this.nodes().map((n) => n.data.code));
-    return this.orderStatuses()
+    const usedCodes = new Set(this.nodes().map((n) => n.data.code).filter(c => c));
+    const allStatuses = this.orderStatuses();
+    const available = allStatuses
       .filter((s) => !usedCodes.has(s.code))
       .map((s) => ({
         label: s.label,
         value: s.code,
         color: s.color || '#6366f1',
       }));
+    return available;
   });
 
   protected readonly triggerTypeOptions = [
@@ -212,6 +234,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
         allowBlank: false,
         allowMulti: true,
         allowLoop: false,
+        allowNode: true,
         highlight: true,
         anchor: 'center',
         connectionPoint: 'anchor',
@@ -270,7 +293,8 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     const x6Nodes = this.graph.getNodes();
     const updated: WorkflowNode[] = x6Nodes.map((n) => {
       const pos = n.getPosition();
-      const data = n.getData()?.ngArguments ?? n.getData() ?? {};
+      const rawData = n.getData() ?? {};
+      const data = rawData.ngArguments ?? rawData;
       return {
         id: n.id,
         type: 'status',
@@ -278,8 +302,8 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
         data: {
           label: data.label ?? '',
           code: data.code ?? '',
-          isInitial: data.isInitial ?? false,
-          isFinal: data.isFinal ?? false,
+          isInitial: data.isInitial ?? data.is_initial ?? false,
+          isFinal: data.isFinal ?? data.is_final ?? false,
           color: data.color ?? '#6366f1',
           description: data.description ?? '',
         },
@@ -292,10 +316,15 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     const x6Edges = this.graph.getEdges();
     const updated: WorkflowEdge[] = x6Edges.map((e) => {
       const data = e.getData() ?? {};
+      const src = e.getSourceCellId();
+      const tgt = e.getTargetCellId();
+      if (!src || !tgt) {
+        console.warn('[SYNC] Edge sin source/target:', e.id, 'src:', src, 'tgt:', tgt);
+      }
       return {
         id: e.id,
-        source: e.getSourceCellId(),
-        target: e.getTargetCellId(),
+        source: src,
+        target: tgt,
         label: data.label ?? '',
         data: {
           label: data.label ?? '',
@@ -306,6 +335,24 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       };
     });
     this.edges.set(updated);
+  }
+
+  private removeOrphanedEdges(): void {
+    const nodeIds = new Set(this.graph.getNodes().map((n) => n.id));
+    let removed = 0;
+    for (const edge of this.graph.getEdges()) {
+      const src = edge.getSourceCellId();
+      const tgt = edge.getTargetCellId();
+      if (!nodeIds.has(src) || !nodeIds.has(tgt)) {
+        console.warn('[ORPHAN] Removiendo edge:', edge.id, 'src:', src, 'tgt:', tgt, 'nodeIds:', [...nodeIds]);
+        this.graph.removeEdge(edge);
+        removed++;
+      }
+    }
+    if (removed > 0) {
+      console.warn('[ORPHAN] Total edges removidos:', removed);
+    }
+    this.syncEdgesFromGraph();
   }
 
   private loadRoles(): void {
@@ -321,27 +368,42 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
   private loadOrderData(): void {
     this.loading.set(true);
 
-    this.workflowApi.getOrderStatuses().subscribe({
+    this.workflowApi.getOrderStatuses('ALL').subscribe({
       next: (statuses) => {
         this.orderStatuses.set(statuses);
+
+        this.workflowApi.getOrderTransitions().subscribe({
+          next: (transitions) => {
+            this.orderTransitions.set(transitions);
+
+            // Try to load the active workflow from DB
+            this.workflowApi.list({ entity_type: 'order', is_active: true, limit: 1 }).subscribe({
+              next: (res) => {
+                if (res.items.length > 0) {
+                  this.loadWorkflow(res.items[0]);
+                } else {
+                  this.initDefaultCanvas();
+                }
+                this.loading.set(false);
+              },
+              error: () => {
+                this.initDefaultCanvas();
+                this.loading.set(false);
+              },
+            });
+          },
+          error: () => {
+            this.loading.set(false);
+          },
+        });
       },
       error: () => {
+        this.loading.set(false);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
           detail: 'No se pudieron cargar los estatus de órdenes',
         });
-      },
-    });
-
-    this.workflowApi.getOrderTransitions().subscribe({
-      next: (transitions) => {
-        this.orderTransitions.set(transitions);
-        this.initDefaultCanvas();
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
       },
     });
   }
@@ -382,8 +444,13 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       });
     }
 
-    // Add edges
+    // Add edges (skip orphaned ones)
+    const nodeIds = new Set(statuses.map((s) => `node_${s.code}`));
     for (const t of transitions) {
+      const sourceId = `node_${t.sourceStatusCode}`;
+      const targetId = `node_${t.targetStatusCode}`;
+      if (!nodeIds.has(sourceId) || !nodeIds.has(targetId)) continue;
+
       this.graph.addEdge({
         id: `edge_${t.code}`,
         source: `node_${t.sourceStatusCode}`,
@@ -481,20 +548,46 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
 
   protected serialize(): {
     definition: {
-      nodes: WorkflowNode[];
-      edges: WorkflowEdge[];
-      metadata: WorkflowMetadata;
+      nodes: any[];
+      edges: any[];
+      metadata: any;
     };
   } {
     const now = new Date().toISOString();
     return {
       definition: {
-        nodes: this.nodes(),
-        edges: this.edges(),
+        nodes: this.nodes().map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          data: {
+            label: n.data.label,
+            code: n.data.code,
+            is_initial: n.data.isInitial,
+            is_final: n.data.isFinal,
+            color: n.data.color,
+            description: n.data.description,
+          },
+        })),
+        edges: this.edges().map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          data: {
+            label: e.data.label,
+            code: e.data.code,
+            rules: {
+              trigger_type: e.data.rules.triggerType,
+              required_roles: e.data.rules.requiredRoles,
+              conditions: e.data.rules.conditions,
+            },
+            actions: e.data.actions,
+          },
+        })),
         metadata: {
           viewport: { x: 0, y: 0, zoom: 1 },
-          createdAt: now,
-          updatedAt: now,
+          created_at: now,
+          updated_at: now,
         },
       },
     };
@@ -508,30 +601,34 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     const currentEdges = this.edges();
 
     if (currentNodes.length === 0) {
-      errors.push({ field: 'nodes', message: 'Debe haber al menos un nodo' });
+      errors.push({ field: 'nodes', fieldLabel: 'Nodos', detail: 'Debe haber al menos un nodo en el canvas' });
     }
 
     const nodesWithoutCode = currentNodes.filter((n) => !n.data.code?.trim());
     if (nodesWithoutCode.length > 0) {
       errors.push({
         field: 'code',
-        message: `${nodesWithoutCode.length} nodo(s) sin código: ${nodesWithoutCode.map((n) => n.data.label).join(', ')}`,
+        fieldLabel: 'Código faltante',
+        detail: `${nodesWithoutCode.length} nodo(s) sin código asignado`,
+        nodeNames: nodesWithoutCode.map((n) => n.data.label || '(sin nombre)'),
       });
     }
 
     const initialNodes = currentNodes.filter((n) => n.data.isInitial);
     if (initialNodes.length === 0) {
-      errors.push({ field: 'isInitial', message: 'Debe haber al menos un nodo inicial' });
+      errors.push({ field: 'isInitial', fieldLabel: 'Nodo inicial', detail: 'Debe haber al menos un nodo marcado como inicial' });
     } else if (initialNodes.length > 1) {
       errors.push({
         field: 'isInitial',
-        message: `Hay ${initialNodes.length} nodos iniciales; solo debe haber uno: ${initialNodes.map((n) => n.data.label).join(', ')}`,
+        fieldLabel: 'Múltiples nodos iniciales',
+        detail: `Solo debe haber un nodo inicial, pero hay ${initialNodes.length}`,
+        nodeNames: initialNodes.map((n) => n.data.label),
       });
     }
 
     const finalNodes = currentNodes.filter((n) => n.data.isFinal);
     if (finalNodes.length === 0) {
-      errors.push({ field: 'isFinal', message: 'Debe haber al menos un nodo final' });
+      errors.push({ field: 'isFinal', fieldLabel: 'Nodo final', detail: 'Debe haber al menos un nodo marcado como final' });
     }
 
     const nodeIds = new Set(currentNodes.map((n) => n.id));
@@ -541,7 +638,8 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     if (orphanEdges.length > 0) {
       errors.push({
         field: 'edges',
-        message: `${orphanEdges.length} transición(es) con origen o destino inválido`,
+        fieldLabel: 'Transiciones huérfanas',
+        detail: `${orphanEdges.length} transición(es) con origen o destino inválido`,
       });
     }
 
@@ -550,7 +648,9 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       if (!this.hasPathToFinal(currentNodes, currentEdges, initialNodes[0])) {
         errors.push({
           field: 'path',
-          message: 'El flujo no llega a ningún nodo final desde el nodo inicial',
+          fieldLabel: 'Sin camino al final',
+          detail: 'El flujo no llega a ningún nodo final desde el nodo inicial',
+          nodeNames: currentNodes.map((n) => n.data.label),
         });
       }
     }
@@ -561,12 +661,55 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       if (unreachable.length > 0) {
         errors.push({
           field: 'reachability',
-          message: `${unreachable.length} nodo(s) no alcanzables desde el inicial: ${unreachable.map((n) => n.data.label).join(', ')}`,
+          fieldLabel: 'Nodos inalcanzables',
+          detail: `${unreachable.length} nodo(s) no son alcanzables desde el nodo inicial`,
+          nodeNames: unreachable.map((n) => n.data.label),
         });
       }
     }
 
     return errors;
+  }
+
+  private highlightProblematicNodes(errors: ValidationError[]): void {
+    // Collect problematic node IDs from errors
+    const problemNodeIds = new Set<string>();
+    for (const error of errors) {
+      if (error.nodeNames) {
+        for (const name of error.nodeNames) {
+          const node = this.nodes().find((n) => n.data.label === name || n.data.code === name);
+          if (node) problemNodeIds.add(node.id);
+        }
+      }
+      if (error.field === 'path') {
+        for (const n of this.nodes()) {
+          problemNodeIds.add(n.id);
+        }
+      }
+    }
+
+    // Set hasError flag on nodes for CSS styling
+    for (const node of this.graph.getNodes()) {
+      const isProblem = problemNodeIds.has(node.id);
+      const data = node.getData() ?? {};
+      const ngArgs = data.ngArguments ?? data;
+      ngArgs.hasError = isProblem;
+      node.setData({ ...data, ngArguments: ngArgs }, { overwrite: true });
+    }
+
+    // Auto-reset after 5 seconds
+    setTimeout(() => {
+      for (const node of this.graph.getNodes()) {
+        const data = node.getData() ?? {};
+        const ngArgs = data.ngArguments ?? data;
+        ngArgs.hasError = false;
+        node.setData({ ...data, ngArguments: ngArgs }, { overwrite: true });
+      }
+    }, 5000);
+  }
+
+  protected closeValidationErrors(): void {
+    this.showValidationErrors.set(false);
   }
 
   private hasPathToFinal(nodes: WorkflowNode[], edges: WorkflowEdge[], initialNode: WorkflowNode): boolean {
@@ -610,6 +753,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     this.workflowId.set(null);
     this.workflowName.set('Flujo de Órdenes');
     this.workflowDescription.set('');
+    this.pendingDeactivations.set([]);
     this.closeNodePanel();
     this.closeEdgePanel();
     this.initDefaultCanvas();
@@ -639,6 +783,16 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     this.workflowId.set(workflow.id);
     this.workflowName.set(workflow.name);
     this.workflowDescription.set(workflow.description);
+    this.pendingDeactivations.set([]);
+
+    console.log('[LOAD] Workflow recibido:', workflow.name, 'id:', workflow.id);
+    console.log('[LOAD] Nodos recibidos:', workflow.nodes.length, JSON.stringify(workflow.nodes.map(n => ({ id: n.id, code: n.data?.code }))));
+    console.log('[LOAD] Edges recibidos:', workflow.edges.length, JSON.stringify(workflow.edges.map(e => ({ id: e.id, src: e.source, tgt: e.target, label: e.data?.label }))));
+
+    // Refresh statuses from backend to ensure availableStatuses is accurate
+    this.workflowApi.getOrderStatuses('ALL').subscribe({
+      next: (statuses) => this.orderStatuses.set(statuses),
+    });
 
     // Load nodes and edges into graph
     this.graph.clearCells();
@@ -657,12 +811,22 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       });
     }
 
+    const validNodeIds = new Set(workflow.nodes.map((n) => n.id));
+    console.log('[LOAD] Valid node IDs:', [...validNodeIds]);
+
+    let edgesAdded = 0;
+    let edgesSkipped = 0;
     for (const edge of workflow.edges) {
+      if (!validNodeIds.has(edge.source) || !validNodeIds.has(edge.target)) {
+        console.warn('[LOAD] Edge SKIP (source/target no existe):', edge.id, 'src:', edge.source, 'tgt:', edge.target);
+        edgesSkipped++;
+        continue;
+      }
+
       this.graph.addEdge({
         id: edge.id,
         source: edge.source,
         target: edge.target,
-        label: edge.label,
         attrs: {
           line: {
             stroke: '#94a3b8',
@@ -675,7 +839,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
             position: 0.5,
             attrs: {
               label: {
-                text: edge.label ?? edge.data.label,
+                text: edge.data.label,
                 fill: '#2f2f2f',
                 fontSize: 12,
                 fontWeight: 600,
@@ -697,16 +861,28 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
           },
         ],
         data: { ...edge.data },
-        router: 'manhattan',
-        connector: 'rounded',
       });
+      edgesAdded++;
+    }
+    console.log('[LOAD] Edges agregados al graph:', edgesAdded, 'Skipped:', edgesSkipped);
+    console.log('[LOAD] Graph edges después de addEdge:', this.graph.getEdges().length);
+
+    for (const edge of this.graph.getEdges()) {
+      edge.setRouter('manhattan');
+      edge.setConnector('rounded');
     }
 
     this.showLoadDialog.set(false);
     this.closeNodePanel();
     this.closeEdgePanel();
     this.syncNodesFromGraph();
-    this.syncEdgesFromGraph();
+    this.removeOrphanedEdges();
+
+    console.log('[LOAD] Graph edges después de removeOrphaned:', this.graph.getEdges().length);
+    console.log('[LOAD] Edges finales en signal:', this.edges().length, JSON.stringify(this.edges().map(e => ({ id: e.id, src: e.source, tgt: e.target }))));
+
+    this.graph.resize();
+    this.graph.zoomToFit({ padding: 40, maxScale: 1.2 });
 
     this.messageService.add({
       severity: 'success',
@@ -753,18 +929,17 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
   protected saveWorkflow(): void {
     const errors = this.validate();
     if (errors.length > 0) {
-      const errorList = errors.map((e) => `• ${e.message}`).join('<br/>');
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Validación fallida',
-        detail: errorList,
-        life: 6000,
-      });
+      this.validationErrors.set(errors);
+      this.showValidationErrors.set(true);
+      this.highlightProblematicNodes(errors);
       return;
     }
 
     this.loading.set(true);
     const { definition } = this.serialize();
+
+    console.log('[SAVE] Edges en serialize():', JSON.stringify(definition.edges.map(e => ({ id: e.id, src: e.source, tgt: e.target, label: e.data?.label }))));
+    console.log('[SAVE] Nodos en serialize():', JSON.stringify(definition.nodes.map(n => ({ id: n.id, code: n.data?.code }))));
 
     const id = this.workflowId();
     const request$ = id
@@ -780,14 +955,30 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
           definition,
         });
 
-    request$.subscribe({
+    // Deactivate pending statuses before saving
+    const pending = this.pendingDeactivations();
+    const deactivate$ = pending.length > 0
+      ? forkJoin(pending.map((code) => this.workflowApi.deactivateStatus(code)))
+      : of([]);
+
+    deactivate$.pipe(switchMap(() => request$)).subscribe({
       next: (workflow) => {
         this.workflowId.set(workflow.id);
+        this.pendingDeactivations.set([]);
         this.loading.set(false);
+
+        // Refresh available statuses
+        this.workflowApi.getOrderStatuses('ALL').subscribe({
+          next: (statuses) => this.orderStatuses.set(statuses),
+        });
+
+        const deactivatedMsg = pending.length > 0
+          ? ` ${pending.length} estatus desactivado(s).`
+          : '';
         this.messageService.add({
           severity: 'success',
           summary: 'Éxito',
-          detail: 'Flujo guardado correctamente',
+          detail: `Flujo guardado correctamente.${deactivatedMsg}`,
         });
       },
       error: () => {
@@ -910,7 +1101,11 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
               });
             }
 
+            const validIds = new Set(data.definition.nodes.map((n: any) => n.id));
+
             for (const edge of data.definition.edges) {
+              if (!validIds.has(edge.source) || !validIds.has(edge.target)) continue;
+
               this.graph.addEdge({
                 id: edge.id,
                 source: edge.source,
@@ -1176,51 +1371,116 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     if (!node) return;
 
     this.confirmationService.confirm({
-      message: `¿Desactivar el estatus "${node.data.label}"? Las órdenes en este status serán revertidas al estado anterior. Las transiciones conectadas también se eliminarán.`,
-      header: 'Desactivar estatus',
+      message: `¿Eliminar el estatus "${node.data.label}" del flujo? Se desactivará al guardar el flujo. Las transiciones conectadas también se eliminarán.`,
+      header: 'Eliminar nodo',
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Desactivar',
+      acceptLabel: 'Eliminar',
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
-        this.loading.set(true);
-        this.workflowApi.deactivateStatus(node.data.code).subscribe({
-          next: (result) => {
-            // Remove node from graph
-            const x6Node = this.graph.getCellById(node.id);
-            if (x6Node && x6Node.isNode()) {
-              this.graph.removeNode(x6Node as Node);
-            }
-            this.closeNodePanel();
-            this.syncNodesFromGraph();
-            this.syncEdgesFromGraph();
-            this.loading.set(false);
+        // Track for deactivation on save
+        if (node.data.code) {
+          this.pendingDeactivations.update((list) =>
+            list.includes(node.data.code) ? list : [...list, node.data.code]
+          );
+        }
 
-            // Refresh available statuses
-            this.workflowApi.getOrderStatuses().subscribe({
-              next: (statuses) => this.orderStatuses.set(statuses),
-            });
+        // Remove connected edges first
+        const x6Node = this.graph.getCellById(node.id);
+        if (x6Node && x6Node.isNode()) {
+          const connectedEdges = this.graph.getConnectedEdges(x6Node as Node);
+          for (const edge of connectedEdges) {
+            this.graph.removeEdge(edge);
+          }
+          this.graph.removeNode(x6Node as Node);
+        }
+        this.closeNodePanel();
+        this.syncNodesFromGraph();
+        this.syncEdgesFromGraph();
 
-            const revertMsg = result.ordersReverted > 0
-              ? ` ${result.ordersReverted} orden(es) revertida(s).`
-              : '';
-            this.messageService.add({
-              severity: 'success',
-              summary: 'Estatus desactivado',
-              detail: `"${node.data.label}" desactivado.${revertMsg}`,
-              life: 5000,
-            });
-          },
-          error: (err) => {
-            this.loading.set(false);
-            this.messageService.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: err.error?.message || 'No se pudo desactivar el estatus',
-            });
-          },
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Nodo eliminado',
+          detail: `"${node.data.label}" será desactivado al guardar el flujo.`,
+          life: 3000,
         });
       },
+    });
+  }
+
+  protected openAddEdgeDialog(): void {
+    this.newEdgeSource = undefined;
+    this.newEdgeTarget = undefined;
+    this.newEdgeLabel = '';
+    this.showAddEdgeDialog.set(true);
+  }
+
+  protected confirmAddEdge(): void {
+    if (!this.newEdgeSource || !this.newEdgeTarget || this.newEdgeSource === this.newEdgeTarget) return;
+
+    const sourceNode = this.nodes().find((n) => n.id === this.newEdgeSource);
+    const targetNode = this.nodes().find((n) => n.id === this.newEdgeTarget);
+    if (!sourceNode || !targetNode) return;
+
+    const label = this.newEdgeLabel || `${sourceNode.data.code} → ${targetNode.data.code}`;
+    const code = `${sourceNode.data.code}_TO_${targetNode.data.code}`;
+
+    // Close dialog first so graph can render properly
+    this.showAddEdgeDialog.set(false);
+
+    this.graph.addEdge({
+      id: `edge_${code}_${Date.now()}`,
+      source: this.newEdgeSource,
+      target: this.newEdgeTarget,
+      label,
+      attrs: {
+        line: {
+          stroke: '#94a3b8',
+          strokeWidth: 2,
+          targetMarker: { name: 'block', width: 12, height: 8 },
+        },
+      },
+      labels: [
+        {
+          position: 0.5,
+          attrs: {
+            label: {
+              text: label,
+              fill: '#2f2f2f',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'Poppins, sans-serif',
+            },
+            rect: {
+              fill: '#fffdf3',
+              rx: 4,
+              ry: 4,
+              ref: 'label',
+              refX: -6,
+              refY: -4,
+              refWidth: '100%',
+              refHeight: '100%',
+              refWidth2: 12,
+              refHeight2: 8,
+            },
+          },
+        },
+      ],
+      data: {
+        label,
+        code,
+        rules: { triggerType: 'manual', requiredRoles: [], conditions: [] },
+        actions: [],
+      },
+    });
+
+    this.graph.resize();
+    this.syncEdgesFromGraph();
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Transición creada',
+      detail: `"${label}" agregada correctamente`,
     });
   }
 

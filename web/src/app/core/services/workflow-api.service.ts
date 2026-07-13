@@ -135,7 +135,7 @@ export class WorkflowApiService {
 
   deactivateStatus(code: string): Observable<{ deactivated: string; ordersReverted: number }> {
     return this.http
-      .post<JsendEnvelope<{ deactivated: string; orders_reverted: number }>>(
+      .patch<JsendEnvelope<{ deactivated: string; orders_reverted: number }>>(
         `${this.baseUrl}/api/v1/order-statuses/${code}/deactivate`,
         {},
         { withCredentials: true }
@@ -148,9 +148,13 @@ export class WorkflowApiService {
       );
   }
 
-  getOrderStatuses(): Observable<OrderStatus[]> {
+  getOrderStatuses(status?: string): Observable<OrderStatus[]> {
+    const params: Record<string, string> = {};
+    if (status) params['status'] = status;
+
     return this.http
       .get<JsendEnvelope<OrderStatusGoData[]>>(`${this.baseUrl}/api/v1/order-statuses`, {
+        params,
         withCredentials: true,
       })
       .pipe(map((res) => res.data.map((s) => this.mapOrderStatus(s))));
@@ -172,11 +176,48 @@ export class WorkflowApiService {
       description: raw.description,
       entityType: raw.entity_type,
       isActive: raw.is_active,
-      nodes: raw.definition.nodes,
-      edges: raw.definition.edges,
+      nodes: raw.definition.nodes.map((n) => this.mapNode(n)),
+      edges: raw.definition.edges.map((e) => this.mapEdge(e)),
       metadata: raw.definition.metadata,
       createdAtUtc: raw.created_at_utc,
       updatedAtUtc: raw.updated_at_utc,
+    };
+  }
+
+  private mapNode(raw: WorkflowNode): WorkflowNode {
+    return {
+      id: raw.id,
+      type: raw.type,
+      position: raw.position,
+      data: {
+        label: raw.data.label,
+        code: raw.data.code,
+        isInitial: (raw.data as any).is_initial ?? raw.data.isInitial ?? false,
+        isFinal: (raw.data as any).is_final ?? raw.data.isFinal ?? false,
+        color: raw.data.color,
+        description: raw.data.description,
+      },
+    };
+  }
+
+  private mapEdge(raw: WorkflowEdge): WorkflowEdge {
+    const rawData = raw.data as any;
+    const rules = rawData.rules ?? {};
+    return {
+      id: raw.id,
+      source: raw.source,
+      target: raw.target,
+      label: raw.label,
+      data: {
+        label: rawData.label ?? '',
+        code: rawData.code ?? '',
+        rules: {
+          triggerType: rules.trigger_type ?? rules.triggerType ?? 'manual',
+          requiredRoles: rules.required_roles ?? rules.requiredRoles ?? [],
+          conditions: rules.conditions ?? [],
+        },
+        actions: rawData.actions ?? [],
+      },
     };
   }
 

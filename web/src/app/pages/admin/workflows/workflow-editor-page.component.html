@@ -5,9 +5,9 @@
 <ng-template #statusNodeTemplate let-data="ngArguments">
   <div
     class="status-node"
-    [style.border-color]="data?.color"
     [class.is-initial]="data?.isInitial"
     [class.is-final]="data?.isFinal"
+    [class.has-error]="data?.hasError"
   >
     <div class="status-node-header">
       <span class="status-dot" [style.background]="data?.color"></span>
@@ -36,6 +36,7 @@
     </div>
     <div class="p-toolbar-end">
       <p-button
+        label="Deshacer"
         icon="pi pi-undo"
         severity="secondary"
         [text]="true"
@@ -44,6 +45,7 @@
         pTooltip="Deshacer"
       />
       <p-button
+        label="Rehacer"
         icon="pi pi-redo"
         severity="secondary"
         [text]="true"
@@ -59,20 +61,12 @@
         pTooltip="Auto-organizar nodos"
       />
       <p-button
-        label="Nuevo"
-        icon="pi pi-file"
+        label="Reiniciar"
+        icon="pi pi-refresh"
         severity="secondary"
         [text]="true"
         (onClick)="newWorkflow()"
-        pTooltip="Crear nuevo flujo"
-      />
-      <p-button
-        label="Cargar"
-        icon="pi pi-folder-open"
-        severity="secondary"
-        [text]="true"
-        (onClick)="openLoadDialog()"
-        pTooltip="Cargar flujo existente"
+        pTooltip="Reiniciar canvas"
       />
       @if (availableStatuses().length > 0) {
         <p-select
@@ -105,11 +99,15 @@
           [disabled]="loading() || !selectedStatusToAdd"
         />
       } @else {
+        <p-tag value="Todos los estatus agregados" severity="success" styleClass="all-statuses-tag" />
+      }
+      @if (nodes().length >= 2) {
         <p-button
-          label="Agregar Nodo"
-          icon="pi pi-plus"
+          label="Agregar Transición"
+          icon="pi pi-arrow-right-arrow-left"
           severity="secondary"
-          [disabled]="true"
+          (onClick)="openAddEdgeDialog()"
+          [disabled]="loading()"
         />
       }
       <p-button
@@ -131,6 +129,7 @@
         icon="pi pi-save"
         (onClick)="saveWorkflow()"
         [loading]="loading()"
+        [disabled]="!canSave()"
       />
     </div>
   </p-toolbar>
@@ -535,4 +534,98 @@
       </ng-template>
     </p-table>
   }
+</p-dialog>
+
+<p-dialog
+  header="Agregar Transición"
+  [(visible)]="showAddEdgeDialog"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(450px, 95vw)' }"
+>
+  <div class="edge-dialog-fields">
+    <div class="field">
+      <p-select
+        id="edge-source"
+        [options]="nodeOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [(ngModel)]="newEdgeSource"
+        placeholder="Nodo origen *"
+        [style]="{ width: '100%' }"
+        appendTo="body"
+      />
+    </div>
+    <div class="field">
+      <p-select
+        id="edge-target"
+        [options]="nodeOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [(ngModel)]="newEdgeTarget"
+        placeholder="Nodo destino *"
+        [style]="{ width: '100%' }"
+        appendTo="body"
+      />
+    </div>
+    <div class="field">
+      <p-floatlabel>
+        <input
+          pInputText
+          id="edge-name"
+          [(ngModel)]="newEdgeLabel"
+          style="width: 100%"
+          placeholder=" "
+        />
+        <label for="edge-name">Nombre de la transición</label>
+      </p-floatlabel>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="showAddEdgeDialog.set(false)" />
+    <p-button
+      label="Crear Transición"
+      icon="pi pi-check"
+      [disabled]="!newEdgeSource || !newEdgeTarget || newEdgeSource === newEdgeTarget"
+      (onClick)="confirmAddEdge()"
+    />
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  header="Errores de validación"
+  [(visible)]="showValidationErrors"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(550px, 95vw)' }"
+>
+  <div class="validation-errors-content">
+    <p>Corregí los siguientes errores antes de guardar:</p>
+    <div class="validation-errors-list">
+      @for (error of validationErrors(); track error.field) {
+        <div class="validation-error-item">
+          <i class="pi pi-exclamation-circle validation-error-icon"></i>
+          <div class="validation-error-text">
+            <strong>{{ error.fieldLabel }}:</strong> {{ error.detail }}
+            @if (error.nodeNames && error.nodeNames.length > 0) {
+              <div class="validation-error-nodes">
+                @for (name of error.nodeNames; track name) {
+                  <span class="validation-error-node-tag">{{ name }}</span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <p class="validation-errors-hint">
+      <i class="pi pi-info-circle"></i>
+      Los nodos con errores están resaltados en rojo en el canvas.
+    </p>
+  </div>
+  <ng-template pTemplate="footer">
+    <p-button label="Entendido" icon="pi pi-check" (onClick)="closeValidationErrors()" />
+  </ng-template>
 </p-dialog>

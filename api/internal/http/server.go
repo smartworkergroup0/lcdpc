@@ -676,17 +676,20 @@ func NewServer(
 		r.Get("/branches", saBranchH.List)
 	})
 
-	// Order Statuses & Transitions (public read)
-	r.Get("/api/v1/order-statuses", workflowH.ListOrderStatuses)
-	r.Get("/api/v1/order-transitions", workflowH.ListOrderTransitions)
-
-	// Deactivate order status (protected)
+	// Order Statuses (public read + protected deactivate)
 	r.Route("/api/v1/order-statuses", func(r chi.Router) {
-		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
-		r.Use(middleware.RequireAuth())
-		r.Use(middleware.RequirePermission(rbacStore, "workflow:update"))
-		r.Patch("/{code}/deactivate", workflowH.DeactivateStatus)
+		r.Get("/", workflowH.ListOrderStatuses)
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+			r.Use(middleware.RequireAuth())
+			r.Use(middleware.RequirePermission(rbacStore, "workflow:update"))
+			r.Patch("/{code}/deactivate", workflowH.DeactivateStatus)
+		})
 	})
+
+	// Order Transitions (public read)
+	r.Get("/api/v1/order-transitions", workflowH.ListOrderTransitions)
 
 	// Workflows (protected CRUD)
 	r.Route("/api/v1/workflows", func(r chi.Router) {

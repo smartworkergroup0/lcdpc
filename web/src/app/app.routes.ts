@@ -34,7 +34,7 @@ export const routes: Routes = [
 			{ path: 'bundles', component: BundlesPageComponent, canActivate: [permissionGuard('bundle:view')] },
 			{ path: 'orders', component: OrdersPageComponent, canActivate: [permissionGuard('order:view')] },
 			{ path: 'orders-matrix', component: OrderMatrixPageComponent, canActivate: [permissionGuard('order:view')] },
-			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('order:view')] },
+			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('workflow:view')] },
 			{ path: 'staff', component: StaffPageComponent, canActivate: [permissionGuard('staff:view')] },
 			{ path: 'config', component: ConfigPageComponent, canActivate: [() => {
 				const authStore = inject(AuthStore);

@@ -18,13 +18,17 @@ func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool}
 }
 
-func (s *Service) ListOrderStatuses(ctx context.Context) ([]OrderStatus, error) {
-	rows, err := s.pool.Query(ctx, `
+func (s *Service) ListOrderStatuses(ctx context.Context, statusFilter string) ([]OrderStatus, error) {
+	query := `
 		SELECT id, code, label, color, is_initial, is_final, description, sort_order, created_at_utc, updated_at_utc
 		FROM order_statuses
-		WHERE is_active = true
-		ORDER BY sort_order
-	`)
+	`
+	if statusFilter != "ALL" {
+		query += " WHERE is_active = true"
+	}
+	query += " ORDER BY sort_order"
+
+	rows, err := s.pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list order statuses: %w", err)
 	}
@@ -324,8 +328,23 @@ func (s *Service) CreateWorkflow(ctx context.Context, req CreateWorkflowRequest)
 		return nil, fmt.Errorf("marshal definition: %w", err)
 	}
 
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Deactivate any existing active workflows for the same entity type
+	_, err = tx.Exec(ctx, `
+		UPDATE workflows SET is_active = false, updated_at_utc = now()
+		WHERE entity_type = $1 AND is_active = true
+	`, req.EntityType)
+	if err != nil {
+		return nil, fmt.Errorf("deactivate existing workflows: %w", err)
+	}
+
 	w := &Workflow{}
-	err = s.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO workflows (id, name, version, description, entity_type, is_active, definition, created_at_utc, updated_at_utc)
 		VALUES ($1, $2, '1.0', $3, $4, true, $5, now(), now())
 		RETURNING id, name, version, description, entity_type, is_active, definition, created_at_utc, updated_at_utc
@@ -338,6 +357,10 @@ func (s *Service) CreateWorkflow(ctx context.Context, req CreateWorkflowRequest)
 	}
 	if err := json.Unmarshal(defJSON, &w.Definition); err != nil {
 		return nil, fmt.Errorf("unmarshal definition: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
 	}
 	return w, nil
 }
@@ -397,6 +420,7 @@ func (s *Service) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
 }
 
 // DeactivateStatus deactivates a status and reverts orders to their previous status.
+// Idempotent: if the status is already deactivated, returns success with ordersReverted=0.
 func (s *Service) DeactivateStatus(ctx context.Context, code string) (*DeactivateStatusResponse, error) {
 	// Terminal statuses should not revert orders
 	terminalStatuses := map[string]bool{
@@ -406,14 +430,22 @@ func (s *Service) DeactivateStatus(ctx context.Context, code string) (*Deactivat
 		"CANCELLED_BY_CUSTOMER": true,
 	}
 
-	// Check if status exists
-	var statusExists bool
-	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM order_statuses WHERE code = $1 AND is_active = true)`, code).Scan(&statusExists)
+	// Check if status exists (regardless of is_active)
+	var isActive bool
+	err := s.pool.QueryRow(ctx, `SELECT is_active FROM order_statuses WHERE code = $1`, code).Scan(&isActive)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("STATUS_NOT_FOUND")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("check status exists: %w", err)
 	}
-	if !statusExists {
-		return nil, fmt.Errorf("STATUS_NOT_FOUND")
+
+	// Already deactivated — idempotent success
+	if !isActive {
+		return &DeactivateStatusResponse{
+			Deactivated:    code,
+			OrdersReverted: 0,
+		}, nil
 	}
 
 	tx, err := s.pool.Begin(ctx)

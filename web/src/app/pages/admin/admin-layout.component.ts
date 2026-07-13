@@ -49,7 +49,7 @@ export class AdminLayoutComponent {
   );
 
   protected readonly canViewWorkflows = computed(() =>
-    this.authStore.hasPermission('order:view')
+    this.authStore.hasPermission('workflow:view')
   );
   protected readonly canViewConfig = computed(() =>
     this.authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view')
