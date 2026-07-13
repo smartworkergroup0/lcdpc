@@ -6,11 +6,9 @@ import { ButtonModule } from 'primeng/button';
 import { Popover, PopoverModule } from 'primeng/popover';
 import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CartStore } from '../../core/stores/cart.store';
 import { SystemConfigStore } from '../../core/stores/system-config.store';
-import { LoginFormComponent } from '../login-form/login-form.component';
 
 export type HeaderBranch = {
   id: string;
@@ -18,22 +16,19 @@ export type HeaderBranch = {
 };
 
 @Component({
-  selector: 'app-header',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ButtonModule, PopoverModule, SelectModule, ToastModule, LoginFormComponent],
-  providers: [MessageService],
-  templateUrl: './header.component.html',
-  styleUrl: './header.component.scss'
+	selector: 'app-header',
+	standalone: true,
+	imports: [CommonModule, FormsModule, RouterLink, ButtonModule, PopoverModule, SelectModule, ToastModule],
+	templateUrl: './header.component.html',
+	styleUrl: './header.component.scss'
 })
 export class HeaderComponent {
-  private readonly authStore = inject(AuthStore);
-  private readonly cartStore = inject(CartStore);
-  private readonly router = inject(Router);
-  private readonly messageService = inject(MessageService);
-  readonly systemConfigStore = inject(SystemConfigStore);
+	private readonly authStore = inject(AuthStore);
+	private readonly cartStore = inject(CartStore);
+	private readonly router = inject(Router);
+	readonly systemConfigStore = inject(SystemConfigStore);
 
-  @ViewChild('loginOverlay') loginOverlay!: Popover;
-  @ViewChild('cartOverlay') cartOverlay!: Popover;
+	@ViewChild('cartOverlay') cartOverlay!: Popover;
 
   @Input() branches: HeaderBranch[] = [];
   @Input() selectedBranchId = '';
@@ -63,9 +58,9 @@ export class HeaderComponent {
     )
   );
 
-  protected onLogoError(event: Event): void {
-    (event.target as HTMLImageElement).src = '/not-found.png';
-  }
+	protected onLogoError(event: Event): void {
+		(event.target as HTMLImageElement).src = '/not-found.png';
+	}
 
   protected toggleCartOverlay(event: Event): void {
     this.cartOverlay.toggle(event);
@@ -77,20 +72,8 @@ export class HeaderComponent {
     void this.router.navigateByUrl('/cart');
   }
 
-  protected onLoginSuccess(): void {
-    this.loginOverlay.hide();
-    this.messageService.add({ severity: 'success', summary: '¡Bienvenido!', detail: 'Has iniciado sesión correctamente.' });
-    if (this.router.url !== '/') {
-      this.router.navigateByUrl('/');
-    }
-  }
-
-  protected onLoginError(message: string): void {
-    this.messageService.add({ severity: 'error', summary: 'Error', detail: message });
-  }
-
-  protected async logout(): Promise<void> {
-    await this.authStore.logout().toPromise();
-    await this.router.navigateByUrl('/');
-  }
+	protected async logout(): Promise<void> {
+		await this.authStore.logout().toPromise();
+		await this.router.navigateByUrl('/');
+	}
 }

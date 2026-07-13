@@ -2,15 +2,17 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { FooterComponent } from './shared/footer/footer.component';
 import { HeaderComponent } from './shared/header/header.component';
 import { AuthStore } from './core/auth/auth.store';
 import { BranchStore } from './core/stores/branch.store';
 import { CartStore } from './core/stores/cart.store';
+import { LoadingStateService } from './core/loading/loading-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, RouterOutlet, HeaderComponent, FooterComponent],
+  imports: [CommonModule, RouterOutlet, HeaderComponent, FooterComponent, ProgressSpinnerModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -20,6 +22,7 @@ export class App implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly branchStore = inject(BranchStore);
   protected readonly cartStore = inject(CartStore);
+  protected readonly loadingState = inject(LoadingStateService);
 
   protected readonly showStoreShell = signal(!this.isAuthRoute(this.router.url));
   protected readonly isCartRoute = signal(this.router.url.startsWith('/cart'));
@@ -49,7 +52,7 @@ export class App implements OnInit {
     void this.router.navigateByUrl('/cart');
   }
 
-  private isAuthRoute(url: string): boolean {
-    return url.startsWith('/register');
-  }
+	private isAuthRoute(url: string): boolean {
+		return url.startsWith('/login') || url.startsWith('/register');
+	}
 }

@@ -33,7 +33,7 @@ type Service struct {
 
 type emailSender interface {
 	SendOtpAsync(ctx context.Context, to, otp string) error
-	SendPasswordResetAsync(ctx context.Context, to, token string) error
+	SendPasswordResetAsync(ctx context.Context, to, otp string, ttlMinutes int) error
 }
 
 type rbacStore interface {
@@ -270,6 +270,29 @@ type CompleteProfileResponse struct {
 	AccountType string    `json:"account_type"`
 }
 
+type CheckDocumentAvailabilityResponse struct {
+	Available bool   `json:"available"`
+	Code      string `json:"code,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
+func (s *Service) CheckDocumentAvailability(ctx context.Context, identityDocument string) (*CheckDocumentAvailabilityResponse, error) {
+	linked, err := s.isDocumentLinkedToUser(ctx, identityDocument)
+	if err != nil {
+		return nil, err
+	}
+
+	if linked {
+		return &CheckDocumentAvailabilityResponse{
+			Available: false,
+			Code:      "DOCUMENT_ALREADY_LINKED_TO_USER",
+			Message:   "El documento que está intentando colocar se encuentra registrado a otro usuario.",
+		}, nil
+	}
+
+	return &CheckDocumentAvailabilityResponse{Available: true}, nil
+}
+
 func (s *Service) CompleteProfile(ctx context.Context, req CompleteProfileRequest) (*CompleteProfileResponse, error) {
 	var flow struct {
 		ID            uuid.UUID
@@ -316,27 +339,70 @@ func (s *Service) CompleteProfile(ctx context.Context, req CompleteProfileReques
 
 	userID := uuid.New()
 	profileID := uuid.New()
-	personID := uuid.New()
 
 	userName := req.FirstName
 	if req.LastName != "" {
 		userName = req.FirstName + " " + req.LastName
 	}
+	identityDocument := strings.ToUpper(strings.TrimSpace(req.IdentityDocument))
+
+	var personID uuid.UUID
+	var personExists bool
+	err = tx.QueryRow(ctx, `
+		SELECT id
+		FROM persons
+		WHERE identity_document = $1
+	`, identityDocument).Scan(&personID)
+	if err != nil && err != pgx.ErrNoRows {
+		return nil, fmt.Errorf("get person by document: %w", err)
+	}
+	personExists = err == nil
+
+	if personExists {
+		var ownerID uuid.UUID
+		err = tx.QueryRow(ctx, `
+			SELECT id
+			FROM users
+			WHERE person_id = $1
+		`, personID).Scan(&ownerID)
+		if err != nil && err != pgx.ErrNoRows {
+			return nil, fmt.Errorf("check person owner: %w", err)
+		}
+		if err == nil {
+			return nil, fmt.Errorf("DOCUMENT_ALREADY_LINKED_TO_USER")
+		}
+
+		_, err = tx.Exec(ctx, `
+			UPDATE persons
+			SET name = $2,
+				identity_document = $3,
+				tax_id = NULLIF($4, ''),
+				whatsapp_phone = $5,
+				full_address = $6,
+				is_client = true,
+				updated_at_utc = now()
+			WHERE id = $1
+		`, personID, userName, identityDocument, nullString(req.TaxID), req.WhatsAppPhone, req.FullAddress)
+		if err != nil {
+			return nil, fmt.Errorf("update person: %w", err)
+		}
+	} else {
+		personID = uuid.New()
+		_, err = tx.Exec(ctx, `
+			INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc)
+			VALUES ($1, $2, $3, $4, $5, $6, true, now(), now())
+		`, personID, userName, identityDocument, nullString(req.TaxID), req.WhatsAppPhone, req.FullAddress)
+		if err != nil {
+			return nil, fmt.Errorf("create person: %w", err)
+		}
+	}
 
 	_, err = tx.Exec(ctx, `
 		INSERT INTO profiles (id, name, code, created_at_utc, updated_at_utc)
 		VALUES ($1, $2, $3, now(), now())
-	`, profileID, userName, req.IdentityDocument)
+	`, profileID, userName, identityDocument)
 	if err != nil {
 		return nil, fmt.Errorf("create profile: %w", err)
-	}
-
-	_, err = tx.Exec(ctx, `
-		INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc)
-		VALUES ($1, $2, $3, $4, $5, $6, true, now(), now())
-	`, personID, userName, req.IdentityDocument, nullString(req.TaxID), req.WhatsAppPhone, req.FullAddress)
-	if err != nil {
-		return nil, fmt.Errorf("create person: %w", err)
 	}
 
 	_, err = tx.Exec(ctx, `
@@ -376,6 +442,22 @@ func (s *Service) CompleteProfile(ctx context.Context, req CompleteProfileReques
 	}
 
 	return &CompleteProfileResponse{UserID: userID, Status: "active", AccountType: "client"}, nil
+}
+
+func (s *Service) isDocumentLinkedToUser(ctx context.Context, identityDocument string) (bool, error) {
+	var linked bool
+	if err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM users u
+			JOIN persons p ON p.id = u.person_id
+			WHERE p.identity_document = $1
+		)
+	`, strings.ToUpper(strings.TrimSpace(identityDocument))).Scan(&linked); err != nil {
+		return false, fmt.Errorf("check document owner: %w", err)
+	}
+
+	return linked, nil
 }
 
 // Login
@@ -718,8 +800,9 @@ func (s *Service) Logout(ctx context.Context, accessToken string) error {
 // Forgot Password
 
 type ForgotPasswordResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status    string    `json:"status"`
+	Message   string    `json:"message"`
+	OtpPolicy OtpPolicy `json:"otp_policy"`
 }
 
 func (s *Service) ForgotPassword(ctx context.Context, email, ipAddress string) (*ForgotPasswordResponse, error) {
@@ -733,52 +816,58 @@ func (s *Service) ForgotPassword(ctx context.Context, email, ipAddress string) (
 	err := s.pool.QueryRow(ctx, `SELECT id, email FROM users WHERE email = $1`, normalizedEmail).Scan(&user.ID, &user.Email)
 	if err == pgx.ErrNoRows {
 		s.createAuditLog(ctx, nil, "auth.password.forgot_requested_unknown_email", ipAddress, nil)
-		return &ForgotPasswordResponse{Status: "accepted", Message: "if the account exists, a reset instruction has been generated"}, nil
+		return &ForgotPasswordResponse{Status: "accepted", Message: "Si la cuenta existe, se envió un código de recuperación.", OtpPolicy: OtpPolicy{TTLMinutes: OtpTTLMinutes, MaxAttempts: OtpMaxAttempts, CooldownMin: OtpCooldownMinutes}}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
-	// Get policy
-	var policy struct {
-		TTLMinutes     int
-		RevokeSessions bool
+	now := time.Now().UTC()
+	ttl := time.Duration(OtpTTLMinutes) * time.Minute
+
+	var activeReset struct {
+		ID                 uuid.UUID
+		OtpBlockedUntilUtc *time.Time
 	}
 	err = s.pool.QueryRow(ctx, `
-		SELECT password_reset_ttl_minutes, revoke_sessions_on_password_reset FROM auth_security_policies LIMIT 1
-	`).Scan(&policy.TTLMinutes, &policy.RevokeSessions)
-	if err != nil {
-		policy.TTLMinutes = 30
-		policy.RevokeSessions = true
+		SELECT id, otp_blocked_until_utc
+		FROM password_reset_tokens
+		WHERE user_id = $1 AND used_at_utc IS NULL AND revoked_at_utc IS NULL
+		ORDER BY created_at_utc DESC
+		LIMIT 1
+	`, user.ID).Scan(&activeReset.ID, &activeReset.OtpBlockedUntilUtc)
+	if err != nil && err != pgx.ErrNoRows {
+		return nil, fmt.Errorf("get reset token: %w", err)
+	}
+	if err == nil && activeReset.OtpBlockedUntilUtc != nil && activeReset.OtpBlockedUntilUtc.After(now) {
+		return nil, fmt.Errorf("OTP_COOLDOWN_ACTIVE")
 	}
 
-	// Revoke existing tokens
-	s.pool.Exec(ctx, `UPDATE password_reset_tokens SET revoked_at_utc = now() WHERE user_id = $1 AND used_at_utc IS NULL AND revoked_at_utc IS NULL`, user.ID)
+	otpCode := GenerateOtp()
 
-	// Create new token
-	resetToken, err := GenerateOpaqueToken()
-	if err != nil {
-		return nil, fmt.Errorf("generate token: %w", err)
+	if err == pgx.ErrNoRows {
+		_, err = s.pool.Exec(ctx, `
+			INSERT INTO password_reset_tokens (id, user_id, otp_code, otp_expires_at_utc, otp_attempts, otp_blocked_until_utc, created_at_utc, updated_at_utc)
+			VALUES ($1, $2, $3, $4, 0, NULL, $5, $5)
+		`, uuid.New(), user.ID, otpCode, now.Add(ttl), now)
+	} else {
+		_, err = s.pool.Exec(ctx, `
+			UPDATE password_reset_tokens
+			SET otp_code = $2, otp_expires_at_utc = $3, otp_attempts = 0, otp_blocked_until_utc = NULL, used_at_utc = NULL, revoked_at_utc = NULL, updated_at_utc = now()
+			WHERE id = $1
+		`, activeReset.ID, otpCode, now.Add(ttl))
 	}
-
-	tokenHash := HashToken(resetToken)
-	now := time.Now().UTC()
-
-	_, err = s.pool.Exec(ctx, `
-		INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at_utc, created_at_utc)
-		VALUES ($1, $2, $3, $4, $5)
-	`, uuid.New(), user.ID, tokenHash, now.Add(time.Duration(policy.TTLMinutes)*time.Minute), now)
 	if err != nil {
-		return nil, fmt.Errorf("create reset token: %w", err)
+		return nil, fmt.Errorf("save reset otp: %w", err)
 	}
 
 	s.createAuditLog(ctx, &user.ID, "auth.password.forgot_requested", ipAddress, nil)
 
-	if err := s.emailSvc.SendPasswordResetAsync(ctx, normalizedEmail, resetToken); err != nil {
+	if err := s.emailSvc.SendPasswordResetAsync(ctx, normalizedEmail, otpCode, OtpTTLMinutes); err != nil {
 		slog.Error("failed to send password reset email", "error", err)
 	}
 
-	return &ForgotPasswordResponse{Status: "accepted", Message: "if the account exists, a reset instruction has been generated"}, nil
+	return &ForgotPasswordResponse{Status: "accepted", Message: "Si la cuenta existe, se envió un código de recuperación.", OtpPolicy: OtpPolicy{TTLMinutes: OtpTTLMinutes, MaxAttempts: OtpMaxAttempts, CooldownMin: OtpCooldownMinutes}}, nil
 }
 
 // Reset Password
@@ -788,31 +877,73 @@ type ResetPasswordResponse struct {
 	SessionsRevoked bool   `json:"sessions_revoked"`
 }
 
-func (s *Service) ResetPassword(ctx context.Context, token, newPassword, ipAddress string) (*ResetPasswordResponse, error) {
-	if token == "" {
-		return nil, fmt.Errorf("INVALID_OR_EXPIRED_RESET_TOKEN")
+func (s *Service) ResetPassword(ctx context.Context, email, otp, newPassword, ipAddress string) (*ResetPasswordResponse, error) {
+	if email == "" || otp == "" {
+		return nil, fmt.Errorf("OTP_INVALID")
 	}
 
-	tokenHash := HashToken(token)
+	normalizedEmail := normalizeEmail(email)
+	now := time.Now().UTC()
 
-	var resetToken struct {
-		ID     uuid.UUID
-		UserID uuid.UUID
+	var user struct {
+		ID    uuid.UUID
+		Email string
 	}
 
-	err := s.pool.QueryRow(ctx, `
-		SELECT id, user_id FROM password_reset_tokens
-		WHERE token_hash = $1 AND used_at_utc IS NULL AND revoked_at_utc IS NULL AND expires_at_utc > now()
-	`, tokenHash).Scan(&resetToken.ID, &resetToken.UserID)
+	err := s.pool.QueryRow(ctx, `SELECT id, email FROM users WHERE email = $1`, normalizedEmail).Scan(&user.ID, &user.Email)
 	if err == pgx.ErrNoRows {
 		s.createAuditLog(ctx, nil, "auth.password.reset_invalid_token", ipAddress, nil)
-		return nil, fmt.Errorf("INVALID_OR_EXPIRED_RESET_TOKEN")
+		return nil, fmt.Errorf("OTP_EXPIRED")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+
+	var resetToken struct {
+		ID                 uuid.UUID
+		UserID             uuid.UUID
+		OtpCode            string
+		OtpExpiresAtUtc    time.Time
+		OtpAttempts        int
+		OtpBlockedUntilUtc *time.Time
+	}
+
+	err = s.pool.QueryRow(ctx, `
+		SELECT id, user_id, otp_code, otp_expires_at_utc, otp_attempts, otp_blocked_until_utc
+		FROM password_reset_tokens
+		WHERE user_id = $1 AND used_at_utc IS NULL AND revoked_at_utc IS NULL
+		ORDER BY created_at_utc DESC
+		LIMIT 1
+	`, user.ID).Scan(&resetToken.ID, &resetToken.UserID, &resetToken.OtpCode, &resetToken.OtpExpiresAtUtc, &resetToken.OtpAttempts, &resetToken.OtpBlockedUntilUtc)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("OTP_EXPIRED")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get reset token: %w", err)
 	}
 
-	// Get policy
+	if resetToken.OtpBlockedUntilUtc != nil && resetToken.OtpBlockedUntilUtc.After(now) {
+		return nil, fmt.Errorf("OTP_COOLDOWN_ACTIVE")
+	}
+	if resetToken.OtpExpiresAtUtc.Before(now) {
+		return nil, fmt.Errorf("OTP_EXPIRED")
+	}
+	if strings.TrimSpace(otp) != resetToken.OtpCode {
+		var attempts int
+		err = s.pool.QueryRow(ctx, `
+			UPDATE password_reset_tokens SET otp_attempts = otp_attempts + 1, updated_at_utc = now()
+			WHERE id = $1 RETURNING otp_attempts
+		`, resetToken.ID).Scan(&attempts)
+		if err != nil {
+			return nil, fmt.Errorf("increment reset attempts: %w", err)
+		}
+		if attempts >= OtpMaxAttempts {
+			_, _ = s.pool.Exec(ctx, `UPDATE password_reset_tokens SET otp_blocked_until_utc = $2, updated_at_utc = now() WHERE id = $1`, resetToken.ID, now.Add(OtpCooldownMinutes*time.Minute))
+			return nil, fmt.Errorf("OTP_ATTEMPTS_EXCEEDED")
+		}
+		return nil, fmt.Errorf("OTP_INVALID")
+	}
+
 	var policy struct {
 		TTLMinutes     int
 		RevokeSessions bool
@@ -841,7 +972,7 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword, ipAddre
 		return nil, fmt.Errorf("update password: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, `UPDATE password_reset_tokens SET used_at_utc = now() WHERE id = $1`, resetToken.ID)
+	_, err = tx.Exec(ctx, `UPDATE password_reset_tokens SET otp_code = NULL, used_at_utc = now(), revoked_at_utc = now(), updated_at_utc = now() WHERE id = $1`, resetToken.ID)
 	if err != nil {
 		return nil, fmt.Errorf("use token: %w", err)
 	}

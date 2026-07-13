@@ -39,9 +39,9 @@ func (s *SMTPSender) SendOtpAsync(ctx context.Context, to, otpCode string) error
 	return nil
 }
 
-func (s *SMTPSender) SendPasswordResetAsync(ctx context.Context, to, resetToken string) error {
+func (s *SMTPSender) SendPasswordResetAsync(ctx context.Context, to, otpCode string, ttlMinutes int) error {
 	msg := s.newMessage(to, "LCDPC Password Reset",
-		fmt.Sprintf("<p>Use this token to reset your password: <strong>%s</strong></p><p>This token expires soon.</p>", resetToken))
+		fmt.Sprintf("<p>Your password recovery code is: <strong>%s</strong></p><p>This code expires in %d minutes.</p>", otpCode, ttlMinutes))
 
 	if err := s.dialer().DialAndSend(msg); err != nil {
 		slog.Error("failed to send password reset email via SMTP", "error", err, "to", to)

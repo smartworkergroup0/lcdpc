@@ -20,4 +20,16 @@
   .admin-toolbar {
     margin-bottom: 0.75rem;
   }
+
+  .form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
 }

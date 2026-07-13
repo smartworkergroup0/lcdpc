@@ -131,6 +131,7 @@ func NewServer(
 	r.Route("/api/v1/auth", func(r chi.Router) {
 		r.Post("/register/start", authH.RegisterStart)
 		r.Post("/register/verify-email", authH.RegisterVerifyEmail)
+		r.Post("/register/check-document", authH.RegisterCheckDocument)
 		r.Post("/register/complete", authH.RegisterComplete)
 		r.Post("/login", authH.Login)
 		r.Post("/forgot-password", authH.ForgotPassword)
@@ -547,6 +548,8 @@ func NewServer(
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequirePermission(rbacStore, "rbac:user:update"))
+			r.Get("/{id}", userH.GetByID)
+			r.Put("/{id}", userH.Update)
 			r.Put("/{id}/profile", rbacH.AssignProfileToUser)
 		})
 	})

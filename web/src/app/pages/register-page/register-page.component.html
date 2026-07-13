@@ -28,11 +28,13 @@
 
     <section class="auth-form-wrap">
       <div class="auth-head">
-        <img
-          class="brand-mark"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmdmF_vXgBnOq4bG4hOZJQ1y25fz7ODZZ1oK3Ue4b8DbBpmNwjn5w7nVHD4tsWqtnMkw4LG0CPDjt8KjSCU_y4tSpoDshSlE_UXlQJlTVS6ewH82NOQAEXuiMU3GzVPe3SBt1BaRUg782yUmPS8USKuo4FvLKRDCHIN9qZg35Amd0o0YJ8m02IokuUqXDKeXXMivhpdx0n_ilkCm0SWtJh0cwcrljylYeOON-PB2xF4uu62jsi5z009xSIXeyKvynkG3FgmVely5Y"
-          alt="Logo La Casa del Perrocalentero"
-        />
+        <a class="brand-link" routerLink="/" aria-label="Volver al inicio">
+          <img
+            class="brand-mark"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmdmF_vXgBnOq4bG4hOZJQ1y25fz7ODZZ1oK3Ue4b8DbBpmNwjn5w7nVHD4tsWqtnMkw4LG0CPDjt8KjSCU_y4tSpoDshSlE_UXlQJlTVS6ewH82NOQAEXuiMU3GzVPe3SBt1BaRUg782yUmPS8USKuo4FvLKRDCHIN9qZg35Amd0o0YJ8m02IokuUqXDKeXXMivhpdx0n_ilkCm0SWtJh0cwcrljylYeOON-PB2xF4uu62jsi5z009xSIXeyKvynkG3FgmVely5Y"
+            alt="Logo La Casa del Perrocalentero"
+          />
+        </a>
         @if (step() === 1) {
           <h1>Verificación de Correo</h1>
           <p>Ingresa tu correo de negocio para recibir el código OTP.</p>
@@ -205,8 +207,22 @@
                     </div>
                   </div>
 
-                  <div class="field-grid two-cols">
-                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isCedulaValid()">
+                  <div class="person-document-row">
+                    <div class="person-type-block">
+                      <span class="person-type-title">Tipo de persona</span>
+                      <div class="person-type-row">
+                        <span class="person-type-option" [class.active]="!isJuridical()">Natural</span>
+                        <p-toggleswitch
+                          [ngModel]="isJuridical()"
+                          (ngModelChange)="onPersonTypeChange($event)"
+                          name="isJuridical"
+                        />
+                        <span class="person-type-option" [class.active]="isJuridical()">Jurídica</span>
+                      </div>
+                    </div>
+
+                    @if (isNaturalPerson()) {
+                    <div class="field-wrap document-field-inline" [class.invalid]="submitAttempted() && !isCedulaValid()">
                       <p-inputgroup styleClass="icon-inputgroup">
                         <p-inputgroup-addon>
                           <p-select
@@ -240,8 +256,10 @@
                         <small class="field-error">La cédula debe tener entre 6 y 8 dígitos.</small>
                       }
                     </div>
+                    }
 
-                    <div class="field-wrap" [class.invalid]="submitAttempted() && !isRifValid()">
+                    @if (isJuridical()) {
+                    <div class="field-wrap document-field-inline" [class.invalid]="submitAttempted() && !isRifValid()">
                       <p-inputgroup styleClass="icon-inputgroup">
                         <p-inputgroup-addon>
                           <p-select
@@ -268,13 +286,14 @@
                             (paste)="sanitizeRifPaste($event)"
                             name="rif"
                           />
-                          <label for="rif">RIF</label>
+                          <label for="rif">RIF *</label>
                         </p-floatlabel>
                       </p-inputgroup>
                       @if (submitAttempted() && !isRifValid()) {
                         <small class="field-error">El RIF debe tener entre 5 y 9 dígitos.</small>
                       }
                     </div>
+                    }
                   </div>
 
                   <div class="field-wrap" [class.invalid]="submitAttempted() && !isWhatsappValid()">
@@ -327,6 +346,7 @@
                           [ngModel]="address()"
                           (ngModelChange)="address.set($event)"
                           name="address"
+                          placeholder=" "
                           rows="3"
                         ></textarea>
                         <label for="address">Dirección completa *</label>
@@ -383,6 +403,12 @@
 
                   @if (submitAttempted() && !isPasswordValid()) {
                     <small class="field-error">La contraseña debe tener al menos 8 caracteres.</small>
+                  }
+                  @if (submitAttempted() && password().length === 0) {
+                    <small class="field-error">La contraseña es obligatoria.</small>
+                  }
+                  @if (submitAttempted() && confirmPassword().length === 0) {
+                    <small class="field-error">Debes confirmar la contraseña para continuar.</small>
                   }
                   @if (submitAttempted() && isPasswordMismatch()) {
                     <small class="field-error">Las contraseñas no coinciden.</small>
@@ -447,7 +473,11 @@
                       <h4>Datos Personales</h4>
                       <ul>
                         <li><span>Nombre:</span> <strong>{{ fullName() }}</strong></li>
-                        <li><span>Cédula:</span> <strong>{{ cedula() }}</strong></li>
+                        @if (isNaturalPerson() && cedula().trim().length > 0) {
+                          <li><span>Cédula:</span> <strong>{{ cedulaType() }}{{ cedula() }}</strong></li>
+                        } @else if (rif().trim().length > 0) {
+                          <li><span>RIF:</span> <strong>{{ rifType() }}{{ rif() }}</strong></li>
+                        }
                         <li><span>Correo:</span> <strong>{{ email() }}</strong></li>
                       </ul>
                     </article>
@@ -455,32 +485,14 @@
                     <article class="summary-card">
                       <h4>Punto de Entrega</h4>
                       <ul>
-                        <li><span>WhatsApp:</span> <strong>{{ whatsapp() }}</strong></li>
+                        <li><span>WhatsApp:</span> <strong>{{ whatsappPrefix() }} {{ whatsapp() }}</strong></li>
                         <li><span>Dirección:</span> <strong>{{ address() }}</strong></li>
-                        <li><span>RIF:</span> <strong>{{ rif() || 'No indicado' }}</strong></li>
                       </ul>
                     </article>
                   </div>
 
-                  <div class="actions-row two-buttons">
-                    <p-button
-                      type="button"
-                      label="Comenzar a Comprar"
-                      styleClass="submit-btn"
-                      [loading]="isLoggingIn()"
-                      (onClick)="loginAndGoToShop()"
-                    ></p-button>
-                    <p-button
-                      type="button"
-                      label="Nuevo Registro"
-                      styleClass="back-btn"
-                      [outlined]="true"
-                      (onClick)="resetFlow()"
-                    ></p-button>
-                  </div>
-
                   <p class="register-copy login-copy">
-                    ¿Ya tienes cuenta?
+                    ¡Ya tienes cuenta!
                     <a routerLink="/login">Inicia sesión</a>
                   </p>
                 </section>

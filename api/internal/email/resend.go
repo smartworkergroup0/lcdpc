@@ -38,12 +38,12 @@ func (s *ResendSender) SendOtpAsync(ctx context.Context, to, otpCode string) err
 	return nil
 }
 
-func (s *ResendSender) SendPasswordResetAsync(ctx context.Context, to, resetToken string) error {
+func (s *ResendSender) SendPasswordResetAsync(ctx context.Context, to, otpCode string, ttlMinutes int) error {
 	params := &resend.SendEmailRequest{
 		From:    s.from,
 		To:      []string{to},
 		Subject: "LCDPC Password Reset",
-		Html:    fmt.Sprintf("<p>Use this token to reset your password: <strong>%s</strong></p><p>This token expires soon.</p>", resetToken),
+		Html:    fmt.Sprintf("<p>Your password recovery code is: <strong>%s</strong></p><p>This code expires in %d minutes.</p>", otpCode, ttlMinutes),
 	}
 
 	_, err := s.client.Emails.SendWithContext(ctx, params)

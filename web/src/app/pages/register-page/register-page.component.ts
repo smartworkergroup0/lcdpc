@@ -14,6 +14,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
 import { SelectModule } from 'primeng/select';
 import { StepperModule } from 'primeng/stepper';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { AuthApiService, StartRegistrationResponse } from '../auth-page/auth-api-go.service';
 import { AuthStore } from '../../core/auth/auth.store';
 
@@ -37,7 +38,8 @@ type PhonePrefixOption = { label: string; value: string };
     InputTextModule,
     PasswordModule,
     SelectModule,
-    StepperModule
+    StepperModule,
+    ToggleSwitchModule
   ],
   templateUrl: './register-page.component.html',
   styleUrl: './register-page.component.scss'
@@ -68,6 +70,7 @@ export class RegisterPageComponent {
 
   protected readonly firstName = signal('');
   protected readonly lastName = signal('');
+  protected readonly isJuridical = signal(false);
   protected readonly cedulaType = signal('V');
   protected readonly cedula = signal('');
   protected readonly rifType = signal('J');
@@ -105,7 +108,8 @@ export class RegisterPageComponent {
   ];
   protected readonly isLastNameValid = computed(() => this.isValidName(this.lastName()));
   protected readonly isCedulaValid = computed(() => /^\d{6,8}$/.test(this.cedula()));
-  protected readonly isRifValid = computed(() => this.rif().length === 0 || /^\d{5,9}$/.test(this.rif()));
+  protected readonly isRifValid = computed(() => !this.isJuridical() || /^\d{5,9}$/.test(this.rif()));
+  protected readonly isNaturalPerson = computed(() => !this.isJuridical());
   protected readonly whatsappPrefix = signal('0414');
   protected readonly isWhatsappValid = computed(() => /^\d{7}$/.test(this.whatsapp()));
   protected readonly isWhatsappPrefixValid = computed(() =>
@@ -122,8 +126,7 @@ export class RegisterPageComponent {
     () =>
       this.isFirstNameValid() &&
       this.isLastNameValid() &&
-      this.isCedulaValid() &&
-      this.isRifValid() &&
+      (this.isNaturalPerson() ? this.isCedulaValid() : this.isRifValid()) &&
       this.isWhatsappPrefixValid() &&
       this.isWhatsappValid() &&
       this.isAddressValid() &&
@@ -133,6 +136,7 @@ export class RegisterPageComponent {
   );
 
   protected readonly fullName = computed(() => `${this.firstName().trim()} ${this.lastName().trim()}`.trim());
+  protected readonly personTypeLabel = computed(() => (this.isJuridical() ? 'Jurídica' : 'Natural'));
 
   constructor() {
     this.destroyRef.onDestroy(() => this.stopOtpCountdown());
@@ -162,6 +166,18 @@ export class RegisterPageComponent {
     }
 
     this.updateLastName(input.value);
+  }
+
+  protected onPersonTypeChange(value: boolean): void {
+    this.isJuridical.set(value);
+    if (value) {
+      this.cedula.set('');
+      this.cedulaType.set('V');
+      return;
+    }
+
+    this.rif.set('');
+    this.rifType.set('J');
   }
 
   protected allowOnlyNameCharacters(event: KeyboardEvent): void {
@@ -359,14 +375,26 @@ export class RegisterPageComponent {
       return;
     }
 
+	const identityDocument = this.getIdentityDocument();
+	if (!identityDocument) {
+		this.apiError.set(this.isJuridical() ? 'El RIF es obligatorio para continuar.' : 'La cédula es obligatoria para continuar.');
+		return;
+	}
+
     this.isSubmittingProfile.set(true);
     try {
+      const check = await firstValueFrom(this.authApi.checkDocumentAvailability(identityDocument));
+      if (!check.available) {
+        this.apiError.set(check.message ?? 'Ese documento ya pertenece a una persona que ya tiene un usuario en el sistema.');
+        return;
+      }
+
       await firstValueFrom(this.authApi.completeRegistration({
         flowId: this.flowId(),
         firstName: this.firstName().trim(),
         lastName: this.lastName().trim(),
-        identityDocument: `${this.cedulaType()}${this.cedula()}`,
-        taxId: this.rif().trim().length > 0 ? `${this.rifType()}${this.rif()}` : null,
+        identityDocument,
+        taxId: this.isJuridical() && this.rif().trim().length > 0 ? `${this.rifType()}${this.rif()}` : null,
         whatsappPhone: `${this.whatsappPrefix()}${this.whatsapp()}`,
         fullAddress: this.address().trim(),
         password: this.password()
@@ -406,6 +434,7 @@ export class RegisterPageComponent {
     this.forceOtpResendVisible.set(false);
     this.firstName.set('');
     this.lastName.set('');
+    this.isJuridical.set(false);
     this.cedulaType.set('V');
     this.cedula.set('');
     this.rifType.set('J');
@@ -430,11 +459,13 @@ export class RegisterPageComponent {
       return fallbackMessage;
     }
 
-    const apiCode = typeof error.error?.code === 'string' ? error.error.code : '';
+    const rawCode = typeof error.error?.code === 'string' ? error.error.code : '';
+    const rawMessage = typeof error.error?.message === 'string' ? error.error.message : '';
+    const apiCode = rawCode || rawMessage;
 
     switch (apiCode) {
       case 'EMAIL_ALREADY_REGISTERED':
-        return 'Ese correo ya está registrado. Iniciá sesión para continuar.';
+        return 'El correo ya se encuentra registrado.';
       case 'OTP_INVALID':
         return 'El OTP es inválido. Revisá el código en la BD y volvé a intentar.';
       case 'OTP_EXPIRED':
@@ -447,6 +478,8 @@ export class RegisterPageComponent {
         return 'No se encontró el flujo de registro. Volvé a iniciar desde el paso 1.';
       case 'FLOW_INVALID_STATUS':
         return 'El OTP expiró. Reenviá un nuevo código.';
+      case 'DOCUMENT_ALREADY_LINKED_TO_USER':
+        return 'El documento que está intentando colocar se encuentra registrado a otro usuario.';
       default:
         break;
     }
@@ -502,5 +535,9 @@ export class RegisterPageComponent {
 
   private isValidName(value: string): boolean {
     return this.nameRegex.test(value.trim());
+  }
+
+  private getIdentityDocument(): string {
+	return this.isJuridical() ? `${this.rifType()}${this.rif().trim()}` : `${this.cedulaType()}${this.cedula().trim()}`;
   }
 }

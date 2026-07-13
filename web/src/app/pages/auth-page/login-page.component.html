@@ -1,0 +1,242 @@
+<section class="auth-page">
+  <div class="auth-backdrop" aria-hidden="true"></div>
+  <div class="auth-glow auth-glow--left" aria-hidden="true"></div>
+  <div class="auth-glow auth-glow--right" aria-hidden="true"></div>
+
+  <main class="auth-card" [attr.aria-label]="recoveryMode() ? 'Recuperar contraseña' : 'Iniciar sesión'">
+    <aside class="auth-visual">
+      <img
+        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVhTbxGd6ZHnY2Xs10cvetjZ1W85pnddOLfScW8KI9rqerMJdIO9ROzV3hNal_hlf4WdtqhnD1iFKfHj7cFlS1tGlNUi-xkp_7SS_FPpO27Ygp5OZrOHAKbCXI2k6PyTCv2z-IhPMhFQODrXRfqIOxrjr0Er_V4YRS40ivjQbh66AN1UmOyBxK9vZQQ-QlONNgmlUwzjqLKcZAWKdiEbI16Z3PZ-gcaI2FQacENhYDJ_bDOHPwu9kfSafIBCrDn5RhlFEW4ceynpo"
+        alt="Perro caliente gourmet de la casa"
+      />
+      <div class="visual-overlay"></div>
+      <!-- <div class="visual-copy">
+        @if (!recoveryMode()) {
+          <p class="visual-kicker">Acceso rápido</p>
+          <h2>Ingresá para comprar, seguir pedidos y administrar tu cuenta.</h2>
+          <p>Usá tu correo registrado o la credencial principal de tu cuenta para volver al catálogo.</p>
+        } @else {
+          <p class="visual-kicker">Recuperación segura</p>
+          <h2>Recuperá tu acceso en tres pasos sin perder el control de la cuenta.</h2>
+          <p>Pedí el código, validalo y elegí una nueva contraseña.</p>
+        }
+      </div> -->
+    </aside>
+
+    <section class="auth-form-wrap">
+      <div class="auth-head">
+        <img
+          class="brand-mark"
+          src="/logo_lacasa.png"
+          alt="Logo La Casa del Perrocalentero"
+        />
+
+        @if (!recoveryMode()) {
+          <p class="eyebrow">Bienvenido de nuevo</p>
+          <h1>Iniciar sesión</h1>
+          <p>Accedé a tu cuenta para continuar donde lo dejaste.</p>
+        } @else {
+          <p class="eyebrow">Recuperar acceso</p>
+          <h1>Recuperar contraseña</h1>
+          <p>Seguí el proceso de validación para crear una nueva contraseña.</p>
+        }
+      </div>
+
+      @if (!recoveryMode()) {
+        @if (errorMessage()) {
+          <div class="auth-error" role="alert">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <app-login-form (loginSuccess)="onLoginSuccess()" (loginError)="onLoginError($event)" />
+
+        <div class="auth-links">
+          <p class="link-line">¿No tenés una cuenta? <a routerLink="/register">Creá una cuenta</a></p>
+          <p class="link-line">¿No podés acceder? <button type="button" class="link-button" (click)="openRecovery()">Recuperá tu acceso.</button></p>
+        </div>
+      } @else {
+        <p-stepper [value]="recoveryStep()" [linear]="true" styleClass="recovery-stepper">
+          <p-step-list>
+            <p-step [value]="1">Correo</p-step>
+            <p-step [value]="2">OTP</p-step>
+            <p-step [value]="3">Nueva clave</p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <form class="recovery-form" (ngSubmit)="sendRecoveryEmail()" novalidate>
+                  <label for="recoveryEmail" class="recovery-label">Ingresa tu correo electrónico para continuar *</label>
+                  <div class="field-wrap" [class.invalid]="recoverySubmitted() && !isRecoveryEmailValid()">
+                    <p-inputgroup styleClass="icon-inputgroup">
+                      <p-inputgroup-addon>
+                        <i class="pi pi-envelope" aria-hidden="true"></i>
+                      </p-inputgroup-addon>
+                      <p-floatlabel variant="over">
+                        <input
+                          id="recoveryEmail"
+                          pInputText
+                          type="email"
+                          autocomplete="email"
+                          [ngModel]="recoveryEmail()"
+                          (ngModelChange)="recoveryEmail.set($event)"
+                          name="recoveryEmail"
+                          placeholder=" "
+                        />
+                        <label for="recoveryEmail">Correo electrónico *</label>
+                      </p-floatlabel>
+                    </p-inputgroup>
+                    @if (recoverySubmitted() && !isRecoveryEmailValid()) {
+                      <small class="field-error">Ingresá un correo válido.</small>
+                    }
+                  </div>
+
+                  @if (recoveryNotice()) {
+                    <div class="recovery-note">{{ recoveryNotice() }}</div>
+                  }
+
+                  @if (recoveryError()) {
+                    <small class="field-error">{{ recoveryError() }}</small>
+                  }
+
+                  <div class="actions-row single">
+                    <p-button
+                      type="submit"
+                      label="Enviar OTP"
+                      styleClass="submit-btn"
+                      [loading]="isSendingRecoveryEmail()"
+                      [disabled]="!isRecoveryEmailValid() || isSendingRecoveryEmail()"
+                    ></p-button>
+                    <button type="button" class="link-button center" (click)="backToLogin()">Volver al inicio de sesión</button>
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <form class="recovery-form" (ngSubmit)="continueWithToken()" novalidate>
+                  <div class="recovery-note">Revisá el correo <strong>{{ recoveryEmailLocked() }}</strong> y pegá el código OTP recibido.</div>
+
+                  <div class="field-wrap" [class.invalid]="recoverySubmitted() && !isRecoveryTokenValid()">
+                    <p-inputgroup styleClass="icon-inputgroup otp-group">
+                      <p-inputgroup-addon>
+                        <i class="pi pi-key" aria-hidden="true"></i>
+                      </p-inputgroup-addon>
+                      <p-inputotp
+                        [length]="6"
+                        [integerOnly]="true"
+                        [ngModel]="recoveryToken()"
+                        (ngModelChange)="recoveryToken.set($event || '')"
+                        name="recoveryToken"
+                        styleClass="otp-input"
+                        [invalid]="recoverySubmitted() && !isRecoveryTokenValid()"
+                      ></p-inputotp>
+                    </p-inputgroup>
+                    @if (recoverySubmitted() && !isRecoveryTokenValid()) {
+                      <small class="field-error">Ingresá los 6 dígitos del código de recuperación.</small>
+                    }
+                  </div>
+
+                  <div class="recovery-note recovery-timer">
+                    @if (otpSecondsLeft() > 0) {
+                      El código vence en {{ otpSecondsLeft() }} segundos.
+                    } @else {
+                      El código expiró. Podés pedir uno nuevo.
+                    }
+                  </div>
+
+                  @if (recoveryError()) {
+                    <small class="field-error">{{ recoveryError() }}</small>
+                  }
+
+                  <div class="actions-row two-buttons">
+                    <p-button type="button" label="Volver" severity="secondary" [outlined]="true" (onClick)="recoveryStep.set(1)"></p-button>
+                    <p-button type="submit" label="Continuar" styleClass="submit-btn" [disabled]="!isRecoveryTokenValid()"></p-button>
+                  </div>
+                  <button type="button" class="link-button center" (click)="resendRecoveryOtp()" [disabled]="!canResendRecoveryOtp() || isSendingRecoveryEmail()">Reenviar código</button>
+                  <button type="button" class="link-button center" (click)="backToLogin()">Volver al inicio de sesión</button>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <form class="recovery-form" (ngSubmit)="resetPassword()" novalidate>
+                  <div class="field-grid two-cols">
+                    <div class="field-wrap" [class.invalid]="recoverySubmitted() && !isNewPasswordValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-lock" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <p-password
+                            inputId="newPassword"
+                            [feedback]="false"
+                            [toggleMask]="true"
+                            [ngModel]="newPassword()"
+                            (ngModelChange)="newPassword.set($event)"
+                            name="newPassword"
+                            autocomplete="new-password"
+                            styleClass="auth-password"
+                          ></p-password>
+                          <label for="newPassword">Nueva contraseña *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (recoverySubmitted() && !isNewPasswordValid()) {
+                        <small class="field-error">La contraseña debe tener al menos 8 caracteres.</small>
+                      }
+                    </div>
+
+                    <div class="field-wrap" [class.invalid]="recoverySubmitted() && !isConfirmPasswordValid()">
+                      <p-inputgroup styleClass="icon-inputgroup">
+                        <p-inputgroup-addon>
+                          <i class="pi pi-shield" aria-hidden="true"></i>
+                        </p-inputgroup-addon>
+                        <p-floatlabel variant="over">
+                          <p-password
+                            inputId="confirmPassword"
+                            [feedback]="false"
+                            [toggleMask]="true"
+                            [ngModel]="confirmPassword()"
+                            (ngModelChange)="confirmPassword.set($event)"
+                            name="confirmPassword"
+                            autocomplete="new-password"
+                            styleClass="auth-password"
+                          ></p-password>
+                          <label for="confirmPassword">Confirmación *</label>
+                        </p-floatlabel>
+                      </p-inputgroup>
+                      @if (recoverySubmitted() && !isConfirmPasswordValid()) {
+                        <small class="field-error">Las contraseñas deben coincidir.</small>
+                      }
+                    </div>
+                  </div>
+
+                  @if (recoveryError()) {
+                    <small class="field-error">{{ recoveryError() }}</small>
+                  }
+
+                  @if (recoveryCompleted()) {
+                    <div class="recovery-success">{{ recoveryNotice() }}</div>
+                  }
+
+                  <div class="actions-row two-buttons">
+                    <p-button type="button" label="Volver" severity="secondary" [outlined]="true" (onClick)="recoveryStep.set(2)"></p-button>
+                    <p-button type="submit" label="Actualizar contraseña" styleClass="submit-btn" [loading]="isResettingPassword()" [disabled]="!isNewPasswordValid() || !isConfirmPasswordValid() || isResettingPassword()"></p-button>
+                  </div>
+                  <button type="button" class="link-button center" (click)="backToLogin()">Volver al inicio de sesión</button>
+                </form>
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      }
+      <a routerLink="/" class="catalog-home-link" aria-label="Volver al catálogo">
+        <i class="pi pi-home" aria-hidden="true"></i>
+      </a>
+    </section>
+  </main>
+</section>

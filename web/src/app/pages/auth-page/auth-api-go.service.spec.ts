@@ -89,6 +89,45 @@ describe('AuthApiService', () => {
     req.flush({});
   });
 
+  it('calls forgot password endpoint and unwraps JSend', () => {
+    service.forgotPassword({ email: 'user@example.com' }).subscribe((result) => {
+      expect(result.status).toBe('accepted');
+      expect(result.message).toContain('código de recuperación');
+      expect(result.otpPolicy.ttlMinutes).toBe(10);
+    });
+
+    const req = httpMock.expectOne('http://localhost:8080/api/v1/auth/forgot-password');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBeFalse();
+    expect(req.request.body).toEqual({ email: 'user@example.com' });
+
+    req.flush({
+      status: 'success',
+      data: {
+        status: 'accepted',
+        message: 'Si la cuenta existe, se envió un código de recuperación.',
+        otp_policy: { ttl_minutes: 10, max_attempts: 5, cooldown_minutes: 10 }
+      }
+    });
+  });
+
+  it('calls reset password endpoint and maps snake_case body', () => {
+    service.resetPassword({ email: 'user@example.com', otp: '123456', newPassword: 'Secret123!' }).subscribe((result) => {
+      expect(result.status).toBe('completed');
+      expect(result.sessionsRevoked).toBeTrue();
+    });
+
+    const req = httpMock.expectOne('http://localhost:8080/api/v1/auth/reset-password');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBeFalse();
+    expect(req.request.body).toEqual({ email: 'user@example.com', otp: '123456', new_password: 'Secret123!' });
+
+    req.flush({
+      status: 'success',
+      data: { status: 'completed', sessions_revoked: true }
+    });
+  });
+
   it('calls start registration and maps snake_case to camelCase', () => {
     service.startRegistration({ email: 'nuevo@lcdpc.local' }).subscribe((result) => {
       expect(result.flowId).toBe('f1');

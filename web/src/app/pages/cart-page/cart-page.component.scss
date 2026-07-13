@@ -509,3 +509,22 @@
     width: 100%;
   }
 }
+
+@media (min-width: 900px) {
+  .person-search-panel {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    align-items: end;
+  }
+
+  .person-search-panel > .person-toggle {
+    grid-column: 1;
+  }
+
+  .person-search-panel > .document-block {
+    grid-column: 2;
+  }
+
+  .person-search-panel > .field-error {
+    grid-column: 1 / -1;
+  }
+}

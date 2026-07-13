@@ -76,6 +76,12 @@
   margin-bottom: 0.5rem;
 }
 
+.brand-link {
+  display: inline-flex;
+  width: fit-content;
+  cursor: pointer;
+}
+
 .auth-head h1 {
   margin: 0;
   color: #994700;
@@ -182,6 +188,49 @@
   margin-top: 1rem;
 }
 
+.person-document-row {
+  display: grid;
+  gap: 0.9rem;
+  align-items: end;
+  margin-top: 0.65rem;
+}
+
+.person-type-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.person-type-title {
+  font-size: 0.8rem;
+  color: #6f6058;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.person-type-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  min-height: 2.7rem;
+}
+
+.person-type-option {
+  color: #6f6058;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.person-type-option.active {
+  color: #1a1c1d;
+}
+
+.document-field-inline {
+  margin-top: 0;
+}
+
 .field-wrap {
   position: relative;
   display: grid;
@@ -257,17 +306,39 @@
 }
 
 :host ::ng-deep .field-wrap .document-inputgroup.p-inputgroup {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
-  background: var(--surface);
-  overflow: visible;
+  background: transparent;
+  overflow-x: hidden;
+  overflow-y: visible;
+  isolation: isolate;
 }
 
 :host ::ng-deep .field-wrap .icon-inputgroup.p-inputgroup {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
+  background: transparent;
+  overflow-x: hidden;
+  overflow-y: visible;
+  isolation: isolate;
+}
+
+:host ::ng-deep .field-wrap .icon-inputgroup.p-inputgroup::before,
+:host ::ng-deep .field-wrap .document-inputgroup.p-inputgroup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: var(--surface);
-  overflow: visible;
+  z-index: 0;
+}
+
+:host ::ng-deep .field-wrap .icon-inputgroup.p-inputgroup > *,
+:host ::ng-deep .field-wrap .document-inputgroup.p-inputgroup > * {
+  position: relative;
+  z-index: 1;
 }
 
 :host ::ng-deep .field-wrap .icon-inputgroup.p-inputgroup {
@@ -281,6 +352,7 @@
 :host ::ng-deep .field-wrap .document-inputgroup.p-inputgroup > .p-inputwrapper {
   border: 0;
   box-shadow: none;
+  background: transparent;
 }
 
 :host ::ng-deep .field-wrap .icon-inputgroup .p-inputgroupaddon,
@@ -335,6 +407,7 @@
 :host ::ng-deep .field-wrap .icon-inputgroup .p-floatlabel {
   width: 100%;
   overflow: visible;
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 :host ::ng-deep .field-wrap .icon-inputgroup .p-floatlabel label {
@@ -344,6 +417,17 @@
   padding: 0 0.25rem;
   z-index: 3;
   font-size: 1rem;
+}
+
+:host ::ng-deep .field-wrap .icon-inputgroup textarea + label {
+  top: 0.78rem;
+  transform: translateY(0);
+}
+
+:host ::ng-deep .field-wrap .icon-inputgroup .p-floatlabel:has(textarea:focus) label,
+:host ::ng-deep .field-wrap .icon-inputgroup .p-floatlabel:has(textarea:not(:placeholder-shown)) label {
+  top: -1.62rem;
+  transform: translateY(0);
 }
 
 :host ::ng-deep .field-wrap .icon-inputgroup .p-inputtext {
@@ -417,6 +501,7 @@
 :host ::ng-deep .field-wrap .document-inputgroup .p-floatlabel {
   width: 100%;
   overflow: visible;
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 :host ::ng-deep .field-wrap .document-inputgroup .p-floatlabel label {
@@ -529,10 +614,13 @@
 
 :host ::ng-deep .auth-password.p-password {
   width: 100%;
+  border-radius: 0;
+  overflow: visible;
 }
 
 :host ::ng-deep .auth-password .p-password-input {
   padding-right: 2.5rem;
+  border-radius: 0;
 }
 
 :host ::ng-deep .auth-password .p-password-toggle-mask-icon {
@@ -858,6 +946,10 @@ p-inputotp {
   }
 
   .field-grid.two-cols {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .person-document-row {
     grid-template-columns: 1fr 1fr;
   }
 

@@ -9,6 +9,31 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  status: string;
+  message: string;
+  otpPolicy: {
+    ttlMinutes: number;
+    maxAttempts: number;
+    cooldownMinutes: number;
+  };
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  status: string;
+  sessionsRevoked: boolean;
+}
+
 export interface StartRegistrationRequest {
   email: string;
 }
@@ -50,6 +75,12 @@ export interface CompleteRegistrationResponse {
   accountType: string;
 }
 
+export interface CheckDocumentAvailabilityResponse {
+  available: boolean;
+  code?: string;
+  message?: string;
+}
+
 // Raw Go API response types (snake_case)
 
 interface JsendEnvelope<T> {
@@ -62,6 +93,21 @@ interface LoginGoData {
   access_token: string;
   refresh_token: string;
   expires_in: number;
+}
+
+interface ForgotPasswordGoData {
+  status: string;
+  message: string;
+  otp_policy: {
+    ttl_minutes: number;
+    max_attempts: number;
+    cooldown_minutes: number;
+  };
+}
+
+interface ResetPasswordGoData {
+  status: string;
+  sessions_revoked: boolean;
 }
 
 interface StartRegistrationGoData {
@@ -146,6 +192,37 @@ export class AuthApiService {
     });
   }
 
+  forgotPassword(request: ForgotPasswordRequest): Observable<ForgotPasswordResponse> {
+    return this.httpClient
+      .post<JsendEnvelope<ForgotPasswordGoData>>(this.url('/api/v1/auth/forgot-password'), request)
+      .pipe(
+        map((res) => ({
+          status: res.data.status,
+          message: res.data.message,
+          otpPolicy: {
+            ttlMinutes: res.data.otp_policy.ttl_minutes,
+            maxAttempts: res.data.otp_policy.max_attempts,
+            cooldownMinutes: res.data.otp_policy.cooldown_minutes,
+          },
+        }))
+      );
+  }
+
+  resetPassword(request: ResetPasswordRequest): Observable<ResetPasswordResponse> {
+    return this.httpClient
+      .post<JsendEnvelope<ResetPasswordGoData>>(this.url('/api/v1/auth/reset-password'), {
+        email: request.email,
+        otp: request.otp,
+        new_password: request.newPassword,
+      })
+      .pipe(
+        map((res) => ({
+          status: res.data.status,
+          sessionsRevoked: res.data.sessions_revoked,
+        }))
+      );
+  }
+
   startRegistration(request: StartRegistrationRequest): Observable<StartRegistrationResponse> {
     return this.httpClient
       .post<JsendEnvelope<StartRegistrationGoData>>(this.url('/api/v1/auth/register/start'), request, {
@@ -199,6 +276,22 @@ export class AuthApiService {
           userId: res.data.user_id,
           status: res.data.status,
           accountType: res.data.account_type,
+        }))
+      );
+  }
+
+  checkDocumentAvailability(identityDocument: string): Observable<CheckDocumentAvailabilityResponse> {
+    return this.httpClient
+      .post<JsendEnvelope<{ available: boolean; code?: string; message?: string }>>(this.url('/api/v1/auth/register/check-document'), {
+        identity_document: identityDocument,
+      }, {
+        withCredentials: true,
+      })
+      .pipe(
+        map((res) => ({
+          available: res.data.available,
+          code: res.data.code,
+          message: res.data.message,
         }))
       );
   }

@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthStore } from './core/auth/auth.store';
 import { LandingPageComponent } from './pages/landing-page/landing-page.component';
 import { RegisterPageComponent } from './pages/register-page/register-page.component';
+import { LoginPageComponent } from './pages/auth-page/login-page.component';
 import { SearchPageComponent } from './pages/search-page/search-page.component';
 import { CartPageComponent } from './pages/cart-page/cart-page.component';
 import { AdminLayoutComponent } from './pages/admin/admin-layout.component';
@@ -20,6 +21,7 @@ export const routes: Routes = [
 	{ path: '', component: LandingPageComponent },
 	{ path: 'search', component: SearchPageComponent },
 	{ path: 'cart', component: CartPageComponent },
+	{ path: 'login', component: LoginPageComponent },
 	{ path: 'register', component: RegisterPageComponent },
 	{
 		path: 'admin',

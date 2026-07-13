@@ -3,6 +3,7 @@
   color: var(--text-strong);
   --header-offset: 5.15rem;
   --main-top-gap: 1.35rem;
+  --loading-backdrop: rgba(18, 18, 18, 0.55);
 }
 
 .landing-shell {
@@ -28,6 +29,10 @@
 
 .auth-shell {
   min-height: 100vh;
+}
+
+.auth-shell--page {
+  display: grid;
 }
 
 .mobile-nav,
@@ -82,6 +87,35 @@
   font-weight: 700;
   display: grid;
   place-items: center;
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: var(--loading-backdrop);
+  backdrop-filter: blur(3px);
+}
+
+.loading-overlay__panel {
+  display: grid;
+  place-items: center;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 1.5rem;
+  background: rgba(255, 253, 243, 0.14);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+
+:host ::ng-deep .loading-spinner {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+:host ::ng-deep .loading-spinner .p-progress-spinner-circle {
+  stroke: var(--surface-strong);
 }
 
 @media (max-width: 720px) {

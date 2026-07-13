@@ -15,6 +15,9 @@ interface UserGoData {
   id: string;
   email: string;
   name: string | null;
+  whatsapp_phone: string | null;
+  full_address: string | null;
+  is_client: boolean | null;
   status: string;
   created_at_utc: string;
 }
@@ -59,6 +62,18 @@ export class UserApiService {
       .pipe(map((res) => this.map(res.data)));
   }
 
+  getById(id: string): Observable<AppUser> {
+    return this.http
+      .get<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/${id}`, { withCredentials: true })
+      .pipe(map((res) => this.map(res.data)));
+  }
+
+  update(id: string, req: { email: string; name: string; whatsapp_phone: string; full_address: string }): Observable<AppUser> {
+    return this.http
+      .put<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/${id}`, req, { withCredentials: true })
+      .pipe(map((res) => this.map(res.data)));
+  }
+
   list(filter?: { limit?: number; offset?: number }): Observable<PaginatedResponse<AppUser>> {
     const params: Record<string, string> = {};
     if (filter?.limit != null) params['limit'] = String(filter.limit);
@@ -82,6 +97,9 @@ export class UserApiService {
       id: raw.id,
       email: raw.email,
       name: raw.name,
+      whatsappPhone: raw.whatsapp_phone,
+      fullAddress: raw.full_address,
+      isClient: raw.is_client,
       status: raw.status,
       createdAtUtc: raw.created_at_utc,
     };

@@ -140,23 +140,19 @@
             (onClick)="logout()"
           ></p-button>
         </div>
-      } @else {
-        <p-button
-          icon="pi pi-user"
-          styleClass="account-button"
-          [rounded]="true"
-          [text]="true"
-          severity="secondary"
-          ariaLabel="Iniciar sesión"
-          (onClick)="loginOverlay.toggle($event)"
-        ></p-button>
-      }
+		} @else {
+			<p-button
+				icon="pi pi-user"
+				styleClass="account-button"
+				[rounded]="true"
+				[text]="true"
+				severity="secondary"
+				ariaLabel="Iniciar sesión"
+				routerLink="/login"
+			></p-button>
+		}
 
-      <p-popover #loginOverlay [style]="{ width: '360px', padding: '1.25rem' }" [dismissable]="true" appendTo="body">
-        <app-login-form (loginSuccess)="onLoginSuccess()" (loginError)="onLoginError($event)" />
-      </p-popover>
-
-      <p-toast position="top-right" />
-    </div>
+		<p-toast position="top-right" />
+	</div>
   </div>
 </header>

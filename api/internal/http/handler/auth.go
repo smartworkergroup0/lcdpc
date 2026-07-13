@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -54,6 +55,35 @@ func (h *AuthHandler) RegisterVerifyEmail(w http.ResponseWriter, r *http.Request
 	response.Success(w, result)
 }
 
+func (h *AuthHandler) RegisterCheckDocument(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IdentityDocument string `json:"identity_document"`
+	}
+	if err := response.Decode(r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"identity_document": "invalid"})
+		return
+	}
+
+	result, err := h.svc.CheckDocumentAvailability(r.Context(), req.IdentityDocument)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !result.Available && result.Code == "DOCUMENT_ALREADY_LINKED_TO_USER" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(struct {
+			Status  string `json:"status"`
+			Code    string `json:"code,omitempty"`
+			Message string `json:"message,omitempty"`
+		}{Status: "error", Code: result.Code, Message: result.Message})
+		return
+	}
+
+	response.Success(w, result)
+}
+
 func (h *AuthHandler) RegisterComplete(w http.ResponseWriter, r *http.Request) {
 	var req auth.CompleteProfileRequest
 	if err := response.Decode(r, &req); err != nil {
@@ -63,6 +93,16 @@ func (h *AuthHandler) RegisterComplete(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.svc.CompleteProfile(r.Context(), req)
 	if err != nil {
+		if err.Error() == "DOCUMENT_ALREADY_LINKED_TO_USER" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(struct {
+				Status  string `json:"status"`
+				Code    string `json:"code,omitempty"`
+				Message string `json:"message,omitempty"`
+			}{Status: "error", Code: "DOCUMENT_ALREADY_LINKED_TO_USER", Message: "El documento que está intentando colocar se encuentra registrado a otro usuario."})
+			return
+		}
 		response.Error(w, http.StatusConflict, err.Error())
 		return
 	}
@@ -225,7 +265,8 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Token       string `json:"token"`
+		Email       string `json:"email"`
+		Otp         string `json:"otp"`
 		NewPassword string `json:"new_password"`
 	}
 	if err := response.Decode(r, &req); err != nil {
@@ -234,7 +275,7 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ip := r.RemoteAddr
-	result, err := h.svc.ResetPassword(r.Context(), req.Token, req.NewPassword, ip)
+	result, err := h.svc.ResetPassword(r.Context(), req.Email, req.Otp, req.NewPassword, ip)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return

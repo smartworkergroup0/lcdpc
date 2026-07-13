@@ -31,7 +31,15 @@
 
   <app-footer></app-footer>
 } @else {
-  <main class="auth-shell">
+  <main class="auth-shell auth-shell--page">
     <router-outlet></router-outlet>
   </main>
+}
+
+@if (loadingState.isLoading()) {
+  <div class="loading-overlay" aria-live="polite" aria-busy="true" role="status">
+    <div class="loading-overlay__panel">
+      <p-progressSpinner styleClass="loading-spinner" strokeWidth="4"></p-progressSpinner>
+    </div>
+  </div>
 }

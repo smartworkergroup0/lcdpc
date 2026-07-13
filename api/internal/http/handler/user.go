@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/lcdpc/lcdpc-go/internal/http/response"
 	"github.com/lcdpc/lcdpc-go/internal/user"
 )
@@ -63,4 +64,44 @@ func (h *UserHandler) GetByDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, u)
+}
+
+func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	u, err := h.svc.GetByID(r.Context(), id)
+	if err != nil {
+		response.Error(w, http.StatusNotFound, "Usuario no encontrado")
+		return
+	}
+
+	response.Success(w, u)
+}
+
+func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	var req user.UpdateUserRequest
+	if err := response.Decode(r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"body": "invalid"})
+		return
+	}
+
+	result, err := h.svc.Update(r.Context(), id, req)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(w, result)
 }
