@@ -9,11 +9,15 @@
   <p-tabpanels>
     <p-tabpanel value="profiles">
       <div class="tab-toolbar">
+        <p-iconfield>
+          <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+          <input pInputText type="text" placeholder="Buscar por nombre o codigo..." [(ngModel)]="searchProfiles" />
+        </p-iconfield>
         @if (canCreate()) {
           <p-button label="Nuevo Perfil" icon="pi pi-plus" size="small" (onClick)="openProfileCreate()"></p-button>
         }
       </div>
-      <p-table [value]="profiles()" [loading]="loading()" styleClass="admin-table">
+      <p-table [value]="filteredProfiles()" [loading]="loading()" styleClass="admin-table">
         <ng-template pTemplate="header">
           <tr>
             <th>Nombre</th>
@@ -56,11 +60,15 @@
 
     <p-tabpanel value="roles">
       <div class="tab-toolbar">
+        <p-iconfield>
+          <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+          <input pInputText type="text" placeholder="Buscar por nombre o codigo..." [(ngModel)]="searchRoles" />
+        </p-iconfield>
         @if (canCreate()) {
           <p-button label="Nuevo Rol" icon="pi pi-plus" size="small" (onClick)="openRoleCreate()"></p-button>
         }
       </div>
-      <p-table [value]="roles()" [loading]="loading()" styleClass="admin-table">
+      <p-table [value]="filteredRoles()" [loading]="loading()" styleClass="admin-table">
         <ng-template pTemplate="header">
           <tr>
             <th>Codigo</th>
@@ -98,11 +106,15 @@
 
     <p-tabpanel value="resources">
       <div class="tab-toolbar">
+        <p-iconfield>
+          <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+          <input pInputText type="text" placeholder="Buscar por codigo..." [(ngModel)]="searchResources" />
+        </p-iconfield>
         @if (canCreate()) {
           <p-button label="Nuevo Recurso" icon="pi pi-plus" size="small" (onClick)="openResourceCreate()"></p-button>
         }
       </div>
-      <p-table [value]="resources()" [loading]="loading()" styleClass="admin-table">
+      <p-table [value]="filteredResources()" [loading]="loading()" styleClass="admin-table">
         <ng-template pTemplate="header">
           <tr>
             <th>Codigo</th>
@@ -132,11 +144,15 @@
 
     <p-tabpanel value="api-tokens">
       <div class="tab-toolbar">
+        <p-iconfield>
+          <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+          <input pInputText type="text" placeholder="Buscar por nombre..." [(ngModel)]="searchApiTokens" />
+        </p-iconfield>
         @if (canCreateToken()) {
           <p-button label="Nuevo Token" icon="pi pi-plus" size="small" (onClick)="openApiTokenCreate()"></p-button>
         }
       </div>
-      <p-table [value]="apiTokens()" [loading]="loading()" styleClass="admin-table">
+      <p-table [value]="filteredApiTokens()" [loading]="loading()" styleClass="admin-table">
         <ng-template pTemplate="header">
           <tr>
             <th>Nombre</th>
@@ -183,11 +199,15 @@
 
     <p-tabpanel value="service-accounts">
       <div class="tab-toolbar">
+        <p-iconfield>
+          <p-inputicon><i class="pi pi-search"></i></p-inputicon>
+          <input pInputText type="text" placeholder="Buscar por nombre o username..." [(ngModel)]="searchServiceAccounts" />
+        </p-iconfield>
         @if (canCreateSA()) {
           <p-button label="Nueva Cuenta" icon="pi pi-plus" size="small" (onClick)="openSvcAccountCreate()"></p-button>
         }
       </div>
-      <p-table [value]="serviceAccounts()" [loading]="loading()" styleClass="admin-table">
+      <p-table [value]="filteredServiceAccounts()" [loading]="loading()" styleClass="admin-table">
         <ng-template pTemplate="header">
           <tr>
             <th>Nombre</th>

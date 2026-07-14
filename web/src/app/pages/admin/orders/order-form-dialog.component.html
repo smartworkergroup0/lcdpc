@@ -22,16 +22,16 @@
           <p-select [options]="DOCUMENT_TYPE_OPTIONS" [(ngModel)]="documentType"
                     optionLabel="label" optionValue="value"
                     [style]="{'width': '80px', 'flex-shrink': '0'}" />
-          <input pInputText [(ngModel)]="documentNumber"
-                 placeholder="Numero de documento..."
-                 [class.ng-invalid]="submitted && !form.client_user_id"
-                 (keydown.enter)="searchByDocument(); $event.preventDefault()"
-                 style="width: 100%" />
+           <input pInputText [(ngModel)]="documentNumber"
+                  placeholder="Numero de documento..."
+                  [class.ng-invalid]="submitted && !hasClientSelected"
+                  (keydown.enter)="searchByDocument(); $event.preventDefault()"
+                  style="width: 100%" />
           <p-button icon="pi pi-search" severity="primary"
                     [loading]="searchingUser()"
                     pTooltip="Buscar cliente"
                     (onClick)="searchByDocument()" />
-          @if (selectedUser()) {
+          @if (selectedUser() || selectedPerson()) {
             <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger"
                       (onClick)="clearUser()" />
           }
@@ -47,6 +47,20 @@
             } @else {
               <span>{{ selectedUser()!.email }}</span>
             }
+          </div>
+        }
+        @if (selectedPerson()) {
+          <div class="user-selected">
+            <i class="pi pi-user"></i>
+            <span>{{ selectedPerson()!.name }} — {{ selectedPerson()!.identityDocument }}</span>
+            <p-tag value="Cliente" severity="success" />
+          </div>
+        }
+        @if (personNotFound() && canCreateClient()) {
+          <div class="client-action">
+            <p-button label="Crear Cliente"
+                      icon="pi pi-user-plus" severity="success" [outlined]="true"
+                      size="small" (onClick)="openCreateClient()" />
           </div>
         }
       </div>
@@ -118,3 +132,10 @@
     <p-button label="Crear Orden" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
   </ng-template>
 </p-dialog>
+
+<app-client-form-dialog
+  [visible]="showClientDialog()"
+  [identityDocument]="documentType + documentNumber"
+  (visibleChange)="showClientDialog.set($event)"
+  (clientCreated)="onClientCreated($event)"
+  (back)="onClientBack()" />

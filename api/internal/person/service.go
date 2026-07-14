@@ -287,6 +287,49 @@ func (s *Service) createPerson(ctx context.Context, tx pgx.Tx, req UpsertRequest
 	return &p, nil
 }
 
+func (s *Service) CreateClient(ctx context.Context, req UpsertRequest) (*Person, error) {
+	req.Name = strings.TrimSpace(req.Name)
+	req.IdentityDocument = strings.ToUpper(strings.TrimSpace(req.IdentityDocument))
+	req.TaxID = strings.TrimSpace(req.TaxID)
+	req.WhatsAppPhone = strings.TrimSpace(req.WhatsAppPhone)
+	req.FullAddress = strings.TrimSpace(req.FullAddress)
+
+	if err := validateUpsertRequest(req); err != nil {
+		return nil, err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	existingPersonID, err := s.getPersonIDByDocument(ctx, tx, req.IdentityDocument)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingPersonID != nil {
+		p, err := s.updatePerson(ctx, tx, *existingPersonID, req)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("commit: %w", err)
+		}
+		return p, nil
+	}
+
+	p, err := s.createPerson(ctx, tx, req)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return p, nil
+}
+
 func validateUpsertRequest(req UpsertRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")

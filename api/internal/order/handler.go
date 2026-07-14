@@ -38,6 +38,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		changedBy = &parsed
 	}
 
+	if middleware.HasPermission(r.Context(), h.rbacStore, "order:create") {
+		req.IsAdmin = true
+	}
+
 	result, err := h.svc.Create(r.Context(), req, changedBy)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())

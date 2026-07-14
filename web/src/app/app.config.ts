@@ -8,7 +8,6 @@ import Aura from '@primeuix/themes/aura';
 
 import { routes } from './app.routes';
 import { API_BASE_URL } from './pages/auth-page/auth-api-go.service';
-import { loadingInterceptor } from './core/loading/loading.interceptor';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { initializeAuth } from './core/auth/auth-init';
 import { initializeSystemConfig } from './core/stores/system-config-init';
@@ -19,7 +18,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([loadingInterceptor, authInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
     MessageService,
     {

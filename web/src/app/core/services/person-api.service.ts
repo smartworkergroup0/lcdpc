@@ -74,6 +74,20 @@ export class PersonApiService {
       .pipe(map((res) => this.map(res.data)));
   }
 
+  createClient(request: UpsertPersonRequest): Observable<Person> {
+    return this.http
+      .post<JsendEnvelope<PersonGoData>>(`${this.baseUrl}/api/v1/persons/clients`, {
+        name: request.name,
+        identity_document: request.identityDocument,
+        tax_id: request.taxId,
+        whatsapp_phone: request.whatsappPhone,
+        full_address: request.fullAddress,
+      }, {
+        withCredentials: true,
+      })
+      .pipe(map((res) => this.map(res.data)));
+  }
+
   private map(raw: PersonGoData | null): Person {
     if (!raw) {
       throw new Error('PERSON_NOT_FOUND');

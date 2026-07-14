@@ -25,19 +25,30 @@ func (h *PersonHandler) GetByDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userID *uuid.UUID
-	if userIDStr := middleware.GetUserID(r.Context()); userIDStr != "" {
-		parsed, err := uuid.Parse(userIDStr)
-		if err != nil {
-			response.Error(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-		userID = &parsed
-	}
-
-	result, err := h.svc.GetByDocument(r.Context(), userID, doc)
+	result, err := h.svc.GetByDocument(r.Context(), nil, doc)
 	if err != nil {
 		response.Error(w, http.StatusNotFound, "Persona no encontrada")
+		return
+	}
+
+	response.Success(w, result)
+}
+
+func (h *PersonHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
+	var req person.UpsertRequest
+	if err := response.Decode(r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"body": "invalid"})
+		return
+	}
+
+	if req.Name == "" || req.IdentityDocument == "" || req.WhatsAppPhone == "" || req.FullAddress == "" {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"body": "invalid"})
+		return
+	}
+
+	result, err := h.svc.CreateClient(r.Context(), req)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

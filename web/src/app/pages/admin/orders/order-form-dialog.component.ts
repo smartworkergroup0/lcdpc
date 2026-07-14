@@ -8,11 +8,14 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { TooltipModule } from 'primeng/tooltip';
+import { TagModule } from 'primeng/tag';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
 import { AppUser } from '../../../core/models/user.model';
+import { Person } from '../../../core/models/person.model';
 import { DOCUMENT_TYPE_OPTIONS } from '../../../core/models/document-type.model';
 import { UserApiService } from '../../../core/services/user-api.service';
+import { PersonApiService } from '../../../core/services/person-api.service';
 import { OrderApiService } from '../../../core/services/order-api.service';
 import { ProductApiService } from '../../../core/services/product-api.service';
 import { PriceApiService } from '../../../core/services/price-api.service';
@@ -21,6 +24,7 @@ import { Product } from '../../../core/models/product.model';
 import { PriceCategory } from '../../../core/models/price-category.model';
 import { ProductBranchPrice } from '../../../core/models/price.model';
 import { CreateOrderRequest } from '../../../core/models/order.model';
+import { ClientFormDialogComponent } from './client-form-dialog.component';
 
 interface PriceOption {
   label: string;
@@ -41,7 +45,8 @@ interface OrderItemForm {
   standalone: true,
   imports: [
     CommonModule, FormsModule, ButtonModule, DialogModule,
-    InputTextModule, InputNumberModule, SelectModule, FloatLabelModule, TooltipModule
+    InputTextModule, InputNumberModule, SelectModule, FloatLabelModule, TooltipModule,
+    TagModule, ClientFormDialogComponent,
   ],
   templateUrl: './order-form-dialog.component.html',
   styleUrl: './order-form-dialog.component.scss'
@@ -56,6 +61,7 @@ export class OrderFormDialogComponent implements OnChanges {
   private readonly authStore = inject(AuthStore);
   private readonly systemConfigStore = inject(SystemConfigStore);
   private readonly userApi = inject(UserApiService);
+  private readonly personApi = inject(PersonApiService);
   private readonly orderApi = inject(OrderApiService);
   private readonly productApi = inject(ProductApiService);
   private readonly priceApi = inject(PriceApiService);
@@ -64,6 +70,9 @@ export class OrderFormDialogComponent implements OnChanges {
   protected readonly saving = signal(false);
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
+  protected readonly canCreateClient = computed(() =>
+    this.authStore.hasPermission('client:create') && this.authStore.hasPermission('client:update')
+  );
   protected readonly products = signal<Product[]>([]);
   protected readonly priceCategories = signal<PriceCategory[]>([]);
   protected readonly DOCUMENT_TYPE_OPTIONS = DOCUMENT_TYPE_OPTIONS;
@@ -74,8 +83,11 @@ export class OrderFormDialogComponent implements OnChanges {
   protected documentType = 'V';
   protected documentNumber = '';
   protected selectedUser = signal<AppUser | null>(null);
+  protected selectedPerson = signal<Person | null>(null);
   protected userSearchError = signal('');
   protected searchingUser = signal(false);
+  protected personNotFound = signal(false);
+  protected showClientDialog = signal(false);
 
   protected get total(): number {
     return this.form.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
@@ -138,10 +150,13 @@ export class OrderFormDialogComponent implements OnChanges {
     if (changes['visible'] && this.visible) {
       this.form = this.emptyForm();
       this.selectedUser.set(null);
+      this.selectedPerson.set(null);
       this.documentType = 'V';
       this.documentNumber = '';
       this.userSearchError.set('');
       this.searchingUser.set(false);
+      this.personNotFound.set(false);
+      this.showClientDialog.set(false);
       this.products.set([]);
       this.submitted = false;
 
@@ -176,27 +191,63 @@ export class OrderFormDialogComponent implements OnChanges {
     this.searchingUser.set(true);
     this.userSearchError.set('');
     this.selectedUser.set(null);
+    this.selectedPerson.set(null);
+    this.personNotFound.set(false);
     this.form.client_user_id = '';
+    this.form.person_id = '';
 
     this.userApi.getByDocument(doc).subscribe({
       next: (user) => {
         this.selectedUser.set(user);
-        this.form.client_user_id = user.id;
+        this.form.person_id = user.personId ?? '';
         this.searchingUser.set(false);
       },
       error: () => {
-        this.userSearchError.set('No se encontró un usuario con ese documento');
-        this.searchingUser.set(false);
+        this.personApi.getByDocument(doc).subscribe({
+          next: (person) => {
+            this.selectedPerson.set(person);
+            this.form.person_id = person.id;
+            this.searchingUser.set(false);
+          },
+          error: () => {
+            this.personNotFound.set(true);
+            this.searchingUser.set(false);
+          },
+        });
       },
     });
   }
 
   protected clearUser(): void {
     this.selectedUser.set(null);
+    this.selectedPerson.set(null);
     this.form.client_user_id = '';
+    this.form.person_id = '';
     this.documentType = 'V';
     this.documentNumber = '';
     this.userSearchError.set('');
+    this.personNotFound.set(false);
+  }
+
+  protected openCreateClient(): void {
+    this.showClientDialog.set(true);
+  }
+
+  protected onClientBack(): void {
+    this.showClientDialog.set(false);
+  }
+
+  protected onClientCreated(person: Person): void {
+    this.showClientDialog.set(false);
+    this.selectedPerson.set(person);
+    this.selectedUser.set(null);
+    this.form.person_id = person.id;
+    this.form.client_user_id = '';
+    this.personNotFound.set(false);
+  }
+
+  protected get hasClientSelected(): boolean {
+    return !!this.form.person_id || !!this.form.client_user_id;
   }
 
   protected onProductSelect(index: number): void {
@@ -263,7 +314,7 @@ export class OrderFormDialogComponent implements OnChanges {
 
   protected save(): void {
     this.submitted = true;
-    if (!this.form.branch_id || !this.form.client_user_id) return;
+    if (!this.form.branch_id || !this.hasClientSelected) return;
     if (this.form.items.length === 0) return;
     if (this.form.items.some((i) => !i.product_id || i.quantity <= 0)) return;
     if (this.hasDuplicates) return;
@@ -273,7 +324,8 @@ export class OrderFormDialogComponent implements OnChanges {
 
     const req: CreateOrderRequest = {
       branch_id: this.form.branch_id,
-      client_user_id: this.form.client_user_id,
+      person_id: this.form.person_id || undefined,
+      client_user_id: this.form.client_user_id || undefined,
       notes: this.form.notes,
       items: this.form.items.map((i) => ({
         item_type: 'product',
@@ -302,6 +354,7 @@ export class OrderFormDialogComponent implements OnChanges {
     return {
       branch_id: '',
       client_user_id: '',
+      person_id: '',
       notes: '',
       items: [] as OrderItemForm[],
     };

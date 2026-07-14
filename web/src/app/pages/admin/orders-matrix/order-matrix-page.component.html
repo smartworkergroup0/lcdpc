@@ -1,6 +1,15 @@
 <div class="matrix-header">
   <h2>Matriz de Órdenes</h2>
   <div class="matrix-filters">
+    <div class="filter-group">
+      <p-select
+        [options]="intervalOptions"
+        [(ngModel)]="refreshInterval"
+        placeholder="Auto-refresh"
+        [showClear]="true"
+        [style]="{'width': '145px'}"
+        appendTo="body" />
+    </div>
     <p-datepicker
       [(ngModel)]="selectedDate"
       [showIcon]="true"
@@ -207,7 +216,7 @@
               <div class="item-row">
                 <div class="item-info">
                   <span class="item-type">{{ item.itemType === 'product' ? 'Prod' : 'Combo' }}</span>
-                  <span class="item-id">{{ item.productId ?? item.bundleId }}</span>
+                  <span class="item-name">{{ getItemName(item) }}</span>
                 </div>
                 <div class="item-details">
                   <span class="item-qty">{{ item.quantity }} x {{ item.unitPrice | currency }}</span>

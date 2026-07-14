@@ -14,7 +14,9 @@ interface JsendEnvelope<T> {
 interface UserGoData {
   id: string;
   email: string;
+  person_id: string | null;
   name: string | null;
+  identity_document: string | null;
   whatsapp_phone: string | null;
   full_address: string | null;
   is_client: boolean | null;
@@ -96,7 +98,9 @@ export class UserApiService {
     return {
       id: raw.id,
       email: raw.email,
+      personId: raw.person_id,
       name: raw.name,
+      identityDocument: raw.identity_document,
       whatsappPhone: raw.whatsapp_phone,
       fullAddress: raw.full_address,
       isClient: raw.is_client,

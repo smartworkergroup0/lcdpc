@@ -48,6 +48,7 @@ type CreateOrderRequest struct {
 	PersonFullAddress      *string           `json:"person_full_address,omitempty"`
 	Notes                  string            `json:"notes"`
 	Items                  []CreateOrderItem `json:"items"`
+	IsAdmin                bool              `json:"-"`
 }
 
 type CreateOrderItem struct {

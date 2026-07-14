@@ -105,6 +105,39 @@ web/src/app/
 - Image `loading="lazy"` on all non-hero images.
 - `(error)="onImageError($event)"` handler sets `/not-found.png` as fallback.
 
+#### Mutation blocking pattern (CREATE / UPDATE / DELETE / user-triggered search)
+
+Every component method that triggers a mutation or a user-initiated search request **must** use a loading signal to prevent duplicate calls:
+
+1. **Declare the flag**: `loading = signal(false);` (or `saving` in form dialogs).
+2. **Disable the button in HTML**: `[disabled]="loading()"` on the triggering button.
+3. **Early return**: at the top of the method, `if (this.loading()) return;`.
+4. **Set before call**: `this.loading.set(true);`.
+5. **Guaranteed reset**: `this.loading.set(false)` must run on success AND failure.
+
+For Observables use `finalize(() => this.loading.set(false))`. For async/await use `try/catch/finally`.
+
+```typescript
+async guardar() {
+  if (this.loading()) return;
+  this.loading.set(true);
+  try {
+    await this.service.create(data);
+    // success
+  } catch (e) {
+    // error
+  } finally {
+    this.loading.set(false);
+  }
+}
+```
+
+```html
+<p-button [loading]="loading()" [disabled]="loading()" (onClick)="guardar()" />
+```
+
+This applies to all form dialog `save()` methods, list page `confirmDelete()` methods, and any button-triggered search/action.
+
 ### Routing
 - Routes in `app.routes.ts`:
   - `/` — landing page

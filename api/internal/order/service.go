@@ -969,7 +969,9 @@ func (s *Service) resolveOrderIdentity(ctx context.Context, req CreateOrderReque
 		resolvedClientUserID = &parsed
 	}
 	if resolvedClientUserID == nil && actorUserID != nil && *actorUserID != uuid.Nil {
-		resolvedClientUserID = actorUserID
+		if req.PersonID == nil || strings.TrimSpace(*req.PersonID) == "" {
+			resolvedClientUserID = actorUserID
+		}
 	}
 
 	if req.PersonID != nil && strings.TrimSpace(*req.PersonID) != "" {
@@ -980,12 +982,14 @@ func (s *Service) resolveOrderIdentity(ctx context.Context, req CreateOrderReque
 		if actorUserID == nil {
 			return uuid.Nil, nil, fmt.Errorf("PERSON_ID_REQUIRES_AUTH")
 		}
-		ownerOK, ownerErr := s.userOwnsPerson(ctx, *actorUserID, parsed)
-		if ownerErr != nil {
-			return uuid.Nil, nil, ownerErr
-		}
-		if !ownerOK {
-			return uuid.Nil, nil, fmt.Errorf("PERSON_OWNERSHIP_REQUIRED")
+		if !req.IsAdmin {
+			ownerOK, ownerErr := s.userOwnsPerson(ctx, *actorUserID, parsed)
+			if ownerErr != nil {
+				return uuid.Nil, nil, ownerErr
+			}
+			if !ownerOK {
+				return uuid.Nil, nil, fmt.Errorf("PERSON_OWNERSHIP_REQUIRED")
+			}
 		}
 		resolvedPersonID = parsed
 	}
@@ -1020,6 +1024,8 @@ func (s *Service) resolveOrderIdentity(ctx context.Context, req CreateOrderReque
 	if resolvedPersonID == uuid.Nil {
 		return uuid.Nil, nil, fmt.Errorf("PERSON_REQUIRED_FOR_ORDER")
 	}
+
+	s.ensurePersonIsClient(ctx, resolvedPersonID)
 
 	return resolvedPersonID, resolvedClientUserID, nil
 }
@@ -1058,6 +1064,13 @@ func (s *Service) userOwnsPerson(ctx context.Context, userID, personID uuid.UUID
 		return false, fmt.Errorf("check person ownership: %w", err)
 	}
 	return exists, nil
+}
+
+func (s *Service) ensurePersonIsClient(ctx context.Context, personID uuid.UUID) {
+	_, _ = s.pool.Exec(ctx, `
+		UPDATE persons SET is_client = true, updated_at_utc = now()
+		WHERE id = $1 AND NOT is_client
+	`, personID)
 }
 
 func (s *Service) resolveOrCreatePersonForUser(ctx context.Context, userID uuid.UUID, req CreateOrderRequest) (uuid.UUID, error) {

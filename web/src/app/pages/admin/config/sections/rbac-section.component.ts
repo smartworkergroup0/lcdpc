@@ -13,6 +13,8 @@ import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { TabsModule } from 'primeng/tabs';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { RbacApiService } from '../../../../core/services/rbac-api.service';
@@ -36,7 +38,7 @@ import {
     CommonModule, FormsModule, ButtonModule, TableModule,
     TagModule, DialogModule, InputTextModule, FloatLabelModule,
     SelectModule, ConfirmDialogModule, ToastModule, TooltipModule,
-    TabsModule, InputNumberModule,
+    TabsModule, InputNumberModule, IconFieldModule, InputIconModule,
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './rbac-section.component.html',
@@ -113,6 +115,50 @@ export class RbacSectionComponent implements OnInit {
 
   protected readonly saving = signal(false);
   protected readonly loading = signal(false);
+
+  // Search signals
+  protected readonly searchProfiles = signal('');
+  protected readonly searchRoles = signal('');
+  protected readonly searchResources = signal('');
+  protected readonly searchApiTokens = signal('');
+  protected readonly searchServiceAccounts = signal('');
+
+  // Filtered lists
+  protected readonly filteredProfiles = computed(() => {
+    const q = this.searchProfiles().toLowerCase().trim();
+    if (!q) return this.profiles();
+    return this.profiles().filter((p) =>
+      p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
+    );
+  });
+
+  protected readonly filteredRoles = computed(() => {
+    const q = this.searchRoles().toLowerCase().trim();
+    if (!q) return this.roles();
+    return this.roles().filter((r) =>
+      r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)
+    );
+  });
+
+  protected readonly filteredResources = computed(() => {
+    const q = this.searchResources().toLowerCase().trim();
+    if (!q) return this.resources();
+    return this.resources().filter((r) => r.code.toLowerCase().includes(q));
+  });
+
+  protected readonly filteredApiTokens = computed(() => {
+    const q = this.searchApiTokens().toLowerCase().trim();
+    if (!q) return this.apiTokens();
+    return this.apiTokens().filter((t) => t.name.toLowerCase().includes(q));
+  });
+
+  protected readonly filteredServiceAccounts = computed(() => {
+    const q = this.searchServiceAccounts().toLowerCase().trim();
+    if (!q) return this.serviceAccounts();
+    return this.serviceAccounts().filter((sa) =>
+      sa.name.toLowerCase().includes(q) || sa.username.toLowerCase().includes(q)
+    );
+  });
 
   protected readonly availableResources = computed(() => {
     const target = this.roleResourcesTarget();

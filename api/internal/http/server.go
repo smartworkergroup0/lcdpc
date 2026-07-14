@@ -565,6 +565,11 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Post("/upsert", personH.Upsert)
 		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth())
+			r.Use(middleware.RequirePermission(rbacStore, "client:create"))
+			r.Post("/clients", personH.CreateClient)
+		})
 	})
 
 	// Orders

@@ -1,5 +1,6 @@
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -24,6 +25,8 @@ import { WorkflowNodeData, WorkflowEdge } from '../../../core/models/workflow.mo
 import { OrderApiService } from '../../../core/services/order-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
 import { WorkflowApiService } from '../../../core/services/workflow-api.service';
+import { ProductApiService } from '../../../core/services/product-api.service';
+import { BundleApiService } from '../../../core/services/bundle-api.service';
 
 type CellType = 'terminal' | 'current' | 'visited' | 'reverted' | 'pending';
 
@@ -60,11 +63,13 @@ interface WorkflowNodeEntry {
   styleUrl: './order-matrix-page.component.scss',
   providers: [MessageService],
 })
-export class OrderMatrixPageComponent implements OnInit {
+export class OrderMatrixPageComponent implements OnInit, OnDestroy {
   private readonly authStore = inject(AuthStore);
   private readonly orderApi = inject(OrderApiService);
   private readonly branchApi = inject(BranchApiService);
   private readonly workflowApi = inject(WorkflowApiService);
+  private readonly productApi = inject(ProductApiService);
+  private readonly bundleApi = inject(BundleApiService);
   private readonly messageService = inject(MessageService);
 
   readonly statusLabels = ORDER_STATUS_LABELS;
@@ -95,6 +100,19 @@ export class OrderMatrixPageComponent implements OnInit {
   selectedOrder = signal<OrderWithHistory | null>(null);
   drawerOrder = signal<Order | null>(null);
   drawerLoading = signal(false);
+
+  private productNames = signal<Map<string, string>>(new Map());
+  private bundleNames = signal<Map<string, string>>(new Map());
+
+  protected readonly refreshInterval = signal<number | null>(null);
+  protected readonly intervalOptions = [
+    { label: '30s', value: 30000 },
+    { label: '1m', value: 60000 },
+    { label: '2m', value: 120000 },
+    { label: '5m', value: 300000 },
+    { label: '10m', value: 600000 },
+  ];
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly canChangeStatus = computed(() => this.authStore.hasPermission('order:status:change'));
   readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
@@ -150,6 +168,25 @@ export class OrderMatrixPageComponent implements OnInit {
     });
     this.loadWorkflow();
     this.loadMatrix();
+  }
+
+  constructor() {
+    effect(() => {
+      const ms = this.refreshInterval();
+      if (this.refreshTimer) {
+        clearInterval(this.refreshTimer);
+        this.refreshTimer = null;
+      }
+      if (ms !== null) {
+        this.refreshTimer = setInterval(() => this.loadMatrix(), ms);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+    }
   }
 
   private loadWorkflow(): void {
@@ -288,8 +325,15 @@ export class OrderMatrixPageComponent implements OnInit {
     this.drawerOrder.set(null);
     this.drawerVisible.set(true);
     this.drawerLoading.set(true);
-    this.orderApi.getById(order.id).subscribe({
-      next: (full) => {
+
+    forkJoin({
+      full: this.orderApi.getById(order.id),
+      products: this.productApi.list({ limit: 1000, offset: 0 }),
+      bundles: this.bundleApi.list({ limit: 1000, offset: 0 }),
+    }).subscribe({
+      next: ({ full, products, bundles }) => {
+        this.productNames.set(new Map(products.items.map((p) => [p.productId, p.name])));
+        this.bundleNames.set(new Map(bundles.items.map((b) => [b.bundleId, b.name])));
         this.drawerOrder.set(full);
         this.drawerLoading.set(false);
       },
@@ -299,6 +343,13 @@ export class OrderMatrixPageComponent implements OnInit {
 
   getBranchName(branchId: string): string {
     return this.branches().find((b) => b.id === branchId)?.name ?? branchId.slice(0, 8);
+  }
+
+  getItemName(item: { itemType: string; productId: string | null; bundleId: string | null }): string {
+    if (item.itemType === 'bundle') {
+      return this.bundleNames().get(item.bundleId ?? '') ?? (item.bundleId?.slice(0, 8) ?? '');
+    }
+    return this.productNames().get(item.productId ?? '') ?? (item.productId?.slice(0, 8) ?? '');
   }
 
   onCellClick(order: OrderWithHistory, targetStatus: string): void {

@@ -7,9 +7,7 @@
 
 .matrix-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   background: var(--surface);
@@ -23,6 +21,7 @@
     font-family: 'Anton', sans-serif;
     font-size: 1.3rem;
     color: var(--text-strong);
+    white-space: nowrap;
   }
 }
 
@@ -31,6 +30,18 @@
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
+
+  :host ::ng-deep .p-datepicker,
+  :host ::ng-deep .p-select {
+    width: auto;
+    min-width: 0;
+  }
+}
+
+.filter-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .matrix-container {
@@ -76,6 +87,7 @@
 .matrix-table {
   border-collapse: separate;
   border-spacing: 0;
+  width: 100%;
   min-width: max-content;
 
   th,
@@ -111,8 +123,8 @@
   left: 0;
   z-index: 1;
   background: var(--surface);
-  min-width: 170px;
-  max-width: 200px;
+  width: 180px;
+  min-width: 180px;
   text-align: left !important;
   cursor: pointer;
   border-right: 2px solid var(--border) !important;
@@ -150,8 +162,6 @@
 
 .col-status {
   min-width: 100px;
-  width: auto;
-  max-width: 160px;
   position: relative;
   padding: 8px 8px !important;
 }
@@ -415,10 +425,10 @@
   border-radius: 3px;
 }
 
-.item-id {
-  font-size: 0.75rem;
-  color: var(--text-soft);
-  font-family: monospace;
+.item-name {
+  font-size: 0.8rem;
+  color: var(--text-strong);
+  font-weight: 500;
 }
 
 .item-details {
