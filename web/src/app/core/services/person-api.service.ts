@@ -44,11 +44,9 @@ export class PersonApiService {
     this.baseUrl = apiBaseUrl.replace(/\/$/, '');
   }
 
-  getByDocument(document: string, withCredentials = true): Observable<Person> {
+  getByDocument(document: string): Observable<Person> {
     return this.http
-      .get<JsendEnvelope<PersonLookupResponseData>>(`${this.baseUrl}/api/v1/persons/by-document/${encodeURIComponent(document)}`, {
-        withCredentials,
-      })
+      .get<JsendEnvelope<PersonLookupResponseData>>(`${this.baseUrl}/api/v1/persons/by-document/${encodeURIComponent(document)}`)
       .pipe(
         map((res) => {
           const data = res.data as PersonLookupResponseData;
@@ -60,7 +58,7 @@ export class PersonApiService {
       );
   }
 
-  upsert(request: UpsertPersonRequest, withCredentials = true): Observable<Person> {
+  upsert(request: UpsertPersonRequest): Observable<Person> {
     return this.http
       .post<JsendEnvelope<PersonGoData>>(`${this.baseUrl}/api/v1/persons/upsert`, {
         name: request.name,
@@ -68,8 +66,6 @@ export class PersonApiService {
         tax_id: request.taxId,
         whatsapp_phone: request.whatsappPhone,
         full_address: request.fullAddress,
-      }, {
-        withCredentials,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -82,8 +78,6 @@ export class PersonApiService {
         tax_id: request.taxId,
         whatsapp_phone: request.whatsappPhone,
         full_address: request.fullAddress,
-      }, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }

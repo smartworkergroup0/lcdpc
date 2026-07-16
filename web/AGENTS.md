@@ -17,10 +17,11 @@ Frontend guidance for `web/`.
 - Keep shared PrimeNG UI in `src/app/shared/`
 - Keep models/services/stores in `src/app/core/`
 - Services are `providedIn: 'root'` and map snake_case API payloads to camelCase models
+- All HTTP requests use `withCredentials: true` via `credentialsInterceptor` (no manual flag needed)
 
 ## Auth and routing
 
-- Auth uses PASETO cookies with `withCredentials: true`
+- Auth uses PASETO cookies with `withCredentials: true` (via `credentialsInterceptor`)
 - `authInterceptor` handles 401 → refresh → retry
 - Skip auth shell on `/login` and `/register`
 - Use guards and `hasPermission` for route and menu gating
@@ -30,7 +31,7 @@ Frontend guidance for `web/`.
 ## UI rules
 
 - PrimeNG dialogs must be non-draggable
-- Float labels need `placeholder=" "` and dialog padding top of `20px`
+- Float labels need `placeholder=" "`, dialog header `padding-bottom: 0`, and form wrapper `margin-top: 25px`
 - Use `loading="lazy"` on non-hero images and `/not-found.png` as fallback
 - Keep buttons pointer-friendly and layouts precise
 - Use `p-table` lazy mode for admin lists; do not add a separate paginator component

@@ -86,14 +86,15 @@ web/src/app/
 - List methods accept optional filter, return `Observable<PaginatedResponse<T>>`.
 - CRUD methods: `list`, `getById`, `create`, `update`, `delete`.
 - Image methods: `updateImage`, `resolveImageUrl`.
-- Auth-protected calls use `{ withCredentials: true }`.
+- Auth-protected calls use `withCredentials: true` (applied globally by `credentialsInterceptor`).
 - `JsendEnvelope<T>` interface for typing API responses.
 
 ### Environment configuration
 - `src/environments/environment.ts` for development.
 - `src/environments/environment.prod.ts` for production.
 - `angular.json` has `fileReplacements` for production builds.
-- `apiBaseUrl` is empty string for production (same origin), `http://localhost:8080` for dev.
+- `apiBaseUrl` is empty string in both dev and production — dev uses `proxy.conf.json` to proxy `/api` to `http://localhost:8080` (same-origin, cookies work).
+- `credentialsInterceptor` adds `withCredentials: true` globally — never add it manually to service methods.
 
 ### Component patterns
 - `@Component` with `standalone: true`.
@@ -158,7 +159,7 @@ This applies to all form dialog `save()` methods, list page `confirmDelete()` me
 - `authInterceptor` handles 401 → refresh → retry. Skips auth endpoints (`/api/v1/auth/login`, `/refresh`, `/register/*`, `/forgot-password`, `/reset-password`).
 - `AuthStore` manages user state with signals: `currentUser`, `permissions`, `isAuthenticated`, `isLoaded`, `expiresAt`.
 - `AuthStore` has `hasPermission(code)` and `hasAnyPermission(...codes)` for RBAC checks, `isExpiringSoon()` for refresh timing.
-- `withCredentials: true` on all authenticated requests.
+- `withCredentials: true` applied globally via `credentialsInterceptor` — do not add manually to service methods.
 - Guards: `adminGuard` (checks specific admin permission list), `permissionGuard(code)` (single permission), `authGuard` (tries session restore via `me()`).
 - Directive: `hasPermission` for conditional rendering in templates.
 - `API_BASE_URL` injection token is defined in `pages/auth-page/auth-api-go.service.ts`, not in `core/services/`.
@@ -223,7 +224,8 @@ protected goBack(): void {
 ```
 
 #### Form dialog styling standards
-- Dialog padding-top: always add `paddingTop: '20px'` to dialog `[style]` so the first floatlabel is visible.
+- Dialog header: always add `padding-bottom: 0` to `.p-dialog-header` via `:host ::ng-deep` so the header sits tight against the content.
+- Form content: always add `margin-top: 25px` to the form wrapper div so the first floatlabel is visible below the header.
 - Floatlabel inputs: every `p-floatlabel` input must have `placeholder=" "` (space) so PrimeNG detects pre-filled values via `ngModel`.
 - Vertical gap: `.form-fields` uses `gap: 1.75rem` between fields for comfortable label spacing.
 
@@ -458,7 +460,7 @@ Use `category-form-dialog.component.ts` as the reference for all simple form dia
               [visible]="visible" (visibleChange)="visibleChange.emit($event)"
               [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(500px, 95vw)'}"
               (onHide)="close()">
-      <div class="form-fields" [style]="{paddingTop: '20px'}">
+      <div class="form-fields" [style]="{marginTop: '25px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="name" [(ngModel)]="form.name"
@@ -474,7 +476,7 @@ Use `category-form-dialog.component.ts` as the reference for all simple form dia
       </ng-template>
     </p-dialog>
   `,
-  styles: [`.form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
+  styles: [`:host ::ng-deep .p-dialog-header { padding-bottom: 0; } .form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
 })
 ```
 
@@ -489,7 +491,7 @@ Rules derived from this template:
 - `close()` emits `closed` (parent handles visibility).
 - `emptyForm()` private method returns default form values.
 - Always use `p-floatlabel` with `placeholder=" "` (space) on inputs.
-- Dialog `[style]` must include `paddingTop: '20px'` so the first floatlabel is visible.
+- Dialog `[style]` must NOT include `paddingTop` — use `margin-top: 25px` on the form wrapper div instead, and `padding-bottom: 0` on `.p-dialog-header`.
 - Use `InputTextModule` only (no `InputNumberModule` unless numeric fields are required).
 
 ### Branch-scoped access in form dialogs

@@ -41,7 +41,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
               [modal]="true" [dismissableMask]="true" [draggable]="false"
               [style]="{width: 'min(700px, 95vw)'}"
               (onHide)="close()">
-      <div class="form-fields" [style]="{paddingTop: '20px'}">
+      <div class="form-fields" [style]="{marginTop: '25px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="code" [(ngModel)]="form.code"
@@ -162,6 +162,7 @@ const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado
     </p-dialog>
   `,
   styles: [`
+    :host ::ng-deep .p-dialog-header { padding-bottom: 0; }
     .form-fields { display: flex; flex-direction: column; gap: 1.75rem; }
     .field { display: flex; flex-direction: column; gap: 0.25rem; }
     .schedule-label { font-weight: 600; color: var(--text-strong); margin-bottom: 0.5rem; }

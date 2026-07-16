@@ -375,7 +375,7 @@
 <!-- API Token Dialog -->
 <p-dialog [header]="selectedApiToken() ? 'Editar Token' : 'Nuevo Token de API'"
           [visible]="apiTokenDialogVisible()" (visibleChange)="apiTokenDialogVisible.set($event)"
-          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(450px, 95vw)', paddingTop: '20px'}"
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(450px, 95vw)'}"
           (onHide)="apiTokenSubmitted = false">
   <div class="form-fields">
     <div class="field">
@@ -425,7 +425,7 @@
           [visible]="svcAccountDialogVisible()" (visibleChange)="svcAccountDialogVisible.set($event)"
           [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(500px, 95vw)'}"
           (onHide)="svcAccountSubmitted = false">
-  <div class="form-fields" [style]="{paddingTop: '20px'}">
+  <div class="form-fields" [style]="{marginTop: '25px'}">
     <div class="field">
       <p-floatlabel>
         <input pInputText id="saName" [(ngModel)]="svcAccountForm.name"

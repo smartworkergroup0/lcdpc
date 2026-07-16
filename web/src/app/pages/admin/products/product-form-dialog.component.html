@@ -3,7 +3,7 @@
           [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: '650px'}"
           [contentStyle]="{'max-height': '70vh', 'overflow': 'auto'}"
           (onHide)="close()">
-  <div class="form-fields" [style]="{paddingTop: '20px'}">
+  <div class="form-fields" [style]="{marginTop: '25px'}">
     <div class="field">
       <p-floatlabel>
         <input pInputText id="name" [(ngModel)]="form.name" [class.ng-invalid]="submitted && !form.name" style="width: 100%" placeholder=" " />

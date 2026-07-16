@@ -23,9 +23,9 @@ import { Person, UpsertPersonRequest } from '../../../core/models/person.model';
     <p-dialog [header]="isEditMode ? 'Actualizar Cliente' : 'Nuevo Cliente'"
               [visible]="visible" (visibleChange)="visibleChange.emit($event)"
               [modal]="true" [dismissableMask]="true" [draggable]="false"
-              [style]="{width: 'min(500px, 95vw)', paddingTop: '20px'}"
+              [style]="{width: 'min(500px, 95vw)'}"
               (onHide)="close()">
-      <div class="form-fields">
+      <div class="form-fields" [style]="{marginTop: '25px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="identityDocument" [(ngModel)]="form.identityDocument"
@@ -60,14 +60,6 @@ import { Person, UpsertPersonRequest } from '../../../core/models/person.model';
             <label for="fullAddress">Dirección *</label>
           </p-floatlabel>
         </div>
-
-        <div class="field">
-          <p-floatlabel>
-            <input pInputText id="taxId" [(ngModel)]="form.taxId"
-                   style="width: 100%" placeholder=" " />
-            <label for="taxId">RIF</label>
-          </p-floatlabel>
-        </div>
       </div>
 
       <ng-template pTemplate="footer">
@@ -84,6 +76,9 @@ import { Person, UpsertPersonRequest } from '../../../core/models/person.model';
     </p-dialog>
   `,
   styles: [`
+    :host ::ng-deep .p-dialog-header {
+      padding-bottom: 0;
+    }
     :host ::ng-deep .p-dialog-footer {
       display: flex;
       justify-content: space-between;
@@ -137,7 +132,6 @@ export class ClientFormDialogComponent implements OnChanges {
           name: this.person.name,
           whatsappPhone: this.person.whatsappPhone,
           fullAddress: this.person.fullAddress,
-          taxId: this.person.taxId ?? '',
         };
       } else {
         this.form = this.emptyForm();
@@ -156,7 +150,6 @@ export class ClientFormDialogComponent implements OnChanges {
     const req: UpsertPersonRequest = {
       name: this.form.name,
       identityDocument: this.form.identityDocument,
-      taxId: this.form.taxId || null,
       whatsappPhone: this.form.whatsappPhone,
       fullAddress: this.form.fullAddress,
     };
@@ -192,7 +185,6 @@ export class ClientFormDialogComponent implements OnChanges {
       name: '',
       whatsappPhone: '',
       fullAddress: '',
-      taxId: '',
     };
   }
 }

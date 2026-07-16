@@ -45,25 +45,19 @@ export class PriceApiService {
 
   create(req: CreatePriceRequest): Observable<ProductBranchPrice> {
     return this.http
-      .post<JsendEnvelope<PriceGoData>>(`${this.baseUrl}/api/v1/prices/`, req, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<PriceGoData>>(`${this.baseUrl}/api/v1/prices/`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
   update(id: string, req: CreatePriceRequest): Observable<ProductBranchPrice> {
     return this.http
-      .put<JsendEnvelope<PriceGoData>>(`${this.baseUrl}/api/v1/prices/${id}`, req, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<PriceGoData>>(`${this.baseUrl}/api/v1/prices/${id}`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/prices/${id}`, {
-        withCredentials: true,
-      })
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/prices/${id}`)
       .pipe(map(() => undefined));
   }
 

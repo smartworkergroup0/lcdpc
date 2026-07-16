@@ -50,11 +50,29 @@
         </a>
       }
 
-      @if (canViewStaff()) {
-        <a routerLink="/admin/staff" routerLinkActive="active" (click)="collapseAll()">
+      @if (canViewPeople()) {
+        <button class="nav-group-toggle" [class.expanded]="peopleExpanded()" (click)="togglePeople()">
           <span class="pi pi-users"></span>
-          <span class="nav-label">Personal</span>
-        </a>
+          <span class="nav-label">Personas</span>
+          <span class="pi pi-chevron-down toggle-chevron"></span>
+        </button>
+
+        @if (peopleExpanded() && !collapsed()) {
+          <div class="nav-group-children">
+            @if (canViewStaff()) {
+              <a routerLink="/admin/staff" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-id-card"></span>
+                <span class="nav-label">Personal</span>
+              </a>
+            }
+            @if (canViewClients()) {
+              <a routerLink="/admin/clients" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-user"></span>
+                <span class="nav-label">Clientes</span>
+              </a>
+            }
+          </div>
+        }
       }
 
       @if (canViewConfig()) {

@@ -9,15 +9,17 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
+import { TableModule, TableLazyLoadEvent } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../core/auth/auth.store';
-import { AppUser } from '../../../core/models/user.model';
-import { UserApiService } from '../../../core/services/user-api.service';
+import { StaffMember } from '../../../core/models/staff.model';
+import { StaffApiService } from '../../../core/services/staff-api.service';
+import { BranchApiService } from '../../../core/services/branch-api.service';
+import { StaffFormDialogComponent } from './staff-form-dialog.component';
 
 @Component({
   selector: 'app-staff-page',
@@ -26,6 +28,7 @@ import { UserApiService } from '../../../core/services/user-api.service';
     CommonModule, FormsModule, ButtonModule, TableModule, TagModule,
     InputTextModule, FloatLabelModule, IconFieldModule, InputIconModule, SelectModule, ToolbarModule,
     ConfirmDialogModule, ToastModule, TooltipModule, DialogModule,
+    StaffFormDialogComponent,
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './staff-page.component.html',
@@ -33,45 +36,63 @@ import { UserApiService } from '../../../core/services/user-api.service';
 })
 export class StaffPageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
-  private readonly userApi = inject(UserApiService);
+  private readonly staffApi = inject(StaffApiService);
+  private readonly branchApi = inject(BranchApiService);
+  private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
-  protected readonly canUpdate = computed(() => this.authStore.hasPermission('rbac:user:update'));
+  protected readonly canCreate = computed(() => this.authStore.hasPermission('staff:create'));
+  protected readonly canUpdate = computed(() => this.authStore.hasPermission('staff:update'));
+  protected readonly canDelete = computed(() => this.authStore.hasPermission('staff:delete'));
+  protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
+  protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
 
-  protected readonly personas = signal<AppUser[]>([]);
+  protected readonly items = signal<StaffMember[]>([]);
   protected readonly loading = signal(false);
   protected readonly totalCount = signal(0);
   protected readonly pageSize = 10;
 
-  protected personasSearch = '';
-  protected selectedIsClientFilter: 'all' | 'true' | 'false' = 'all';
+  protected search = '';
+  protected selectedRoleCode = '';
 
   protected readonly detailVisible = signal(false);
-  protected readonly editVisible = signal(false);
-  protected readonly selectedPersona = signal<AppUser | null>(null);
+  protected readonly selectedItem = signal<StaffMember | null>(null);
+  protected readonly formVisible = signal(false);
+  protected readonly editItem = signal<StaffMember | null>(null);
+  protected readonly branches = signal<{ id: string; name: string }[]>([]);
 
-  protected editForm = this.emptyEditForm();
-  protected submitted = false;
-  protected readonly saving = signal(false);
+  protected readonly roleOptions = [
+    { label: 'Todos', value: '' },
+    { label: 'Staff', value: 'staff' },
+    { label: 'Manager', value: 'manager' },
+  ];
 
   ngOnInit(): void {
-    this.loadPersonas({ first: 0, rows: this.pageSize });
+    this.loadBranches();
   }
 
-  loadPersonas(event: any): void {
+  private loadBranches(): void {
+    this.branchApi.listAdmin().subscribe({
+      next: (branches) => this.branches.set(branches.map(b => ({ id: b.id, name: b.storeName }))),
+      error: () => {},
+    });
+  }
+
+  loadItems(event: TableLazyLoadEvent): void {
     const offset = event.first ?? 0;
     const limit = event.rows ?? this.pageSize;
     this.loading.set(true);
 
-    const query = this.personasSearch.trim();
-    const request = query
-      ? this.userApi.search(query, limit, offset)
-      : this.userApi.list({ limit, offset });
+    const filters: Record<string, string> = {};
+    if (this.search.trim()) filters['search'] = this.search.trim();
+    if (this.selectedRoleCode) filters['role_code'] = this.selectedRoleCode;
+    if (!this.canViewAllBranches() && this.userBranchId()) {
+      filters['branch_id'] = this.userBranchId()!;
+    }
 
-    request.subscribe({
+    this.staffApi.list({ ...filters, limit, offset } as any).subscribe({
       next: (res) => {
-        const personas = res.items.filter((person) => this.matchesClientFilter(person));
-        this.personas.set(personas);
+        this.items.set(res.items);
         this.totalCount.set(res.totalCount);
         this.loading.set(false);
       },
@@ -79,93 +100,84 @@ export class StaffPageComponent implements OnInit {
     });
   }
 
-  applyPersonasFilters(): void {
-    this.loadPersonas({ first: 0, rows: this.pageSize });
+  applyFilters(): void {
+    this.loadItems({ first: 0, rows: this.pageSize });
   }
 
-  protected matchesClientFilter(person: AppUser): boolean {
-    if (this.selectedIsClientFilter === 'all') return true;
-    return this.selectedIsClientFilter === 'true' ? person.isClient === true : person.isClient === false;
+  roleSeverity(code: string): 'success' | 'warn' | 'info' | 'secondary' {
+    switch (code) {
+      case 'manager': return 'warn';
+      case 'staff': return 'info';
+      default: return 'secondary';
+    }
   }
 
-  roleSeverity(status: string): 'success' | 'warn' | 'info' | 'danger' {
-    switch (status) {
-      case 'active':
-      case 'Active':
-        return 'success';
-      case 'inactive':
-      case 'Inactive':
-        return 'danger';
-      default:
-        return 'info';
+  statusSeverity(status: string): 'success' | 'danger' | 'secondary' {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'success';
+      case 'inactive': return 'danger';
+      default: return 'secondary';
     }
   }
 
   protected formatDate(value: string): string {
     return new Date(value).toLocaleDateString('es-VE', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
+      year: 'numeric', month: 'short', day: '2-digit',
     });
   }
 
-  openPersonaDetails(person: AppUser): void {
-    this.selectedPersona.set(person);
+  openDetail(item: StaffMember): void {
+    this.selectedItem.set(item);
     this.detailVisible.set(true);
   }
 
-  closePersonaDetails(): void {
+  closeDetail(): void {
     this.detailVisible.set(false);
-    this.selectedPersona.set(null);
+    this.selectedItem.set(null);
   }
 
-  openModifyPersona(person: AppUser): void {
-    this.selectedPersona.set(person);
-    this.editForm = {
-      email: person.email,
-      name: person.name ?? '',
-      whatsappPhone: person.whatsappPhone ?? '',
-      fullAddress: person.fullAddress ?? '',
-    };
-    this.submitted = false;
-    this.editVisible.set(true);
+  openCreate(): void {
+    this.editItem.set(null);
+    this.formVisible.set(true);
   }
 
-  closeModifyPersona(): void {
-    this.editVisible.set(false);
-    this.selectedPersona.set(null);
-    this.editForm = this.emptyEditForm();
-    this.submitted = false;
+  openEdit(item: StaffMember): void {
+    this.editItem.set(item);
+    this.formVisible.set(true);
   }
 
-  savePersonaChanges(): void {
-    this.submitted = true;
-    const person = this.selectedPersona();
-    if (!person) return;
-    if (!this.editForm.email || !this.editForm.name || !this.editForm.whatsappPhone || !this.editForm.fullAddress) return;
+  closeForm(): void {
+    this.formVisible.set(false);
+    this.editItem.set(null);
+  }
 
-    this.saving.set(true);
-    this.userApi.update(person.id, {
-      email: this.editForm.email,
-      name: this.editForm.name,
-      whatsapp_phone: this.editForm.whatsappPhone,
-      full_address: this.editForm.fullAddress,
-    }).subscribe({
-      next: (updated) => {
-        this.personas.update((items) => items.map((item) => item.id === updated.id ? updated : item));
-        this.selectedPersona.set(updated);
-        this.saving.set(false);
-        this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Persona actualizada correctamente' });
-        this.closeModifyPersona();
-      },
-      error: () => {
-        this.saving.set(false);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo actualizar la persona' });
-      },
+  onFormSaved(): void {
+    this.closeForm();
+    this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Miembro guardado correctamente' });
+    this.applyFilters();
+  }
+
+  confirmDelete(item: StaffMember): void {
+    this.confirmationService.confirm({
+      message: `¿Eliminar a <b>${item.profileName}</b>? Esta acción no se puede deshacer.`,
+      header: 'Confirmar eliminación',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Eliminar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.doDelete(item),
     });
   }
 
-  private emptyEditForm(): { email: string; name: string; whatsappPhone: string; fullAddress: string } {
-    return { email: '', name: '', whatsappPhone: '', fullAddress: '' };
+  private doDelete(item: StaffMember): void {
+    this.staffApi.delete(item.userId).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Miembro eliminado' });
+        this.applyFilters();
+      },
+      error: () => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar el miembro' });
+      },
+    });
   }
 }

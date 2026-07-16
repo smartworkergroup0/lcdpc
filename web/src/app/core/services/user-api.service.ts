@@ -46,7 +46,6 @@ export class UserApiService {
     return this.http
       .get<JsendEnvelope<PaginatedGoData<UserGoData>>>(`${this.baseUrl}/api/v1/users/search`, {
         params: { q: query, limit: String(limit), offset: String(offset) },
-        withCredentials: true,
       })
       .pipe(map((res) => ({
         items: res.data.items.map((u) => this.map(u)),
@@ -59,20 +58,19 @@ export class UserApiService {
   getByDocument(document: string): Observable<AppUser> {
     return this.http
       .get<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/by-document/${encodeURIComponent(document)}`, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
 
   getById(id: string): Observable<AppUser> {
     return this.http
-      .get<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/${id}`, { withCredentials: true })
+      .get<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/${id}`)
       .pipe(map((res) => this.map(res.data)));
   }
 
   update(id: string, req: { email: string; name: string; whatsapp_phone: string; full_address: string }): Observable<AppUser> {
     return this.http
-      .put<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/${id}`, req, { withCredentials: true })
+      .put<JsendEnvelope<UserGoData>>(`${this.baseUrl}/api/v1/users/${id}`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
@@ -84,7 +82,6 @@ export class UserApiService {
     return this.http
       .get<JsendEnvelope<PaginatedGoData<UserGoData>>>(`${this.baseUrl}/api/v1/users/`, {
         params,
-        withCredentials: true,
       })
       .pipe(map((res) => ({
         items: res.data.items.map((u) => this.map(u)),

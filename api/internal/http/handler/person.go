@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -90,4 +91,87 @@ func (h *PersonHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, result)
+}
+
+func (h *PersonHandler) ListClients(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	f := person.ClientFilter{}
+
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			f.Limit = n
+		}
+	}
+	if v := q.Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			f.Offset = n
+		}
+	}
+	if v := q.Get("search"); v != "" {
+		f.Search = &v
+	}
+
+	items, total, err := h.svc.ListClients(r.Context(), f)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Paginated(w, items, total, f.GetLimit(), f.GetOffset())
+}
+
+func (h *PersonHandler) GetClientByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	result, err := h.svc.GetClientByID(r.Context(), id)
+	if err != nil {
+		response.Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	response.Success(w, result)
+}
+
+func (h *PersonHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	var req person.UpsertRequest
+	if err := response.Decode(r, &req); err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"body": "invalid"})
+		return
+	}
+
+	result, err := h.svc.UpdateClient(r.Context(), id, req)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(w, result)
+}
+
+func (h *PersonHandler) DeleteClient(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	if err := h.svc.DeleteClient(r.Context(), id); err != nil {
+		response.Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	response.Success(w, map[string]string{"status": "deleted"})
 }

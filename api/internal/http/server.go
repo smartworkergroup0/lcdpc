@@ -570,6 +570,22 @@ func NewServer(
 			r.Use(middleware.RequirePermission(rbacStore, "client:create"))
 			r.Post("/clients", personH.CreateClient)
 		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth())
+			r.Use(middleware.RequirePermission(rbacStore, "client:view"))
+			r.Get("/clients", personH.ListClients)
+			r.Get("/clients/{id}", personH.GetClientByID)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth())
+			r.Use(middleware.RequirePermission(rbacStore, "client:update"))
+			r.Put("/clients/{id}", personH.UpdateClient)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth())
+			r.Use(middleware.RequirePermission(rbacStore, "client:delete"))
+			r.Delete("/clients/{id}", personH.DeleteClient)
+		})
 	})
 
 	// Orders

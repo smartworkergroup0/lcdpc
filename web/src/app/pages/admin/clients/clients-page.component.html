@@ -1,20 +1,18 @@
-<section class="staff-page">
+<section class="clients-page">
   <div class="page-header">
-    <h1>Personal</h1>
+    <h1>Clientes</h1>
   </div>
 
   <p-toolbar styleClass="admin-toolbar">
     <ng-template pTemplate="start">
       <p-iconfield>
         <p-inputicon><i class="pi pi-search"></i></p-inputicon>
-        <input pInputText type="text" placeholder="Buscar por nombre, email o cédula..." [(ngModel)]="search" (keyup.enter)="applyFilters()" />
+        <input pInputText type="text" placeholder="Buscar por nombre, cédula o teléfono..." [(ngModel)]="search" (keyup.enter)="applyFilters()" />
       </p-iconfield>
-      <p-select [options]="roleOptions" [(ngModel)]="selectedRoleCode" optionLabel="label" optionValue="value"
-                 placeholder="Rol" [style]="{'width':'150px', 'margin-left':'0.75rem'}" (onChange)="applyFilters()" />
     </ng-template>
     <ng-template pTemplate="end">
       @if (canCreate()) {
-        <p-button label="Nuevo Miembro" icon="pi pi-plus" (onClick)="openCreate()" styleClass="mr-2" />
+        <p-button label="Nuevo Cliente" icon="pi pi-plus" (onClick)="openCreate()" styleClass="mr-2" />
       }
       <p-button label="Buscar" icon="pi pi-search" severity="secondary" (onClick)="applyFilters()" />
     </ng-template>
@@ -26,25 +24,19 @@
     <ng-template pTemplate="header">
       <tr>
         <th>Nombre</th>
-        <th>Email</th>
+        <th>Cédula</th>
         <th>WhatsApp</th>
-        <th>Documento</th>
-        <th>Sucursal</th>
-        <th style="width: 100px">Rol</th>
-        <th style="width: 100px">Estado</th>
+        <th>Dirección</th>
         <th style="width: 130px">Creado</th>
         <th style="width: 140px">Acciones</th>
       </tr>
     </ng-template>
     <ng-template pTemplate="body" let-item>
       <tr>
-        <td>{{ item.profileName }}</td>
-        <td>{{ item.email }}</td>
-        <td>{{ item.whatsappPhone ?? '—' }}</td>
+        <td>{{ item.name }}</td>
         <td>{{ item.identityDocument }}</td>
-        <td>{{ item.branchName ?? '—' }}</td>
-        <td><p-tag [value]="item.roleName" [severity]="roleSeverity(item.roleCode)" /></td>
-        <td><p-tag [value]="item.status" [severity]="statusSeverity(item.status)" /></td>
+        <td>{{ item.whatsappPhone }}</td>
+        <td>{{ item.fullAddress }}</td>
         <td>{{ formatDate(item.createdAtUtc) }}</td>
         <td>
           <p-button icon="pi pi-eye" [text]="true" [rounded]="true" pTooltip="Ver detalles"
@@ -62,47 +54,31 @@
     </ng-template>
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td colspan="9" class="empty-state">No hay miembros de personal registrados</td>
+        <td colspan="6" class="empty-state">No hay clientes registrados</td>
       </tr>
     </ng-template>
   </p-table>
 
-  <p-dialog header="Detalles del miembro"
+  <p-dialog header="Detalles del cliente"
             [visible]="detailVisible()" (visibleChange)="detailVisible.set($event)"
             [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(560px, 95vw)'}"
             (onHide)="closeDetail()">
     <div class="detail-grid">
       <div>
         <span>Nombre</span>
-        <strong>{{ selectedItem()?.profileName ?? '—' }}</strong>
+        <strong>{{ selectedItem()?.name ?? '—' }}</strong>
       </div>
       <div>
-        <span>Email</span>
-        <strong>{{ selectedItem()?.email ?? '—' }}</strong>
+        <span>Cédula</span>
+        <strong>{{ selectedItem()?.identityDocument ?? '—' }}</strong>
       </div>
       <div>
         <span>WhatsApp</span>
         <strong>{{ selectedItem()?.whatsappPhone ?? '—' }}</strong>
       </div>
       <div>
-        <span>Documento</span>
-        <strong>{{ selectedItem()?.identityDocument ?? '—' }}</strong>
-      </div>
-      <div>
-        <span>Sucursal</span>
-        <strong>{{ selectedItem()?.branchName ?? '—' }}</strong>
-      </div>
-      <div>
-        <span>Perfil</span>
-        <strong>{{ selectedItem()?.profileCode ?? '—' }}</strong>
-      </div>
-      <div>
-        <span>Rol</span>
-        <strong>{{ selectedItem()?.roleName ?? '—' }}</strong>
-      </div>
-      <div>
-        <span>Estado</span>
-        <p-tag [value]="selectedItem()?.status ?? '—'" [severity]="statusSeverity(selectedItem()?.status ?? '')" />
+        <span>Dirección</span>
+        <strong>{{ selectedItem()?.fullAddress ?? '—' }}</strong>
       </div>
       <div>
         <span>Creado</span>
@@ -114,10 +90,9 @@
     </ng-template>
   </p-dialog>
 
-  <app-staff-form-dialog
+  <app-client-form-dialog
     [visible]="formVisible()"
-    [staff]="editItem()"
-    [branches]="branches()"
+    [client]="editItem()"
     (visibleChange)="formVisible.set($event)"
     (saved)="onFormSaved()"
     (closed)="closeForm()" />

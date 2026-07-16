@@ -38,7 +38,6 @@ export class BrandApiService {
   getById(id: string): Observable<Brand> {
     return this.http
       .get<JsendEnvelope<BrandGoData>>(`${this.baseUrl}/api/v1/brands/${id}`, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -46,7 +45,6 @@ export class BrandApiService {
   create(req: CreateBrandRequest): Observable<Brand> {
     return this.http
       .post<JsendEnvelope<BrandGoData>>(`${this.baseUrl}/api/v1/brands/`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -54,7 +52,6 @@ export class BrandApiService {
   update(id: string, req: CreateBrandRequest): Observable<Brand> {
     return this.http
       .put<JsendEnvelope<BrandGoData>>(`${this.baseUrl}/api/v1/brands/${id}`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -62,7 +59,6 @@ export class BrandApiService {
   delete(id: string): Observable<void> {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/brands/${id}`, {
-        withCredentials: true,
       })
       .pipe(map(() => undefined));
   }

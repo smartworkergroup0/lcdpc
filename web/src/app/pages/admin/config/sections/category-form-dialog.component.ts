@@ -20,7 +20,7 @@ import { CategoryApiService } from '../../../../core/services/category-api.servi
               [visible]="visible" (visibleChange)="visibleChange.emit($event)"
               [modal]="true" [dismissableMask]="true" [style]="{width: 'min(500px, 95vw)'}"
               (onHide)="close()" [draggable]="false">
-      <div class="form-fields" [style]="{paddingTop: '20px'}">
+      <div class="form-fields" [style]="{marginTop: '25px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="name" [(ngModel)]="form.name" [class.ng-invalid]="submitted && !form.name" style="width: 100%" placeholder=" " />
@@ -41,7 +41,7 @@ import { CategoryApiService } from '../../../../core/services/category-api.servi
       </ng-template>
     </p-dialog>
   `,
-  styles: [`.form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
+  styles: [`:host ::ng-deep .p-dialog-header { padding-bottom: 0; } .form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
 })
 export class CategoryFormDialogComponent implements OnChanges {
   @Input() visible = false;

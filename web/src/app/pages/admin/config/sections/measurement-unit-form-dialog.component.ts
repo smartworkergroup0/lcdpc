@@ -22,7 +22,7 @@ import { MeasurementUnitApiService } from '../../../../core/services/measurement
               [visible]="visible" (visibleChange)="visibleChange.emit($event)"
               [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(500px, 95vw)'}"
               (onHide)="close()">
-      <div class="form-fields" [style]="{paddingTop: '20px'}">
+      <div class="form-fields" [style]="{marginTop: '25px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="name" [(ngModel)]="form.name" [class.ng-invalid]="submitted && !form.name" style="width: 100%" placeholder=" " />
@@ -54,7 +54,7 @@ import { MeasurementUnitApiService } from '../../../../core/services/measurement
       </ng-template>
     </p-dialog>
   `,
-  styles: [`.form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
+  styles: [`:host ::ng-deep .p-dialog-header { padding-bottom: 0; } .form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
 })
 export class MeasurementUnitFormDialogComponent implements OnChanges {
   @Input() visible = false;

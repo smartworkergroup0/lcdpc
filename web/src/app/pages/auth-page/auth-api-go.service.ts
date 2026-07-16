@@ -153,7 +153,6 @@ export class AuthApiService {
   login(request: LoginRequest): Observable<LoginResult> {
     return this.httpClient
       .post<JsendEnvelope<LoginGoData>>(this.url('/api/v1/auth/login'), request, {
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -167,7 +166,6 @@ export class AuthApiService {
   me(): Observable<any> {
     return this.httpClient
       .get<JsendEnvelope<any>>(this.url('/api/v1/auth/me'), {
-        withCredentials: true,
       })
       .pipe(map((res) => res.data));
   }
@@ -175,7 +173,6 @@ export class AuthApiService {
   refresh(): Observable<LoginResult> {
     return this.httpClient
       .post<JsendEnvelope<LoginGoData>>(this.url('/api/v1/auth/refresh'), {}, {
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -188,7 +185,6 @@ export class AuthApiService {
 
   logout(): Observable<void> {
     return this.httpClient.post<void>(this.url('/api/v1/auth/logout'), {}, {
-      withCredentials: true,
     });
   }
 
@@ -226,7 +222,6 @@ export class AuthApiService {
   startRegistration(request: StartRegistrationRequest): Observable<StartRegistrationResponse> {
     return this.httpClient
       .post<JsendEnvelope<StartRegistrationGoData>>(this.url('/api/v1/auth/register/start'), request, {
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -247,7 +242,6 @@ export class AuthApiService {
         flow_id: request.flowId,
         otp: request.otp,
       }, {
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -269,7 +263,6 @@ export class AuthApiService {
         full_address: request.fullAddress,
         password: request.password,
       }, {
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -285,7 +278,6 @@ export class AuthApiService {
       .post<JsendEnvelope<{ available: boolean; code?: string; message?: string }>>(this.url('/api/v1/auth/register/check-document'), {
         identity_document: identityDocument,
       }, {
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({

@@ -43,25 +43,19 @@ export class CategoryApiService {
 
   create(req: CreateCategoryRequest): Observable<Category> {
     return this.http
-      .post<JsendEnvelope<CategoryGoData>>(`${this.baseUrl}/api/v1/categories/`, req, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<CategoryGoData>>(`${this.baseUrl}/api/v1/categories/`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
   update(id: string, req: UpdateCategoryRequest): Observable<Category> {
     return this.http
-      .put<JsendEnvelope<CategoryGoData>>(`${this.baseUrl}/api/v1/categories/${id}`, req, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<CategoryGoData>>(`${this.baseUrl}/api/v1/categories/${id}`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/categories/${id}`, {
-        withCredentials: true,
-      })
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/categories/${id}`)
       .pipe(map(() => undefined));
   }
 

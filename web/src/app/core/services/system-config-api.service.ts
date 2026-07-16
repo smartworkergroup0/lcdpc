@@ -37,7 +37,6 @@ export class SystemConfigApiService {
   list(): Observable<SystemConfig[]> {
     return this.http
       .get<JsendEnvelope<SystemConfigGoData[]>>(`${this.baseUrl}/api/v1/system-config/`, {
-        withCredentials: true,
       })
       .pipe(map((res) => res.data.map((d) => this.map(d))));
   }
@@ -45,7 +44,6 @@ export class SystemConfigApiService {
   getActive(): Observable<SystemConfig> {
     return this.http
       .get<JsendEnvelope<SystemConfigGoData>>(`${this.baseUrl}/api/v1/system-config/active`, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -61,7 +59,6 @@ export class SystemConfigApiService {
     }
     return this.http
       .post<JsendEnvelope<SystemConfigGoData>>(`${this.baseUrl}/api/v1/system-config/`, formData, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -77,7 +74,6 @@ export class SystemConfigApiService {
     }
     return this.http
       .put<JsendEnvelope<SystemConfigGoData>>(`${this.baseUrl}/api/v1/system-config/${id}`, formData, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }

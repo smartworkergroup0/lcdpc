@@ -94,9 +94,7 @@ export class BundleApiService {
       formData.append('file', file);
     }
     return this.http
-      .post<JsendEnvelope<BundleGoData>>(`${this.baseUrl}/api/v1/bundles/`, formData, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<BundleGoData>>(`${this.baseUrl}/api/v1/bundles/`, formData)
       .pipe(map((res) => this.map(res.data)));
   }
 
@@ -107,17 +105,13 @@ export class BundleApiService {
       formData.append('file', file);
     }
     return this.http
-      .put<JsendEnvelope<BundleGoData>>(`${this.baseUrl}/api/v1/bundles/${id}`, formData, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<BundleGoData>>(`${this.baseUrl}/api/v1/bundles/${id}`, formData)
       .pipe(map((res) => this.map(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/bundles/${id}`, {
-        withCredentials: true,
-      })
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/bundles/${id}`)
       .pipe(map(() => undefined));
   }
 
@@ -126,7 +120,6 @@ export class BundleApiService {
       .patch<JsendEnvelope<BundleGoData>>(
         `${this.baseUrl}/api/v1/bundles/${id}/toggle-active`,
         {},
-        { withCredentials: true }
       )
       .pipe(map((res) => this.map(res.data)));
   }
@@ -138,7 +131,6 @@ export class BundleApiService {
       .put<JsendEnvelope<{ img: string }>>(
         `${this.baseUrl}/api/v1/bundles/${id}/image`,
         formData,
-        { withCredentials: true }
       )
       .pipe(map((res) => res.data));
   }
@@ -152,9 +144,7 @@ export class BundleApiService {
   // Bundle Prices
   listPrices(bundleId: string): Observable<BundlePrice[]> {
     return this.http
-      .get<JsendEnvelope<BundlePriceGoData[]>>(`${this.baseUrl}/api/v1/bundles/${bundleId}/prices`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<BundlePriceGoData[]>>(`${this.baseUrl}/api/v1/bundles/${bundleId}/prices`)
       .pipe(map((res) => res.data.map((p) => this.mapPrice(p))));
   }
 
@@ -163,7 +153,6 @@ export class BundleApiService {
       .post<JsendEnvelope<BundlePriceGoData>>(
         `${this.baseUrl}/api/v1/bundles/${bundleId}/prices`,
         { price_category_id: priceCategoryId, amount },
-        { withCredentials: true }
       )
       .pipe(map((res) => this.mapPrice(res.data)));
   }
@@ -173,7 +162,6 @@ export class BundleApiService {
       .put<JsendEnvelope<BundlePriceGoData>>(
         `${this.baseUrl}/api/v1/bundles/${bundleId}/prices/${priceId}`,
         { price_category_id: priceCategoryId, amount },
-        { withCredentials: true }
       )
       .pipe(map((res) => this.mapPrice(res.data)));
   }
@@ -182,7 +170,6 @@ export class BundleApiService {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(
         `${this.baseUrl}/api/v1/bundles/${bundleId}/prices/${priceId}`,
-        { withCredentials: true }
       )
       .pipe(map(() => undefined));
   }

@@ -75,7 +75,6 @@ export class DashboardApiService {
     return this.http
       .get<JsendEnvelope<SummaryGoData>>(`${this.baseUrl}/api/v1/dashboard/summary`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -93,7 +92,6 @@ export class DashboardApiService {
     return this.http
       .get<JsendEnvelope<OrdersByStatusGoData[]>>(`${this.baseUrl}/api/v1/dashboard/orders-by-status`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) =>
@@ -112,7 +110,6 @@ export class DashboardApiService {
     return this.http
       .get<JsendEnvelope<SalesTrendGoData[]>>(`${this.baseUrl}/api/v1/dashboard/sales-trend`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) =>
@@ -131,7 +128,6 @@ export class DashboardApiService {
     return this.http
       .get<JsendEnvelope<TopItemGoData[]>>(`${this.baseUrl}/api/v1/dashboard/top-products`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) =>
@@ -151,7 +147,6 @@ export class DashboardApiService {
     return this.http
       .get<JsendEnvelope<TopItemGoData[]>>(`${this.baseUrl}/api/v1/dashboard/top-bundles`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) =>
@@ -171,7 +166,6 @@ export class DashboardApiService {
     return this.http
       .get<JsendEnvelope<StockHealthGoData>>(`${this.baseUrl}/api/v1/dashboard/stock-health`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({

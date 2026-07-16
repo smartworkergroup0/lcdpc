@@ -42,7 +42,6 @@ export class PriceCategoryApiService {
   create(req: CreatePriceCategoryRequest): Observable<PriceCategory> {
     return this.http
       .post<JsendEnvelope<PriceCategoryGoData>>(`${this.baseUrl}/api/v1/price-categories/`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -50,7 +49,6 @@ export class PriceCategoryApiService {
   update(id: string, req: CreatePriceCategoryRequest): Observable<PriceCategory> {
     return this.http
       .put<JsendEnvelope<PriceCategoryGoData>>(`${this.baseUrl}/api/v1/price-categories/${id}`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -58,7 +56,6 @@ export class PriceCategoryApiService {
   delete(id: string): Observable<void> {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/price-categories/${id}`, {
-        withCredentials: true,
       })
       .pipe(map(() => undefined));
   }

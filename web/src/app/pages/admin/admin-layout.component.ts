@@ -29,6 +29,7 @@ export class AdminLayoutComponent {
 
   protected readonly collapsed = signal(true);
   protected readonly configExpanded = signal(false);
+  protected readonly peopleExpanded = signal(false);
 
   protected readonly userName = computed(() => this.authStore.currentUser()?.displayName ?? 'Admin');
 
@@ -46,6 +47,12 @@ export class AdminLayoutComponent {
   );
   protected readonly canViewStaff = computed(() =>
     this.authStore.hasPermission('staff:view')
+  );
+  protected readonly canViewClients = computed(() =>
+    this.authStore.hasPermission('client:view')
+  );
+  protected readonly canViewPeople = computed(() =>
+    this.authStore.hasAnyPermission('staff:view', 'client:view')
   );
 
   protected readonly canViewWorkflows = computed(() =>
@@ -85,7 +92,17 @@ export class AdminLayoutComponent {
     }
   }
 
+  protected togglePeople(): void {
+    if (this.collapsed()) {
+      this.collapsed.set(false);
+      this.peopleExpanded.set(true);
+    } else {
+      this.peopleExpanded.update((v) => !v);
+    }
+  }
+
   protected collapseAll(): void {
     this.configExpanded.set(false);
+    this.peopleExpanded.set(false);
   }
 }

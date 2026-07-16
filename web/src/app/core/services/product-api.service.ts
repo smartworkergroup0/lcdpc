@@ -79,9 +79,7 @@ export class ProductApiService {
       formData.append('file', file);
     }
     return this.http
-      .post<JsendEnvelope<ProductGoData>>(`${this.baseUrl}/api/v1/products/`, formData, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<ProductGoData>>(`${this.baseUrl}/api/v1/products/`, formData)
       .pipe(map((res) => this.map(res.data)));
   }
 
@@ -92,25 +90,19 @@ export class ProductApiService {
       formData.append('file', file);
     }
     return this.http
-      .put<JsendEnvelope<ProductGoData>>(`${this.baseUrl}/api/v1/products/${id}`, formData, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<ProductGoData>>(`${this.baseUrl}/api/v1/products/${id}`, formData)
       .pipe(map((res) => this.map(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/products/${id}`, {
-        withCredentials: true,
-      })
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/products/${id}`)
       .pipe(map(() => undefined));
   }
 
   toggleActive(id: string): Observable<Product> {
     return this.http
-      .patch<JsendEnvelope<ProductGoData>>(`${this.baseUrl}/api/v1/products/${id}/toggle-active`, {}, {
-        withCredentials: true,
-      })
+      .patch<JsendEnvelope<ProductGoData>>(`${this.baseUrl}/api/v1/products/${id}/toggle-active`, {})
       .pipe(map((res) => this.map(res.data)));
   }
 
@@ -121,7 +113,6 @@ export class ProductApiService {
       .put<JsendEnvelope<{ img: string }>>(
         `${this.baseUrl}/api/v1/products/${id}/image`,
         formData,
-        { withCredentials: true }
       )
       .pipe(map((res) => res.data));
   }

@@ -44,7 +44,6 @@ export class MeasurementUnitApiService {
   create(req: CreateMeasurementUnitRequest): Observable<MeasurementUnit> {
     return this.http
       .post<JsendEnvelope<MeasurementUnitGoData>>(`${this.baseUrl}/api/v1/measurement-units/`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -52,7 +51,6 @@ export class MeasurementUnitApiService {
   update(id: string, req: CreateMeasurementUnitRequest): Observable<MeasurementUnit> {
     return this.http
       .put<JsendEnvelope<MeasurementUnitGoData>>(`${this.baseUrl}/api/v1/measurement-units/${id}`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -60,7 +58,6 @@ export class MeasurementUnitApiService {
   delete(id: string): Observable<void> {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/measurement-units/${id}`, {
-        withCredentials: true,
       })
       .pipe(map(() => undefined));
   }

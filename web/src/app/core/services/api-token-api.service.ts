@@ -39,25 +39,19 @@ export class ApiTokenApiService {
 
   list(): Observable<ApiToken[]> {
     return this.http
-      .get<JsendEnvelope<ApiTokenGoData[]>>(`${this.baseUrl}/api/v1/api-tokens`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<ApiTokenGoData[]>>(`${this.baseUrl}/api/v1/api-tokens`)
       .pipe(map((res) => res.data.map((t) => this.map(t))));
   }
 
   getById(id: string): Observable<ApiToken> {
     return this.http
-      .get<JsendEnvelope<ApiTokenGoData>>(`${this.baseUrl}/api/v1/api-tokens/${id}`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<ApiTokenGoData>>(`${this.baseUrl}/api/v1/api-tokens/${id}`)
       .pipe(map((res) => this.map(res.data)));
   }
 
   create(req: CreateApiTokenRequest): Observable<CreateApiTokenResult> {
     return this.http
-      .post<JsendEnvelope<CreateApiTokenGoResult>>(`${this.baseUrl}/api/v1/api-tokens`, req, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<CreateApiTokenGoResult>>(`${this.baseUrl}/api/v1/api-tokens`, req)
       .pipe(
         map((res) => ({
           ...this.map(res.data),
@@ -68,9 +62,7 @@ export class ApiTokenApiService {
 
   update(id: string, req: UpdateApiTokenRequest): Observable<ApiToken> {
     return this.http
-      .put<JsendEnvelope<ApiTokenGoData>>(`${this.baseUrl}/api/v1/api-tokens/${id}`, req, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<ApiTokenGoData>>(`${this.baseUrl}/api/v1/api-tokens/${id}`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
@@ -78,7 +70,6 @@ export class ApiTokenApiService {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(
         `${this.baseUrl}/api/v1/api-tokens/${id}`,
-        { withCredentials: true }
       )
       .pipe(map(() => undefined));
   }

@@ -14,6 +14,7 @@ import { BundlesPageComponent } from './pages/admin/bundles/bundles-page.compone
 import { OrdersPageComponent } from './pages/admin/orders/orders-page.component';
 import { OrderMatrixPageComponent } from './pages/admin/orders-matrix/order-matrix-page.component';
 import { StaffPageComponent } from './pages/admin/staff/staff-page.component';
+import { ClientsPageComponent } from './pages/admin/clients/clients-page.component';
 import { ConfigPageComponent } from './pages/admin/config/config-page.component';
 import { WorkflowEditorPageComponent } from './pages/admin/workflows/workflow-editor-page.component';
 import { adminGuard } from './core/auth/admin.guard';
@@ -38,6 +39,7 @@ export const routes: Routes = [
 			{ path: 'orders-matrix', component: OrderMatrixPageComponent, canActivate: [permissionGuard('order:view')] },
 			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('workflow:view')] },
 			{ path: 'staff', component: StaffPageComponent, canActivate: [permissionGuard('staff:view')] },
+			{ path: 'clients', component: ClientsPageComponent, canActivate: [permissionGuard('client:view')] },
 			{ path: 'config', component: ConfigPageComponent, canActivate: [() => {
 				const authStore = inject(AuthStore);
 				const router = inject(Router);

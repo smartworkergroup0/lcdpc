@@ -4,11 +4,11 @@ import { Observable, map } from 'rxjs';
 import { API_BASE_URL } from '../../pages/auth-page/auth-api-go.service';
 import { PaginatedResponse } from '../models/pagination.model';
 import {
-  CreateStaffRequest,
-  StaffListFilter,
-  StaffMember,
-  UpdateStaffRequest,
-} from '../models/staff.model';
+  Client,
+  ClientListFilter,
+  CreateClientRequest,
+  UpdateClientRequest,
+} from '../models/client.model';
 
 interface JsendEnvelope<T> {
   status: 'success' | 'fail' | 'error';
@@ -16,20 +16,16 @@ interface JsendEnvelope<T> {
   message?: string;
 }
 
-interface StaffGoData {
-  user_id: string;
-  email: string;
-  status: string;
-  branch_id: string | null;
-  branch_name: string | null;
+interface ClientGoData {
+  id: string;
+  name: string;
   identity_document: string;
+  tax_id: string | null;
   whatsapp_phone: string;
-  profile_id: string;
-  profile_name: string;
-  profile_code: string;
-  role_code: string;
-  role_name: string;
+  full_address: string;
+  is_client: boolean;
   created_at_utc: string;
+  updated_at_utc: string;
 }
 
 interface PaginatedGoData<T> {
@@ -40,7 +36,7 @@ interface PaginatedGoData<T> {
 }
 
 @Injectable({ providedIn: 'root' })
-export class StaffApiService {
+export class ClientApiService {
   private readonly baseUrl: string;
 
   constructor(
@@ -50,19 +46,17 @@ export class StaffApiService {
     this.baseUrl = apiBaseUrl.replace(/\/$/, '');
   }
 
-  list(filter?: StaffListFilter): Observable<PaginatedResponse<StaffMember>> {
+  list(filter?: ClientListFilter): Observable<PaginatedResponse<Client>> {
     const params: Record<string, string> = {};
     if (filter?.limit != null) params['limit'] = String(filter.limit);
     if (filter?.offset != null) params['offset'] = String(filter.offset);
-    if (filter?.branch_id) params['branch_id'] = filter.branch_id;
-    if (filter?.role_code) params['role_code'] = filter.role_code;
     if (filter?.search) params['search'] = filter.search;
 
     return this.http
-      .get<JsendEnvelope<PaginatedGoData<StaffGoData>>>(`${this.baseUrl}/api/v1/staff/`, { params })
+      .get<JsendEnvelope<PaginatedGoData<ClientGoData>>>(`${this.baseUrl}/api/v1/persons/clients`, { params })
       .pipe(
         map((res) => ({
-          items: res.data.items.map((s) => this.map(s)),
+          items: res.data.items.map((c) => this.map(c)),
           totalCount: res.data.total_count,
           limit: res.data.limit,
           offset: res.data.offset,
@@ -70,48 +64,43 @@ export class StaffApiService {
       );
   }
 
-  getById(id: string): Observable<StaffMember> {
+  getById(id: string): Observable<Client> {
     return this.http
-      .get<JsendEnvelope<StaffGoData>>(`${this.baseUrl}/api/v1/staff/${id}`)
+      .get<JsendEnvelope<ClientGoData>>(`${this.baseUrl}/api/v1/persons/clients/${id}`)
       .pipe(map((res) => this.map(res.data)));
   }
 
-  create(req: CreateStaffRequest): Observable<StaffMember> {
+  create(req: CreateClientRequest): Observable<Client> {
     return this.http
-      .post<JsendEnvelope<StaffGoData>>(`${this.baseUrl}/api/v1/staff/`, req, {
+      .post<JsendEnvelope<ClientGoData>>(`${this.baseUrl}/api/v1/persons/clients`, req, {
       })
       .pipe(map((res) => this.map(res.data)));
   }
 
-  update(id: string, req: UpdateStaffRequest): Observable<StaffMember> {
+  update(id: string, req: UpdateClientRequest): Observable<Client> {
     return this.http
-      .put<JsendEnvelope<StaffGoData>>(`${this.baseUrl}/api/v1/staff/${id}`, req, {
+      .put<JsendEnvelope<ClientGoData>>(`${this.baseUrl}/api/v1/persons/clients/${id}`, req, {
       })
       .pipe(map((res) => this.map(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/staff/${id}`, {
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/persons/clients/${id}`, {
       })
       .pipe(map(() => undefined));
   }
 
-  private map(raw: StaffGoData): StaffMember {
+  private map(raw: ClientGoData): Client {
     return {
-      userId: raw.user_id,
-      email: raw.email,
-      status: raw.status,
-      branchId: raw.branch_id,
-      branchName: raw.branch_name,
+      id: raw.id,
+      name: raw.name,
       identityDocument: raw.identity_document,
+      taxId: raw.tax_id,
       whatsappPhone: raw.whatsapp_phone,
-      profileId: raw.profile_id,
-      profileName: raw.profile_name,
-      profileCode: raw.profile_code,
-      roleCode: raw.role_code,
-      roleName: raw.role_name,
+      fullAddress: raw.full_address,
       createdAtUtc: raw.created_at_utc,
+      updatedAtUtc: raw.updated_at_utc,
     };
   }
 }

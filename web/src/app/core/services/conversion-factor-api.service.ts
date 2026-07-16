@@ -47,7 +47,6 @@ export class ConversionFactorApiService {
   create(req: CreateConversionFactorRequest): Observable<ConversionFactor> {
     return this.http
       .post<JsendEnvelope<ConversionFactorGoData>>(`${this.baseUrl}/api/v1/conversion-factors/`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -55,7 +54,6 @@ export class ConversionFactorApiService {
   update(id: string, req: CreateConversionFactorRequest): Observable<ConversionFactor> {
     return this.http
       .put<JsendEnvelope<ConversionFactorGoData>>(`${this.baseUrl}/api/v1/conversion-factors/${id}`, req, {
-        withCredentials: true,
       })
       .pipe(map((res) => this.map(res.data)));
   }
@@ -63,7 +61,6 @@ export class ConversionFactorApiService {
   delete(id: string): Observable<void> {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/conversion-factors/${id}`, {
-        withCredentials: true,
       })
       .pipe(map(() => undefined));
   }

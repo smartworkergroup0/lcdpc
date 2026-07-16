@@ -89,7 +89,6 @@ export class WorkflowApiService {
     return this.http
       .get<JsendEnvelope<PaginatedGoData<WorkflowGoData>>>(`${this.baseUrl}/api/v1/workflows/`, {
         params,
-        withCredentials: true,
       })
       .pipe(
         map((res) => ({
@@ -103,33 +102,25 @@ export class WorkflowApiService {
 
   getById(id: string): Observable<Workflow> {
     return this.http
-      .get<JsendEnvelope<WorkflowGoData>>(`${this.baseUrl}/api/v1/workflows/${id}`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<WorkflowGoData>>(`${this.baseUrl}/api/v1/workflows/${id}`)
       .pipe(map((res) => this.mapWorkflow(res.data)));
   }
 
   create(req: CreateWorkflowRequest): Observable<Workflow> {
     return this.http
-      .post<JsendEnvelope<WorkflowGoData>>(`${this.baseUrl}/api/v1/workflows/`, req, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<WorkflowGoData>>(`${this.baseUrl}/api/v1/workflows/`, req)
       .pipe(map((res) => this.mapWorkflow(res.data)));
   }
 
   update(id: string, req: UpdateWorkflowRequest): Observable<Workflow> {
     return this.http
-      .put<JsendEnvelope<WorkflowGoData>>(`${this.baseUrl}/api/v1/workflows/${id}`, req, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<WorkflowGoData>>(`${this.baseUrl}/api/v1/workflows/${id}`, req)
       .pipe(map((res) => this.mapWorkflow(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/workflows/${id}`, {
-        withCredentials: true,
-      })
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/workflows/${id}`)
       .pipe(map(() => undefined));
   }
 
@@ -138,7 +129,6 @@ export class WorkflowApiService {
       .patch<JsendEnvelope<{ deactivated: string; orders_reverted: number }>>(
         `${this.baseUrl}/api/v1/order-statuses/${code}/deactivate`,
         {},
-        { withCredentials: true }
       )
       .pipe(
         map((res) => ({
@@ -155,16 +145,13 @@ export class WorkflowApiService {
     return this.http
       .get<JsendEnvelope<OrderStatusGoData[]>>(`${this.baseUrl}/api/v1/order-statuses`, {
         params,
-        withCredentials: true,
       })
       .pipe(map((res) => res.data.map((s) => this.mapOrderStatus(s))));
   }
 
   getOrderTransitions(): Observable<OrderTransition[]> {
     return this.http
-      .get<JsendEnvelope<OrderTransitionGoData[]>>(`${this.baseUrl}/api/v1/order-transitions`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<OrderTransitionGoData[]>>(`${this.baseUrl}/api/v1/order-transitions`)
       .pipe(map((res) => res.data.map((t) => this.mapOrderTransition(t))));
   }
 

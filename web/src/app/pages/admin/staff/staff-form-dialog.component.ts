@@ -89,9 +89,9 @@ export class StaffFormDialogComponent implements OnChanges {
       const req: UpdateStaffRequest = {
         name: this.name,
         code: this.code,
-        identity_document: this.identityDocument,
-        whatsapp_phone: this.whatsappPhone,
-        full_address: this.fullAddress,
+        identity_document: this.identityDocument || undefined,
+        whatsapp_phone: this.whatsappPhone || undefined,
+        full_address: this.fullAddress || undefined,
         branch_id: this.branchId || undefined,
         role_code: this.roleCode,
       };

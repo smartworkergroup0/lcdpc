@@ -1,7 +1,12 @@
+:host ::ng-deep .p-dialog-header {
+  padding-bottom: 0;
+}
+
 .staff-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.75rem;
+  margin-top: 25px;
 }
 
 .field {

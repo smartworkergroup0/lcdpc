@@ -93,7 +93,7 @@ export class OrderApiService {
     if (filter?.offset != null) params['offset'] = String(filter.offset);
 
     return this.http
-      .get<JsendEnvelope<PaginatedGoData<OrderGoData>>>(`${this.baseUrl}/api/v1/orders/`, { params, withCredentials: true })
+      .get<JsendEnvelope<PaginatedGoData<OrderGoData>>>(`${this.baseUrl}/api/v1/orders/`, { params })
       .pipe(map((res) => ({
         items: res.data.items.map((o) => this.mapOrder(o)),
         totalCount: res.data.total_count,
@@ -111,7 +111,7 @@ export class OrderApiService {
     if (filter?.offset != null) params['offset'] = String(filter.offset);
 
     return this.http
-      .get<JsendEnvelope<PaginatedGoData<OrderWithHistoryGoData>>>(`${this.baseUrl}/api/v1/orders/matrix`, { params, withCredentials: true })
+      .get<JsendEnvelope<PaginatedGoData<OrderWithHistoryGoData>>>(`${this.baseUrl}/api/v1/orders/matrix`, { params })
       .pipe(map((res) => ({
         items: res.data.items.map((o) => this.mapOrderWithHistory(o)),
         totalCount: res.data.total_count,
@@ -120,9 +120,7 @@ export class OrderApiService {
 
   getById(id: string): Observable<Order> {
     return this.http
-      .get<JsendEnvelope<OrderGoData>>(`${this.baseUrl}/api/v1/orders/${id}`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<OrderGoData>>(`${this.baseUrl}/api/v1/orders/${id}`)
       .pipe(map((res) => this.mapOrder(res.data)));
   }
 
@@ -130,32 +128,25 @@ export class OrderApiService {
     return this.http
       .get<JsendEnvelope<StatusHistoryGoData[]>>(
         `${this.baseUrl}/api/v1/orders/${id}/history`,
-        { withCredentials: true }
       )
       .pipe(map((res) => res.data.map((h) => this.mapHistory(h))));
   }
 
   create(req: CreateOrderRequest): Observable<Order> {
     return this.http
-      .post<JsendEnvelope<OrderGoData>>(`${this.baseUrl}/api/v1/orders/`, req, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<OrderGoData>>(`${this.baseUrl}/api/v1/orders/`, req)
       .pipe(map((res) => this.mapOrder(res.data)));
   }
 
   update(id: string, req: UpdateOrderRequest): Observable<Order> {
     return this.http
-      .put<JsendEnvelope<OrderGoData>>(`${this.baseUrl}/api/v1/orders/${id}`, req, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<OrderGoData>>(`${this.baseUrl}/api/v1/orders/${id}`, req)
       .pipe(map((res) => this.mapOrder(res.data)));
   }
 
   delete(id: string): Observable<void> {
     return this.http
-      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/orders/${id}`, {
-        withCredentials: true,
-      })
+      .delete<JsendEnvelope<{ status: string }>>(`${this.baseUrl}/api/v1/orders/${id}`)
       .pipe(map(() => undefined));
   }
 
@@ -164,7 +155,6 @@ export class OrderApiService {
       .post<JsendEnvelope<OrderGoData>>(
         `${this.baseUrl}/api/v1/orders/${id}/status`,
         req,
-        { withCredentials: true }
       )
       .pipe(map((res) => this.mapOrder(res.data)));
   }
@@ -173,7 +163,6 @@ export class OrderApiService {
     return this.http
       .get<JsendEnvelope<import('../models/order.model').ValidTransitionsResponse>>(
         `${this.baseUrl}/api/v1/orders/${id}/transitions`,
-        { withCredentials: true }
       )
       .pipe(map((res) => res.data));
   }

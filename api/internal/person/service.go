@@ -330,6 +330,147 @@ func (s *Service) CreateClient(ctx context.Context, req UpsertRequest) (*Person,
 	return p, nil
 }
 
+type ClientFilter struct {
+	Limit  int
+	Offset int
+	Search *string
+}
+
+func (f ClientFilter) GetLimit() int {
+	if f.Limit <= 0 {
+		return 10
+	}
+	if f.Limit > 100 {
+		return 100
+	}
+	return f.Limit
+}
+
+func (f ClientFilter) GetOffset() int {
+	if f.Offset < 0 {
+		return 0
+	}
+	return f.Offset
+}
+
+func (s *Service) ListClients(ctx context.Context, filter ClientFilter) ([]Person, int, error) {
+	countQuery := `SELECT COUNT(*) FROM persons WHERE is_client = true`
+	dataQuery := `
+		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		FROM persons
+		WHERE is_client = true
+	`
+
+	var args []interface{}
+	argIdx := 1
+
+	if filter.Search != nil && *filter.Search != "" {
+		clause := fmt.Sprintf(` AND (name ILIKE '%%' || $%d || '%%' OR identity_document ILIKE '%%' || $%d || '%%' OR whatsapp_phone ILIKE '%%' || $%d || '%%')`, argIdx, argIdx, argIdx)
+		countQuery += clause
+		dataQuery += clause
+		args = append(args, *filter.Search)
+		argIdx++
+	}
+
+	var totalCount int
+	if err := s.pool.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("count clients: %w", err)
+	}
+
+	dataQuery += ` ORDER BY created_at_utc DESC`
+	dataQuery += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
+	args = append(args, filter.GetLimit(), filter.GetOffset())
+
+	rows, err := s.pool.Query(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list clients: %w", err)
+	}
+	defer rows.Close()
+
+	var persons []Person
+	for rows.Next() {
+		var p Person
+		if err := rows.Scan(&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc); err != nil {
+			return nil, 0, fmt.Errorf("scan client: %w", err)
+		}
+		persons = append(persons, p)
+	}
+	return persons, totalCount, nil
+}
+
+func (s *Service) GetClientByID(ctx context.Context, id uuid.UUID) (*Person, error) {
+	var p Person
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		FROM persons
+		WHERE id = $1 AND is_client = true
+	`, id).Scan(&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("NOT_FOUND")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get client: %w", err)
+	}
+	return &p, nil
+}
+
+func (s *Service) UpdateClient(ctx context.Context, id uuid.UUID, req UpsertRequest) (*Person, error) {
+	req.Name = strings.TrimSpace(req.Name)
+	req.IdentityDocument = strings.ToUpper(strings.TrimSpace(req.IdentityDocument))
+	req.TaxID = strings.TrimSpace(req.TaxID)
+	req.WhatsAppPhone = strings.TrimSpace(req.WhatsAppPhone)
+	req.FullAddress = strings.TrimSpace(req.FullAddress)
+
+	if req.Name != "" && len(req.Name) > 200 {
+		return nil, fmt.Errorf("name is too long")
+	}
+	if req.IdentityDocument != "" && !identityDocumentPattern.MatchString(req.IdentityDocument) {
+		return nil, fmt.Errorf("invalid identity_document")
+	}
+	if req.WhatsAppPhone != "" && len(req.WhatsAppPhone) > 30 {
+		return nil, fmt.Errorf("whatsapp_phone is too long")
+	}
+	if req.FullAddress != "" && len(req.FullAddress) > 500 {
+		return nil, fmt.Errorf("full_address is too long")
+	}
+	if len(req.TaxID) > 50 {
+		return nil, fmt.Errorf("tax_id is too long")
+	}
+
+	var p Person
+	err := s.pool.QueryRow(ctx, `
+		UPDATE persons SET
+			name = COALESCE(NULLIF($2, ''), name),
+			identity_document = COALESCE(NULLIF($3, ''), identity_document),
+			tax_id = NULLIF($4, ''),
+			whatsapp_phone = COALESCE(NULLIF($5, ''), whatsapp_phone),
+			full_address = COALESCE(NULLIF($6, ''), full_address),
+			updated_at_utc = now()
+		WHERE id = $1 AND is_client = true
+		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+	`, id, req.Name, req.IdentityDocument, req.TaxID, req.WhatsAppPhone, req.FullAddress).Scan(
+		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("NOT_FOUND")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("update client: %w", err)
+	}
+	return &p, nil
+}
+
+func (s *Service) DeleteClient(ctx context.Context, id uuid.UUID) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM persons WHERE id = $1 AND is_client = true`, id)
+	if err != nil {
+		return fmt.Errorf("delete client: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("NOT_FOUND")
+	}
+	return nil
+}
+
 func validateUpsertRequest(req UpsertRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")

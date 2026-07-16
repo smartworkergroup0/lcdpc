@@ -44,25 +44,19 @@ export class ServiceAccountApiService {
 
   list(): Observable<ServiceAccount[]> {
     return this.http
-      .get<JsendEnvelope<ServiceAccountGoData[]>>(`${this.baseUrl}/api/v1/service-accounts`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<ServiceAccountGoData[]>>(`${this.baseUrl}/api/v1/service-accounts`)
       .pipe(map((res) => res.data.map((t) => this.map(t))));
   }
 
   getById(id: string): Observable<ServiceAccount> {
     return this.http
-      .get<JsendEnvelope<ServiceAccountGoData>>(`${this.baseUrl}/api/v1/service-accounts/${id}`, {
-        withCredentials: true,
-      })
+      .get<JsendEnvelope<ServiceAccountGoData>>(`${this.baseUrl}/api/v1/service-accounts/${id}`)
       .pipe(map((res) => this.map(res.data)));
   }
 
   create(req: CreateServiceAccountRequest): Observable<CreateServiceAccountResult> {
     return this.http
-      .post<JsendEnvelope<CreateServiceAccountGoResult>>(`${this.baseUrl}/api/v1/service-accounts`, req, {
-        withCredentials: true,
-      })
+      .post<JsendEnvelope<CreateServiceAccountGoResult>>(`${this.baseUrl}/api/v1/service-accounts`, req)
       .pipe(
         map((res) => ({
           ...this.map(res.data),
@@ -73,9 +67,7 @@ export class ServiceAccountApiService {
 
   update(id: string, req: UpdateServiceAccountRequest): Observable<ServiceAccount> {
     return this.http
-      .put<JsendEnvelope<ServiceAccountGoData>>(`${this.baseUrl}/api/v1/service-accounts/${id}`, req, {
-        withCredentials: true,
-      })
+      .put<JsendEnvelope<ServiceAccountGoData>>(`${this.baseUrl}/api/v1/service-accounts/${id}`, req)
       .pipe(map((res) => this.map(res.data)));
   }
 
@@ -83,7 +75,6 @@ export class ServiceAccountApiService {
     return this.http
       .delete<JsendEnvelope<{ status: string }>>(
         `${this.baseUrl}/api/v1/service-accounts/${id}`,
-        { withCredentials: true }
       )
       .pipe(map(() => undefined));
   }

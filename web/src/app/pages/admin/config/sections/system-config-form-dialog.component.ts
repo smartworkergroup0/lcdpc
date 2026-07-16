@@ -22,7 +22,7 @@ import { SystemConfigApiService } from '../../../../core/services/system-config-
               [modal]="true" [dismissableMask]="true" [draggable]="false"
               [style]="{width: 'min(550px, 95vw)'}"
               (onHide)="close()">
-      <div class="form-fields" [style]="{paddingTop: '20px'}">
+      <div class="form-fields" [style]="{marginTop: '25px'}">
         <div class="field">
           <p-floatlabel>
             <input pInputText id="pageName" [(ngModel)]="form.page_name"
@@ -88,6 +88,7 @@ import { SystemConfigApiService } from '../../../../core/services/system-config-
     </p-dialog>
   `,
   styles: [`
+    :host ::ng-deep .p-dialog-header { padding-bottom: 0; }
     .form-fields {
       display: flex;
       flex-direction: column;
