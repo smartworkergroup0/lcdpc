@@ -44,6 +44,8 @@ export class HeaderComponent {
   protected readonly hiddenCartItems = computed(() => Math.max(0, this.cartItems().length - 4));
   protected readonly hasCartItems = computed(() => this.cartCount() > 0);
 
+  protected readonly isAdminRoute = computed(() => this.router.url.startsWith('/admin'));
+
   protected isCartRoute(): boolean {
     return this.router.url.startsWith('/cart');
   }

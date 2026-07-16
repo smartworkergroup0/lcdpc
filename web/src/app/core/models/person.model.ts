@@ -13,7 +13,7 @@ export interface Person {
 export interface UpsertPersonRequest {
   name: string;
   identityDocument: string;
-  taxId: string | null;
+  taxId?: string | null;
   whatsappPhone: string;
   fullAddress: string;
 }
