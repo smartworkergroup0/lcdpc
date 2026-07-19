@@ -1,5 +1,6 @@
 export interface StaffMember {
   userId: string;
+  personName: string;
   email: string;
   status: string;
   branchId: string | null;

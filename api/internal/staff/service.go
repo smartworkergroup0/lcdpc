@@ -27,6 +27,7 @@ func NewService(pool *pgxpool.Pool, store *rbac.Store) *Service {
 
 type StaffMember struct {
 	UserID           uuid.UUID  `json:"user_id"`
+	PersonName       string     `json:"person_name"`
 	Email            string     `json:"email"`
 	Status           string     `json:"status"`
 	BranchID         *uuid.UUID `json:"branch_id"`
@@ -162,9 +163,9 @@ func (s *Service) List(ctx context.Context, filter StaffFilter) ([]StaffMember, 
 		)
 	`
 	dataQuery := `
-		SELECT u.id, u.email, u.status, u.branch_id, b.store_name,
+		SELECT u.id, per.name, u.email, u.status, u.branch_id, b.store_name,
 		       per.identity_document, per.whatsapp_phone,
-		       p.id, per.name, u.created_at_utc
+		       p.id, p.name, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		JOIN profiles p ON p.id = u.profile_id
@@ -214,7 +215,7 @@ func (s *Service) List(ctx context.Context, filter StaffFilter) ([]StaffMember, 
 	for rows.Next() {
 		var m StaffMember
 		if err := rows.Scan(
-			&m.UserID, &m.Email, &m.Status, &m.BranchID, &m.BranchName,
+			&m.UserID, &m.PersonName, &m.Email, &m.Status, &m.BranchID, &m.BranchName,
 			&m.IdentityDocument, &m.WhatsAppPhone,
 			&m.ProfileID, &m.ProfileName, &m.CreatedAtUtc,
 		); err != nil {
@@ -228,16 +229,16 @@ func (s *Service) List(ctx context.Context, filter StaffFilter) ([]StaffMember, 
 func (s *Service) GetByID(ctx context.Context, userID uuid.UUID) (*StaffMember, error) {
 	var m StaffMember
 	err := s.pool.QueryRow(ctx, `
-		SELECT u.id, u.email, u.status, u.branch_id, b.store_name,
+		SELECT u.id, per.Name, u.email, u.status, u.branch_id, b.store_name,
 		       per.identity_document, per.whatsapp_phone,
-		       p.id, per.name, u.created_at_utc
+		       p.id, p.name, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		JOIN profiles p ON p.id = u.profile_id
 		LEFT JOIN branches b ON b.id = u.branch_id
 		WHERE u.id = $1
 	`, userID).Scan(
-		&m.UserID, &m.Email, &m.Status, &m.BranchID, &m.BranchName,
+		&m.UserID, &m.PersonName, &m.Email, &m.Status, &m.BranchID, &m.BranchName,
 		&m.IdentityDocument, &m.WhatsAppPhone,
 		&m.ProfileID, &m.ProfileName, &m.CreatedAtUtc,
 	)

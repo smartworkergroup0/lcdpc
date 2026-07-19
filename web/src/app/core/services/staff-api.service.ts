@@ -20,6 +20,7 @@ interface JsendEnvelope<T> {
 
 interface StaffGoData {
   user_id: string;
+  person_name: string;
   email: string;
   status: string;
   branch_id: string | null;
@@ -117,6 +118,7 @@ export class StaffApiService {
   private map(raw: StaffGoData): StaffMember {
     return {
       userId: raw.user_id,
+      personName: raw.person_name,
       email: raw.email,
       status: raw.status,
       branchId: raw.branch_id,

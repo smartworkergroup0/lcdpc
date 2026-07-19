@@ -34,7 +34,7 @@
     </ng-template>
     <ng-template pTemplate="body" let-item>
       <tr>
-        <td>{{ item.profileName }}</td>
+        <td>{{ item.personName }}</td>
         <td>{{ item.whatsappPhone ?? '—' }}</td>
         <td>{{ item.identityDocument }}</td>
         <td>{{ item.branchName ?? '—' }}</td>
@@ -71,7 +71,7 @@
     <div class="detail-grid">
       <div>
         <span>Nombre</span>
-        <strong>{{ selectedItem()?.profileName ?? '—' }}</strong>
+        <strong>{{ selectedItem()?.personName ?? '—' }}</strong>
       </div>
       <div>
         <span>Email</span>

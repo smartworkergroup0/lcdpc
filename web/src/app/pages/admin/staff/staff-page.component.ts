@@ -141,10 +141,9 @@ export class StaffPageComponent implements OnInit {
   }
 
   confirmDelete(item: StaffMember): void {
-    const newStatus = item.status === 'Active' ? 'Inactivo' : 'Activo';
     const action = item.status === 'Active' ? 'inactivar' : 'activar';
     this.confirmationService.confirm({
-      message: `¿${action.charAt(0).toUpperCase() + action.slice(1)} a <b>${item.profileName}</b>?`,
+      message: `¿${action.charAt(0).toUpperCase() + action.slice(1)} a <b>${item.personName}</b>?`,
       header: `Confirmar ${action}`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: action.charAt(0).toUpperCase() + action.slice(1),
