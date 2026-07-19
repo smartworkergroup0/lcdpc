@@ -22,46 +22,60 @@
         <span class="nav-label">Dashboard</span>
       </a>
 
-      @if (canViewSales()) {
-        <a routerLink="/admin/sales" routerLinkActive="active" (click)="collapseAll()">
+      @if (canViewOperaciones()) {
+        <button class="nav-group-toggle" [class.expanded]="operacionesExpanded()" (click)="toggleOperaciones()">
           <span class="pi pi-dollar"></span>
-          <span class="nav-label">Ventas</span>
-        </a>
+          <span class="nav-label">Operaciones</span>
+          <span class="pi pi-chevron-down toggle-chevron"></span>
+        </button>
+
+        @if (operacionesExpanded() && !collapsed()) {
+          <div class="nav-group-children">
+            @if (canViewSales()) {
+              <a routerLink="/admin/sales" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-dollar"></span>
+                <span class="nav-label">Ventas</span>
+              </a>
+            }
+            @if (canViewOrders()) {
+              <a routerLink="/admin/orders" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-shopping-cart"></span>
+                <span class="nav-label">Ordenes</span>
+              </a>
+            }
+            @if (canViewOrderMatrix()) {
+              <a routerLink="/admin/orders-matrix" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-table"></span>
+                <span class="nav-label">Matriz</span>
+              </a>
+            }
+          </div>
+        }
       }
 
-      @if (canViewProducts()) {
-        <a routerLink="/admin/products" routerLinkActive="active" (click)="collapseAll()">
+      @if (canViewAlmacen()) {
+        <button class="nav-group-toggle" [class.expanded]="almacenExpanded()" (click)="toggleAlmacen()">
           <span class="pi pi-box"></span>
-          <span class="nav-label">Productos</span>
-        </a>
-      }
+          <span class="nav-label">Almacen</span>
+          <span class="pi pi-chevron-down toggle-chevron"></span>
+        </button>
 
-      @if (canViewBundles()) {
-        <a routerLink="/admin/bundles" routerLinkActive="active" (click)="collapseAll()">
-          <span class="pi pi-gift"></span>
-          <span class="nav-label">Combos</span>
-        </a>
-      }
-
-      @if (canViewOrders()) {
-        <a routerLink="/admin/orders" routerLinkActive="active" (click)="collapseAll()">
-          <span class="pi pi-shopping-cart"></span>
-          <span class="nav-label">Ordenes</span>
-        </a>
-      }
-
-      @if (canViewOrderMatrix()) {
-        <a routerLink="/admin/orders-matrix" routerLinkActive="active" (click)="collapseAll()">
-          <span class="pi pi-table"></span>
-          <span class="nav-label">Matriz</span>
-        </a>
-      }
-
-      @if (canViewWorkflows()) {
-        <a routerLink="/admin/workflows" routerLinkActive="active" (click)="collapseAll()">
-          <span class="pi pi-sitemap"></span>
-          <span class="nav-label">Flujos</span>
-        </a>
+        @if (almacenExpanded() && !collapsed()) {
+          <div class="nav-group-children">
+            @if (canViewProducts()) {
+              <a routerLink="/admin/products" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-box"></span>
+                <span class="nav-label">Productos</span>
+              </a>
+            }
+            @if (canViewBundles()) {
+              <a routerLink="/admin/bundles" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-gift"></span>
+                <span class="nav-label">Combos</span>
+              </a>
+            }
+          </div>
+        }
       }
 
       @if (canViewPeople()) {
@@ -136,6 +150,12 @@
                  (click)="collapseAll()">
                 <span class="pi pi-sliders-h"></span>
                 <span class="nav-label">Sistema</span>
+              </a>
+            }
+            @if (canViewWorkflows()) {
+              <a routerLink="/admin/workflows" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-sitemap"></span>
+                <span class="nav-label">Flujos</span>
               </a>
             }
           </div>

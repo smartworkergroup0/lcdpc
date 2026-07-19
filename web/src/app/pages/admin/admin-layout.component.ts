@@ -31,6 +31,8 @@ export class AdminLayoutComponent {
   private readonly branchStore = inject(BranchStore);
 
   protected readonly collapsed = signal(true);
+  protected readonly almacenExpanded = signal(false);
+  protected readonly operacionesExpanded = signal(false);
   protected readonly configExpanded = signal(false);
   protected readonly peopleExpanded = signal(false);
   protected readonly assistantExpanded = signal(false);
@@ -69,8 +71,14 @@ export class AdminLayoutComponent {
   protected readonly canViewWorkflows = computed(() =>
     this.authStore.hasPermission('workflow:view')
   );
+  protected readonly canViewAlmacen = computed(() =>
+    this.authStore.hasAnyPermission('product:view', 'bundle:view')
+  );
+  protected readonly canViewOperaciones = computed(() =>
+    this.authStore.hasAnyPermission('sales:view', 'order:view')
+  );
   protected readonly canViewConfig = computed(() =>
-    this.authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view')
+    this.authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view', 'workflow:view')
   );
 
   protected readonly canViewAssistant = computed(() =>
@@ -94,7 +102,29 @@ export class AdminLayoutComponent {
   protected toggleSidebar(): void {
     this.collapsed.update((v) => !v);
     if (this.collapsed()) {
+      this.almacenExpanded.set(false);
+      this.operacionesExpanded.set(false);
       this.configExpanded.set(false);
+      this.peopleExpanded.set(false);
+      this.assistantExpanded.set(false);
+    }
+  }
+
+  protected toggleAlmacen(): void {
+    if (this.collapsed()) {
+      this.collapsed.set(false);
+      this.almacenExpanded.set(true);
+    } else {
+      this.almacenExpanded.update((v) => !v);
+    }
+  }
+
+  protected toggleOperaciones(): void {
+    if (this.collapsed()) {
+      this.collapsed.set(false);
+      this.operacionesExpanded.set(true);
+    } else {
+      this.operacionesExpanded.update((v) => !v);
     }
   }
 
@@ -126,6 +156,8 @@ export class AdminLayoutComponent {
   }
 
   protected collapseAll(): void {
+    this.almacenExpanded.set(false);
+    this.operacionesExpanded.set(false);
     this.configExpanded.set(false);
     this.peopleExpanded.set(false);
     this.assistantExpanded.set(false);
