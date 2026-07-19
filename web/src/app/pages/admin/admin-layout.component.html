@@ -24,7 +24,7 @@
 
       @if (canViewOperaciones()) {
         <button class="nav-group-toggle" [class.expanded]="operacionesExpanded()" (click)="toggleOperaciones()">
-          <span class="pi pi-dollar"></span>
+          <span class="pi pi-briefcase"></span>
           <span class="nav-label">Operaciones</span>
           <span class="pi pi-chevron-down toggle-chevron"></span>
         </button>
@@ -55,7 +55,7 @@
 
       @if (canViewAlmacen()) {
         <button class="nav-group-toggle" [class.expanded]="almacenExpanded()" (click)="toggleAlmacen()">
-          <span class="pi pi-box"></span>
+          <span class="pi pi-warehouse"></span>
           <span class="nav-label">Almacen</span>
           <span class="pi pi-chevron-down toggle-chevron"></span>
         </button>
