@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, forkJoin, firstValueFrom } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, forkJoin, firstValueFrom, Observable } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputGroupModule } from 'primeng/inputgroup';
@@ -25,6 +25,7 @@ import { PriceApiService } from '../../../core/services/price-api.service';
 import { PriceCategoryApiService } from '../../../core/services/price-category-api.service';
 import { ClientApiService } from '../../../core/services/client-api.service';
 import { OrderApiService } from '../../../core/services/order-api.service';
+import { BranchApiService } from '../../../core/services/branch-api.service';
 import { Product } from '../../../core/models/product.model';
 import { Bundle } from '../../../core/models/bundle.model';
 import { PriceCategory } from '../../../core/models/price-category.model';
@@ -69,6 +70,7 @@ type DetailProductCard = {
 })
 export class SalesPageComponent implements OnInit {
   @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('productGrid') productGrid!: ElementRef<HTMLDivElement>;
 
   private readonly authStore = inject(AuthStore);
   readonly salesCart = inject(SalesCartStore);
@@ -80,18 +82,29 @@ export class SalesPageComponent implements OnInit {
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly orderApi = inject(OrderApiService);
+  private readonly branchApi = inject(BranchApiService);
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly router = inject(Router);
 
   protected readonly canCreate = computed(() => this.authStore.hasPermission('sales:create'));
+  protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
+
+  protected readonly branches = signal<{ id: string; name: string }[]>([]);
+  protected readonly selectedBranchId = signal<string | null>(null);
+  protected readonly userBranchName = signal<string | null>(null);
 
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly searchingClient = signal(false);
-  protected readonly products = signal<Product[]>([]);
-  protected readonly bundles = signal<Bundle[]>([]);
+  protected readonly loadingMore = signal(false);
+  protected readonly allProducts = signal<Product[]>([]);
+  protected readonly allBundles = signal<Bundle[]>([]);
+  protected readonly productsTotalCount = signal(Infinity);
+  protected readonly bundlesTotalCount = signal(Infinity);
+  protected readonly productsOffset = signal(0);
+  protected readonly bundlesOffset = signal(0);
   protected readonly priceCategories = signal<PriceCategory[]>([]);
   protected readonly selectedCategoryId = signal<string | null>(null);
   protected readonly searchQuery = signal('');
@@ -105,38 +118,21 @@ export class SalesPageComponent implements OnInit {
   protected readonly detailVisible = signal(false);
   protected readonly detailProduct = signal<DetailProductCard | null>(null);
 
+  protected readonly pageSize = 50;
+  private currentSearch = '';
+  private currentCategoryId: string | null = null;
   private readonly searchSubject = new Subject<string>();
 
-  protected readonly categories = computed(() => {
-    const catIds = new Set<string>();
-    this.products().forEach(p => { if (p.categoryId) catIds.add(p.categoryId); });
-    this.bundles().forEach(b => { if (b.categoryId) catIds.add(b.categoryId); });
-    return this.categoryStore.categoryOptions().filter(opt => catIds.has(opt.value));
-  });
+  protected readonly categories = computed(() => this.categoryStore.categoryOptions());
 
-  protected readonly filteredCatalogItems = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
-    const catId = this.selectedCategoryId();
-    let items: CatalogItem[] = [
-      ...this.products().map(p => ({ ...p, itemType: 'product' as const, id: p.productId })),
-      ...this.bundles().map(b => ({ ...b, itemType: 'bundle' as const, id: b.bundleId })),
-    ];
+  protected readonly filteredCatalogItems = computed(() => [
+    ...this.allProducts().map(p => ({ ...p, itemType: 'product' as const, id: p.productId })),
+    ...this.allBundles().map(b => ({ ...b, itemType: 'bundle' as const, id: b.bundleId })),
+  ]);
 
-    if (catId) {
-      items = items.filter(i => {
-        if ('categoryId' in i) return i.categoryId === catId;
-        return false;
-      });
-    }
-    if (query) {
-      items = items.filter(i => {
-        const name = i.name.toLowerCase();
-        const sku = 'sku' in i ? (i as Product).sku : (i as Bundle).code;
-        return name.includes(query) || sku.toLowerCase().includes(query);
-      });
-    }
-    return items;
-  });
+  protected readonly hasMoreProducts = computed(() => this.productsOffset() < this.productsTotalCount());
+  protected readonly hasMoreBundles = computed(() => this.bundlesOffset() < this.bundlesTotalCount());
+  protected readonly hasMoreItems = computed(() => this.hasMoreProducts() || this.hasMoreBundles());
 
   constructor() {
     this.searchSubject.pipe(
@@ -144,32 +140,48 @@ export class SalesPageComponent implements OnInit {
       distinctUntilChanged(),
     ).subscribe(query => {
       this.searchQuery.set(query);
+      this.currentSearch = query;
+      this.resetAndReload();
     });
   }
 
   ngOnInit(): void {
     this.categoryStore.load();
-    const branchId = this.userBranchId();
-    if (!branchId) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo determinar la sucursal' });
-      return;
-    }
 
-    this.loading.set(true);
-    forkJoin({
-      products: this.productApi.list({ branch_id: branchId, limit: 100, is_active: true }),
-      bundles: this.bundleApi.list({ branch_id: branchId, limit: 100, status: 'PUBLISHED' }),
-      priceCategories: this.priceCategoryApi.list(),
-    }).subscribe({
-      next: (res) => {
-        this.products.set(res.products.items);
-        this.bundles.set(res.bundles.items);
-        this.priceCategories.set(res.priceCategories);
-        this.loading.set(false);
+    this.branchApi.listAdmin().subscribe({
+      next: (branches) => {
+        const mapped = branches.map(b => ({ id: b.id, name: b.storeName }));
+        this.branches.set(mapped);
+
+        if (this.canViewAllBranches()) {
+          this.selectedBranchId.set(this.userBranchId() ?? (mapped.length > 0 ? mapped[0].id : null));
+        } else {
+          this.selectedBranchId.set(this.userBranchId());
+          if (mapped.length > 0) {
+            this.userBranchName.set(mapped[0].name);
+          }
+        }
+
+        if (!this.selectedBranchId()) {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo determinar la sucursal' });
+          return;
+        }
+
+        this.priceCategoryApi.list().subscribe({
+          next: (res) => this.priceCategories.set(res),
+        });
+        this.loadBatch();
       },
       error: () => {
-        this.loading.set(false);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los productos' });
+        if (!this.canViewAllBranches() && !this.userBranchId()) {
+          this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo determinar la sucursal' });
+          return;
+        }
+        this.selectedBranchId.set(this.userBranchId());
+        this.priceCategoryApi.list().subscribe({
+          next: (res) => this.priceCategories.set(res),
+        });
+        this.loadBatch();
       },
     });
   }
@@ -187,24 +199,61 @@ export class SalesPageComponent implements OnInit {
     }
   }
 
+  onSearchButton(): void {
+    const value = this.searchInput?.nativeElement.value.trim();
+    if (value) {
+      this.tryBarcodeScan(value);
+    }
+  }
+
   private tryBarcodeScan(code: string): void {
     const normalized = code.trim().toLowerCase();
 
-    const product = this.products().find(p => p.sku.toLowerCase() === normalized);
+    const product = this.allProducts().find(p => p.sku.toLowerCase() === normalized);
     if (product) {
       this.addProductToCart(product);
       this.clearSearchInput();
       return;
     }
 
-    const bundle = this.bundles().find(b => b.code.toLowerCase() === normalized);
+    const bundle = this.allBundles().find(b => b.code.toLowerCase() === normalized);
     if (bundle) {
       this.addBundleToCart(bundle);
       this.clearSearchInput();
       return;
     }
 
-    this.searchQuery.set(code);
+    this.loading.set(true);
+    const branchId = this.selectedBranchId();
+    const searchParams: Record<string, any> = { limit: 1, is_active: true };
+    if (branchId) {
+      searchParams['branch_id'] = branchId;
+    }
+
+    forkJoin({
+      products: this.productApi.list({ ...searchParams, sku: code }),
+      bundles: this.bundleApi.list({ ...searchParams, code, status: 'Active' }),
+    }).subscribe({
+      next: (res) => {
+        if (res.products.items.length > 0) {
+          this.addProductToCart(res.products.items[0]);
+        } else if (res.bundles.items.length > 0) {
+          this.addBundleToCart(res.bundles.items[0]);
+        } else {
+          this.searchQuery.set(code);
+          this.currentSearch = code;
+          this.resetAndReload();
+        }
+        this.loading.set(false);
+        this.clearSearchInput();
+      },
+      error: () => {
+        this.loading.set(false);
+        this.searchQuery.set(code);
+        this.currentSearch = code;
+        this.resetAndReload();
+      },
+    });
   }
 
   private clearSearchInput(): void {
@@ -214,6 +263,87 @@ export class SalesPageComponent implements OnInit {
       this.searchInput.nativeElement.value = '';
       this.searchInput.nativeElement.focus();
     }
+  }
+
+  onCategorySelect(categoryId: string | null): void {
+    this.selectedCategoryId.set(categoryId);
+    this.currentCategoryId = categoryId;
+    this.resetAndReload();
+  }
+
+  onBranchChange(branchId: string | null): void {
+    this.selectedBranchId.set(branchId);
+    this.resetAndReload();
+  }
+
+  onGridScroll(event: Event): void {
+    const el = event.target as HTMLDivElement;
+    const threshold = 200;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
+      this.loadBatch();
+    }
+  }
+
+  private loadBatch(): void {
+    if (this.loadingMore() || this.loading()) return;
+    if (!this.hasMoreItems()) return;
+
+    const branchId = this.selectedBranchId();
+    if (!this.canViewAllBranches() && !branchId) return;
+
+    const isFirstLoad = this.allProducts().length === 0 && this.allBundles().length === 0;
+    if (isFirstLoad) {
+      this.loading.set(true);
+    } else {
+      this.loadingMore.set(true);
+    }
+
+    const baseParams: Record<string, any> = {
+      limit: this.pageSize,
+    };
+    if (branchId) baseParams['branch_id'] = branchId;
+    if (this.currentCategoryId) baseParams['category_id'] = this.currentCategoryId;
+    if (this.currentSearch) baseParams['name'] = this.currentSearch;
+
+    const calls: Record<string, Observable<any>> = {};
+    if (this.hasMoreProducts()) {
+      calls['products'] = this.productApi.list({ ...baseParams, offset: this.productsOffset(), is_active: true });
+    }
+    if (this.hasMoreBundles()) {
+      calls['bundles'] = this.bundleApi.list({ ...baseParams, offset: this.bundlesOffset(), status: 'Active' });
+    }
+
+    forkJoin(calls).subscribe({
+      next: (res) => {
+        if (res['products']) {
+          this.allProducts.update(items => [...items, ...res['products'].items]);
+          this.productsOffset.update(v => v + res['products'].items.length);
+          this.productsTotalCount.set(res['products'].totalCount);
+        }
+        if (res['bundles']) {
+          this.allBundles.update(items => [...items, ...res['bundles'].items]);
+          this.bundlesOffset.update(v => v + res['bundles'].items.length);
+          this.bundlesTotalCount.set(res['bundles'].totalCount);
+        }
+        this.loading.set(false);
+        this.loadingMore.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.loadingMore.set(false);
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los productos' });
+      },
+    });
+  }
+
+  private resetAndReload(): void {
+    this.allProducts.set([]);
+    this.allBundles.set([]);
+    this.productsOffset.set(0);
+    this.bundlesOffset.set(0);
+    this.productsTotalCount.set(Infinity);
+    this.bundlesTotalCount.set(Infinity);
+    this.loadBatch();
   }
 
   getStockAvailable(item: CatalogItem): number {
@@ -353,6 +483,10 @@ export class SalesPageComponent implements OnInit {
     return item.quantity < item.stockAvailable;
   }
 
+  canDecrement(item: SalesCartItem): boolean {
+    return item.quantity > 1;
+  }
+
   openDetail(item: CatalogItem): void {
     let card: DetailProductCard;
     if (item.itemType === 'product') {
@@ -390,12 +524,12 @@ export class SalesPageComponent implements OnInit {
   }
 
   onDetailAddToCart(event: { id: string; quantity: number }): void {
-    const product = this.products().find(p => p.productId === event.id);
+    const product = this.allProducts().find(p => p.productId === event.id);
     if (product) {
       this.addProductToCart(product);
       return;
     }
-    const bundle = this.bundles().find(b => b.bundleId === event.id);
+    const bundle = this.allBundles().find(b => b.bundleId === event.id);
     if (bundle) {
       this.addBundleToCart(bundle);
     }
@@ -477,7 +611,7 @@ export class SalesPageComponent implements OnInit {
     this.saving.set(true);
 
     const req: CreateOrderRequest = {
-      branch_id: this.userBranchId()!,
+      branch_id: this.selectedBranchId()!,
       person_id: this.salesCart.personId() || undefined,
       client_user_id: this.salesCart.clientUserId() || undefined,
       notes: '',

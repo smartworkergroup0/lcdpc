@@ -105,7 +105,7 @@ export class OrderItemsDialogComponent implements OnChanges {
 
   protected get publishedBundles(): Bundle[] {
     const activeIds = new Set(this.visibleBundleItems.map((i) => i.bundleId).filter(Boolean));
-    const published = this.bundles().filter((b) => b.status === 'Published');
+    const published = this.bundles().filter((b) => b.status === 'Active');
     const existing = this.bundles().filter((b) => activeIds.has(b.bundleId));
     const merged = new Map([...published, ...existing].map((b) => [b.bundleId, b]));
     return [...merged.values()];

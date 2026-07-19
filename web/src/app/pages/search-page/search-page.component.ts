@@ -41,7 +41,7 @@ export class SearchPageComponent implements OnInit {
     }).subscribe({
       next: ({ products, bundles }) => {
         const bundleItems: SearchResultItem[] = bundles.items
-          .filter((b) => b.status === 'Published')
+          .filter((b) => b.status === 'Active')
           .map((b) => ({
             id: b.bundleId,
             name: b.name,

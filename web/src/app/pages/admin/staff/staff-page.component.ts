@@ -136,7 +136,7 @@ export class StaffPageComponent implements OnInit {
 
   onFormSaved(): void {
     this.closeForm();
-    this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Miembro guardado correctamente' });
+    this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Personal guardado correctamente' });
     this.applyFilters();
   }
 
@@ -158,7 +158,7 @@ export class StaffPageComponent implements OnInit {
     this.staffApi.toggleStatus(item.userId).subscribe({
       next: () => {
         const action = item.status === 'Active' ? 'inactivado' : 'activado';
-        this.messageService.add({ severity: 'success', summary: 'Exito', detail: `Miembro ${action}` });
+        this.messageService.add({ severity: 'success', summary: 'Exito', detail: `Personal ${action}` });
         this.applyFilters();
       },
       error: () => {

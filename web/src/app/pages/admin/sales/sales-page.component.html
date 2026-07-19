@@ -3,15 +3,27 @@
   <div class="sales-catalog">
     <!-- Buscador -->
     <div class="catalog-search">
-      <p-inputgroup>
-        <span class="p-inputgroup-addon"><i class="pi pi-search"></i></span>
+      <p-inputgroup class="search-input">
         <input pInputText #searchInput
                [ngModel]="searchQuery()"
                (ngModelChange)="onSearchInput($event)"
                (keyup)="onSearchKeyup($event)"
                placeholder="Buscar producto o escanear codigo..."
                autofocus />
+        <p-button icon="pi pi-search" severity="primary" (onClick)="onSearchButton()" />
       </p-inputgroup>
+      @if (canViewAllBranches()) {
+        <p-select [options]="branches()" [(ngModel)]="selectedBranchId"
+                  optionLabel="name" optionValue="id"
+                  placeholder="Todas las sucursales" [showClear]="true"
+                  (onChange)="onBranchChange($event.value)"
+                  [style]="{'min-width': '180px'}" />
+      } @else if (userBranchName()) {
+        <span class="branch-label">
+          <i class="pi pi-building"></i>
+          {{ userBranchName() }}
+        </span>
+      }
     </div>
 
     <!-- Filtro de categorias -->
@@ -19,18 +31,18 @@
       <div class="category-filters">
         <p-button label="Todos" [severity]="selectedCategoryId() === null ? 'primary' : 'secondary'"
                   [outlined]="selectedCategoryId() !== null" size="small"
-                  (onClick)="selectedCategoryId.set(null)" />
+                  (onClick)="onCategorySelect(null)" />
         @for (cat of categories(); track cat.value) {
           <p-button [label]="cat.label"
                     [severity]="selectedCategoryId() === cat.value ? 'primary' : 'secondary'"
                     [outlined]="selectedCategoryId() !== cat.value" size="small"
-                    (onClick)="selectedCategoryId.set(cat.value)" />
+                    (onClick)="onCategorySelect(cat.value)" />
         }
       </div>
     }
 
     <!-- Grid de productos -->
-    <div class="product-grid">
+    <div class="product-grid" #productGrid (scroll)="onGridScroll($event)">
       @for (item of filteredCatalogItems(); track item.id) {
         <div class="product-card" (click)="onCardClick(item)">
           <div class="product-image">
@@ -40,9 +52,14 @@
             } @else {
               <div class="product-placeholder"><i class="pi pi-box"></i></div>
             }
-            @if (item.itemType === 'bundle') {
-              <p-tag value="Combo" severity="success" class="product-tag" />
-            }
+            <div class="product-overlay">
+              <p-button icon="pi pi-eye" [text]="true" [rounded]="true" size="small"
+                        (onClick)="openDetail(item); $event.stopPropagation()"
+                        pTooltip="Ver detalle" />
+              @if (item.itemType === 'bundle') {
+                <p-tag value="Combo" severity="success" />
+              }
+            </div>
           </div>
           <div class="product-info">
             <h4 class="product-name">{{ item.name }}</h4>
@@ -52,11 +69,6 @@
                 Stock: {{ getStockAvailable(item) }}
               </span>
             </div>
-          </div>
-          <div class="product-actions">
-            <p-button icon="pi pi-eye" [text]="true" [rounded]="true" size="small"
-                      (onClick)="openDetail(item); $event.stopPropagation()"
-                      pTooltip="Ver detalle" />
           </div>
         </div>
       } @empty {
@@ -68,6 +80,12 @@
             <i class="pi pi-search"></i>
             <p>No se encontraron productos</p>
           }
+        </div>
+      }
+      @if (loadingMore()) {
+        <div class="loading-more">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Cargando mas productos...</span>
         </div>
       }
     </div>
@@ -124,6 +142,7 @@
           </div>
           <div class="cart-item-controls">
             <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small"
+                      [disabled]="!canDecrement(item)"
                       (onClick)="salesCart.decrementItem(item.id)" />
             <span class="cart-item-qty">{{ item.quantity }}</span>
             <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small"

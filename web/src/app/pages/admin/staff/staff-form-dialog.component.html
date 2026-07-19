@@ -1,4 +1,4 @@
-<p-dialog [header]="isEditMode ? 'Editar Miembro' : 'Nuevo Miembro'"
+<p-dialog [header]="isEditMode ? 'Editar Personal' : 'Nuevo Personal'"
           [visible]="visible" (visibleChange)="visibleChange.emit($event)"
           [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(550px, 95vw)'}"
           (onHide)="close()">
@@ -219,7 +219,7 @@
     <div class="footer-right">
       <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
       @if (!showSearch && !showStaffWarning) {
-        <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Miembro'"
+        <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Personal'"
                   icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
       }
     </div>
