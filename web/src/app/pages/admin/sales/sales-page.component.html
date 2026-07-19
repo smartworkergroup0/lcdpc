@@ -1,0 +1,184 @@
+<section class="sales-page">
+  <!-- Panel izquierdo: Catalogo -->
+  <div class="sales-catalog">
+    <!-- Buscador -->
+    <div class="catalog-search">
+      <p-inputgroup>
+        <span class="p-inputgroup-addon"><i class="pi pi-search"></i></span>
+        <input pInputText #searchInput
+               [ngModel]="searchQuery()"
+               (ngModelChange)="onSearchInput($event)"
+               (keyup)="onSearchKeyup($event)"
+               placeholder="Buscar producto o escanear codigo..."
+               autofocus />
+      </p-inputgroup>
+    </div>
+
+    <!-- Filtro de categorias -->
+    @if (categories().length > 0) {
+      <div class="category-filters">
+        <p-button label="Todos" [severity]="selectedCategoryId() === null ? 'primary' : 'secondary'"
+                  [outlined]="selectedCategoryId() !== null" size="small"
+                  (onClick)="selectedCategoryId.set(null)" />
+        @for (cat of categories(); track cat.value) {
+          <p-button [label]="cat.label"
+                    [severity]="selectedCategoryId() === cat.value ? 'primary' : 'secondary'"
+                    [outlined]="selectedCategoryId() !== cat.value" size="small"
+                    (onClick)="selectedCategoryId.set(cat.value)" />
+        }
+      </div>
+    }
+
+    <!-- Grid de productos -->
+    <div class="product-grid">
+      @for (item of filteredCatalogItems(); track item.id) {
+        <div class="product-card" (click)="onCardClick(item)">
+          <div class="product-image">
+            @if (item.img) {
+              <img [src]="resolveImageUrl(item.img)" [alt]="item.name" loading="lazy"
+                   (error)="onImageError($event)" />
+            } @else {
+              <div class="product-placeholder"><i class="pi pi-box"></i></div>
+            }
+            @if (item.itemType === 'bundle') {
+              <p-tag value="Combo" severity="success" class="product-tag" />
+            }
+          </div>
+          <div class="product-info">
+            <h4 class="product-name">{{ item.name }}</h4>
+            <div class="product-meta">
+              <span class="product-sku">{{ getItemSku(item) }}</span>
+              <span class="product-stock" [class.out-of-stock]="getStockAvailable(item) <= 0">
+                Stock: {{ getStockAvailable(item) }}
+              </span>
+            </div>
+          </div>
+          <div class="product-actions">
+            <p-button icon="pi pi-eye" [text]="true" [rounded]="true" size="small"
+                      (onClick)="openDetail(item); $event.stopPropagation()"
+                      pTooltip="Ver detalle" />
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-catalog">
+          @if (loading()) {
+            <i class="pi pi-spin pi-spinner"></i>
+            <p>Cargando productos...</p>
+          } @else {
+            <i class="pi pi-search"></i>
+            <p>No se encontraron productos</p>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Panel derecho: Venta -->
+  <div class="sales-panel">
+    <!-- Cabecera: Buscador de cliente -->
+    <div class="panel-header">
+      <h2>Venta</h2>
+
+      @if (!salesCart.hasClient()) {
+        <div class="client-search">
+          <div class="client-search-input">
+            <p-select [options]="DOCUMENT_TYPE_OPTIONS" [(ngModel)]="documentType"
+                      optionLabel="label" optionValue="value"
+                      [style]="{'width': '80px', 'flex-shrink': '0'}" />
+            <input pInputText [(ngModel)]="documentNumber"
+                   placeholder="Cedula/RIF..."
+                   (keydown.enter)="searchClient(); $event.preventDefault()"
+                   style="width: 100%" />
+            <p-button icon="pi pi-search" severity="primary"
+                      [loading]="searchingClient()"
+                      (onClick)="searchClient()" />
+          </div>
+          @if (personNotFound()) {
+            <div class="client-action">
+              <p-button label="Crear Cliente" icon="pi pi-user-plus"
+                        severity="success" [outlined]="true" size="small"
+                        (onClick)="showClientDialog.set(true)" />
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="client-selected">
+          <i class="pi pi-user"></i>
+          <div class="client-info">
+            <span class="client-name">{{ salesCart.clientName() }}</span>
+            <span class="client-doc">{{ salesCart.clientDocument() }}</span>
+          </div>
+          <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="danger"
+                    size="small" (onClick)="salesCart.clearClient()" pTooltip="Quitar cliente" />
+        </div>
+      }
+    </div>
+
+    <!-- Cuerpo: Lista de items -->
+    <div class="panel-body">
+      @for (item of salesCart.items(); track item.id) {
+        <div class="cart-item">
+          <div class="cart-item-info">
+            <span class="cart-item-name">{{ item.name }}</span>
+            <span class="cart-item-price">${{ item.unitPrice.toFixed(2) }}</span>
+          </div>
+          <div class="cart-item-controls">
+            <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small"
+                      (onClick)="salesCart.decrementItem(item.id)" />
+            <span class="cart-item-qty">{{ item.quantity }}</span>
+            <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small"
+                      [disabled]="!canIncrement(item)"
+                      (onClick)="salesCart.incrementItem(item.id)" />
+            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small"
+                      severity="danger" (onClick)="salesCart.removeItem(item.id)" />
+          </div>
+          <div class="cart-item-subtotal">
+            ${{ (item.unitPrice * item.quantity).toFixed(2) }}
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-cart">
+          <i class="pi pi-shopping-cart"></i>
+          <p>Agrega productos desde el catalogo</p>
+        </div>
+      }
+    </div>
+
+    <!-- Pie: Total y acciones -->
+    <div class="panel-footer">
+      <div class="cart-total">
+        <span>Total ({{ salesCart.totalItems() }} items):</span>
+        <strong>${{ salesCart.totalPrice().toFixed(2) }}</strong>
+      </div>
+      <div class="cart-actions">
+        <p-button label="Limpiar" icon="pi pi-times" severity="danger" [outlined]="true"
+                  [disabled]="salesCart.isEmpty()"
+                  (onClick)="confirmClear()" />
+        @if (canCreate()) {
+          <p-button label="Crear Orden" icon="pi pi-check"
+                    [loading]="saving()" [disabled]="salesCart.isEmpty() || !salesCart.hasClient()"
+                    (onClick)="createOrder()" />
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Dialogo de creacion de cliente -->
+<app-client-form-dialog
+  [visible]="showClientDialog()"
+  [identityDocument]="documentType() + documentNumber()"
+  (visibleChange)="showClientDialog.set($event)"
+  (clientCreated)="onClientCreated($event)"
+  (back)="showClientDialog.set(false)" />
+
+<!-- Dialogo de detalle de producto -->
+<app-product-detail-dialog
+  [visible]="detailVisible()"
+  [product]="detailProduct()"
+  [negativeStock]="systemConfigStore.negativeStock()"
+  (visibleChange)="detailVisible.set($event)"
+  (addToCart)="onDetailAddToCart($event)" />
+
+<p-confirmDialog />
+<p-toast />

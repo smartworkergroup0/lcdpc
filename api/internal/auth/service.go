@@ -389,8 +389,8 @@ func (s *Service) CompleteProfile(ctx context.Context, req CompleteProfileReques
 	} else {
 		personID = uuid.New()
 		_, err = tx.Exec(ctx, `
-			INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc)
-			VALUES ($1, $2, $3, $4, $5, $6, true, now(), now())
+			INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc)
+			VALUES ($1, $2, $3, $4, $5, $6, true, false, now(), now())
 		`, personID, userName, identityDocument, nullString(req.TaxID), req.WhatsAppPhone, req.FullAddress)
 		if err != nil {
 			return nil, fmt.Errorf("create person: %w", err)
@@ -615,18 +615,19 @@ func (s *Service) Me(ctx context.Context, accessToken string) (*MeResponse, erro
 		EmailVerifiedAt  *time.Time
 		Name             string
 		PersonIsClient   *bool
+		PersonIsStaff    *bool
 		ProfileID        uuid.UUID
 		BranchID         *uuid.UUID
 	}
 
 	err = s.pool.QueryRow(ctx, `
 		SELECT u.id, u.email, u.status, u.onboarding_status, u.email_verified_at_utc,
-		       COALESCE(per.name, ''), per.is_client, u.profile_id, u.branch_id
+		       COALESCE(per.name, ''), per.is_client, COALESCE(per.is_staff, false), u.profile_id, u.branch_id
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		WHERE u.id = $1
 	`, session.UserID).Scan(&user.ID, &user.Email, &user.Status, &user.OnboardingStatus,
-		&user.EmailVerifiedAt, &user.Name, &user.PersonIsClient, &user.ProfileID, &user.BranchID)
+		&user.EmailVerifiedAt, &user.Name, &user.PersonIsClient, &user.PersonIsStaff, &user.ProfileID, &user.BranchID)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -651,7 +652,9 @@ func (s *Service) Me(ctx context.Context, accessToken string) (*MeResponse, erro
 	}
 
 	accountType := "client"
-	if user.PersonIsClient != nil {
+	if user.PersonIsStaff != nil && *user.PersonIsStaff {
+		accountType = "administrator"
+	} else if user.PersonIsClient != nil {
 		if !*user.PersonIsClient {
 			accountType = "administrator"
 		}

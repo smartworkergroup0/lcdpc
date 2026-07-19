@@ -30,3 +30,16 @@ export interface ClientListFilter {
   offset?: number;
   search?: string;
 }
+
+export interface ClientLookupResult {
+  exists: boolean;
+  person?: {
+    id: string;
+    name: string;
+    identity_document: string;
+    whatsapp_phone: string;
+    full_address: string;
+    is_client: boolean;
+    is_staff: boolean;
+  } | null;
+}

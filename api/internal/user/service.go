@@ -24,6 +24,7 @@ type UserModel struct {
 	WhatsAppPhone    *string    `json:"whatsapp_phone,omitempty"`
 	FullAddress      *string    `json:"full_address,omitempty"`
 	IsClient         bool       `json:"is_client"`
+	IsStaff          bool       `json:"is_staff"`
 	Status           string     `json:"status"`
 	CreatedAt        time.Time  `json:"created_at_utc"`
 }
@@ -61,7 +62,7 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]UserModel, int
 	}
 
 	rows, err := s.pool.Query(ctx, `
-		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), u.status, u.created_at_utc
+		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), COALESCE(per.is_staff, false), u.status, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		ORDER BY u.created_at_utc DESC
@@ -75,7 +76,7 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]UserModel, int
 	users := make([]UserModel, 0)
 	for rows.Next() {
 		var u UserModel
-		if err := rows.Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.Status, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.IsStaff, &u.Status, &u.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan user: %w", err)
 		}
 		users = append(users, u)
@@ -86,11 +87,11 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]UserModel, int
 func (s *Service) GetByDocument(ctx context.Context, document string) (*UserModel, error) {
 	var u UserModel
 	err := s.pool.QueryRow(ctx, `
-		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), u.status, u.created_at_utc
+		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), COALESCE(per.is_staff, false), u.status, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		WHERE per.identity_document = $1
-	`, document).Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.Status, &u.CreatedAt)
+	`, document).Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.IsStaff, &u.Status, &u.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("user not found by document: %w", err)
 	}
@@ -149,11 +150,11 @@ func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateUserRe
 
 	var updated UserModel
 	err = s.pool.QueryRow(ctx, `
-		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), u.status, u.created_at_utc
+		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), COALESCE(per.is_staff, false), u.status, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		WHERE u.id = $1
-	`, userID).Scan(&updated.ID, &updated.Email, &updated.PersonID, &updated.Name, &updated.IdentityDocument, &updated.WhatsAppPhone, &updated.FullAddress, &updated.IsClient, &updated.Status, &updated.CreatedAt)
+	`, userID).Scan(&updated.ID, &updated.Email, &updated.PersonID, &updated.Name, &updated.IdentityDocument, &updated.WhatsAppPhone, &updated.FullAddress, &updated.IsClient, &updated.IsStaff, &updated.Status, &updated.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get updated user: %w", err)
 	}
@@ -185,7 +186,7 @@ func (s *Service) Search(ctx context.Context, query string, limit, offset int) (
 	}
 
 	dataQuery := `
-		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), u.status, u.created_at_utc
+		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), COALESCE(per.is_staff, false), u.status, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		WHERE u.email ILIKE '%' || $1 || '%'
@@ -204,7 +205,7 @@ func (s *Service) Search(ctx context.Context, query string, limit, offset int) (
 	users := make([]UserModel, 0)
 	for rows.Next() {
 		var u UserModel
-		if err := rows.Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.Status, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.IsStaff, &u.Status, &u.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan user: %w", err)
 		}
 		users = append(users, u)
@@ -215,11 +216,11 @@ func (s *Service) Search(ctx context.Context, query string, limit, offset int) (
 func (s *Service) GetByID(ctx context.Context, userID uuid.UUID) (*UserModel, error) {
 	var u UserModel
 	err := s.pool.QueryRow(ctx, `
-		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), u.status, u.created_at_utc
+		SELECT u.id, u.email, per.id, per.name, per.identity_document, per.whatsapp_phone, per.full_address, COALESCE(per.is_client, false), COALESCE(per.is_staff, false), u.status, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		WHERE u.id = $1
-	`, userID).Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.Status, &u.CreatedAt)
+	`, userID).Scan(&u.ID, &u.Email, &u.PersonID, &u.Name, &u.IdentityDocument, &u.WhatsAppPhone, &u.FullAddress, &u.IsClient, &u.IsStaff, &u.Status, &u.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}

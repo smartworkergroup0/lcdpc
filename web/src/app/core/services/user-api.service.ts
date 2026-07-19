@@ -20,6 +20,7 @@ interface UserGoData {
   whatsapp_phone: string | null;
   full_address: string | null;
   is_client: boolean | null;
+  is_staff: boolean | null;
   status: string;
   created_at_utc: string;
 }
@@ -101,6 +102,7 @@ export class UserApiService {
       whatsappPhone: raw.whatsapp_phone,
       fullAddress: raw.full_address,
       isClient: raw.is_client,
+      isStaff: raw.is_staff,
       status: raw.status,
       createdAtUtc: raw.created_at_utc,
     };

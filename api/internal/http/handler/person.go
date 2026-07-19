@@ -35,6 +35,22 @@ func (h *PersonHandler) GetByDocument(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, result)
 }
 
+func (h *PersonHandler) LookupByDocument(w http.ResponseWriter, r *http.Request) {
+	doc := chi.URLParam(r, "doc")
+	if doc == "" {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"doc": "required"})
+		return
+	}
+
+	result, err := h.svc.LookupByDocument(r.Context(), nil, doc)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(w, result)
+}
+
 func (h *PersonHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 	var req person.UpsertRequest
 	if err := response.Decode(r, &req); err != nil {

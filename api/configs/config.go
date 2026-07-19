@@ -60,6 +60,11 @@ type Config struct {
 
 	// Catalog
 	CatalogDomain string
+
+	// External Assistant API (SmartWorker)
+	SmartWorkerAPIURL  string
+	SmartWorkerUser    string
+	SmartWorkerPass    string
 }
 
 func Load() *Config {
@@ -121,6 +126,10 @@ func Load() *Config {
 		}),
 
 		CatalogDomain: getEnv("CATALOG_DOMAIN", "https://tormesca.com"),
+
+		SmartWorkerAPIURL: getEnv("SMARTWORKER_API_URL", "https://api.smartworker.work/api"),
+		SmartWorkerUser:   getEnv("SMARTWORKER_USERNAME", ""),
+		SmartWorkerPass:   getEnv("SMARTWORKER_PASSWORD", ""),
 	}
 }
 

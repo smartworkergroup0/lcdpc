@@ -1,0 +1,182 @@
+<p-dialog [header]="isEditMode ? 'Editar Cliente' : 'Nuevo Cliente'"
+          [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(550px, 95vw)'}"
+          (onHide)="close()">
+  <div class="client-form">
+    @if (isEditMode) {
+      <!-- EDIT MODE -->
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="name" [class.ng-invalid]="submitted && !name" style="width: 100%" placeholder=" " />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-select id="documentType" [options]="documentTypeOptions" [(ngModel)]="documentType"
+                    optionLabel="label" optionValue="value"
+                    placeholder="Tipo" [style]="{'width':'100%'}" appendTo="body" />
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="documentNumber" [(ngModel)]="documentNumber"
+                   [class.ng-invalid]="submitted && !documentNumber" style="width: 100%" placeholder=" " />
+            <label for="documentNumber">Numero de documento *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone"
+                   [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" placeholder=" " />
+            <label for="whatsappPhone">WhatsApp *</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="fullAddress" [(ngModel)]="fullAddress"
+                   [class.ng-invalid]="submitted && !fullAddress" style="width: 100%" placeholder=" " />
+            <label for="fullAddress">Direccion *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+    } @else if (showSearch) {
+      <!-- SEARCH MODE -->
+      <div class="search-section">
+        <p class="search-hint">Ingrese la cedula de la persona para verificar si existe en el sistema.</p>
+        <div class="search-row">
+          <p-select id="docType" [options]="documentTypeOptions" [(ngModel)]="searchDocumentType"
+                    optionLabel="label" optionValue="value"
+                    placeholder="Tipo" [style]="{'width':'70px'}" appendTo="body" />
+          <p-floatlabel>
+            <input pInputText id="docNumber" [(ngModel)]="searchDocumentNumber"
+                   style="width: 100%" placeholder=" "
+                   (keyup.enter)="searchByDocument()" />
+            <label for="docNumber">Numero de cedula</label>
+          </p-floatlabel>
+          <p-button icon="pi pi-search" [loading]="searching()" (onClick)="searchByDocument()" />
+        </div>
+      </div>
+    } @else if (showClientWarning) {
+      <!-- ALREADY A CLIENT -->
+      <div class="client-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div>
+          <strong>Esta persona ya es un cliente del sistema.</strong>
+          <p>No se puede crear un nuevo registro de cliente.</p>
+        </div>
+      </div>
+    } @else if (showExistingPerson) {
+      <!-- EXISTING PERSON (not client): readonly fields -->
+      <div class="client-banner">
+        <i class="pi pi-info-circle"></i>
+        <div>
+          <strong>Datos cargados desde el registro existente.</strong>
+          <p>Los campos personales son de solo lectura.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="name" [readonly]="personDataReadonly()" [class.ng-invalid]="submitted && !name" style="width: 100%" placeholder=" " />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-select id="documentType" [options]="documentTypeOptions" [(ngModel)]="documentType"
+                    optionLabel="label" optionValue="value"
+                    placeholder="Tipo" [style]="{'width':'100%'}" appendTo="body" [disabled]="personDataReadonly()" />
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="documentNumber" [(ngModel)]="documentNumber" [readonly]="personDataReadonly()"
+                   [class.ng-invalid]="submitted && !documentNumber" style="width: 100%" placeholder=" " />
+            <label for="documentNumber">Numero de documento *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone" [readonly]="personDataReadonly()"
+                   [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" placeholder=" " />
+            <label for="whatsappPhone">WhatsApp *</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="fullAddress" [(ngModel)]="fullAddress" [readonly]="personDataReadonly()"
+                   [class.ng-invalid]="submitted && !fullAddress" style="width: 100%" placeholder=" " />
+            <label for="fullAddress">Direccion *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+    } @else if (showEmptyForm) {
+      <!-- NOT FOUND: empty form -->
+      <div class="not-found-banner">
+        <i class="pi pi-info-circle"></i>
+        <span>Persona no encontrada. Complete los datos para crear un nuevo registro.</span>
+      </div>
+
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="name" [class.ng-invalid]="submitted && !name" style="width: 100%" placeholder=" " />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-select id="documentType" [options]="documentTypeOptions" [(ngModel)]="documentType"
+                    optionLabel="label" optionValue="value"
+                    placeholder="Tipo" [style]="{'width':'100%'}" appendTo="body" />
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="documentNumber" [(ngModel)]="documentNumber"
+                   [class.ng-invalid]="submitted && !documentNumber" style="width: 100%" placeholder=" " />
+            <label for="documentNumber">Numero de documento *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone"
+                   [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" placeholder=" " />
+            <label for="whatsappPhone">WhatsApp *</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="fullAddress" [(ngModel)]="fullAddress"
+                   [class.ng-invalid]="submitted && !fullAddress" style="width: 100%" placeholder=" " />
+            <label for="fullAddress">Direccion *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+    }
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="footer-left">
+      @if (!showSearch) {
+        <p-button label="Nueva busqueda" icon="pi pi-search" severity="secondary" size="small" (onClick)="resetSearch()" />
+      }
+    </div>
+    <div class="footer-right">
+      <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
+      @if (!showSearch && !showClientWarning) {
+        <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Cliente'"
+                  icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

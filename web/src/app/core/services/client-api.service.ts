@@ -6,6 +6,7 @@ import { PaginatedResponse } from '../models/pagination.model';
 import {
   Client,
   ClientListFilter,
+  ClientLookupResult,
   CreateClientRequest,
   UpdateClientRequest,
 } from '../models/client.model';
@@ -44,6 +45,12 @@ export class ClientApiService {
     @Inject(API_BASE_URL) apiBaseUrl: string
   ) {
     this.baseUrl = apiBaseUrl.replace(/\/$/, '');
+  }
+
+  lookupByDocument(doc: string): Observable<ClientLookupResult> {
+    return this.http
+      .get<JsendEnvelope<ClientLookupResult>>(`${this.baseUrl}/api/v1/persons/lookup-by-document/${encodeURIComponent(doc)}`)
+      .pipe(map((res) => res.data));
   }
 
   list(filter?: ClientListFilter): Observable<PaginatedResponse<Client>> {

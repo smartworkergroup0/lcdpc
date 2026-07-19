@@ -171,18 +171,19 @@
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid transparent;
+  opacity: 0.85;
+}
+
+:host ::ng-deep .account-button.p-button {
+  background: var(--avatar-bg);
+  color: #fff;
+  border: none;
 }
 
 :host ::ng-deep .search-nav-button.p-button,
 :host ::ng-deep .admin-nav-button.p-button {
   width: auto;
   padding-inline: 0.9rem;
-}
-
-:host ::ng-deep .cart-button:hover,
-:host ::ng-deep .account-button:hover,
-:host ::ng-deep .logout-button:hover {
-  background: rgba(247, 147, 26, 0.14);
 }
 
 .cart-popover {

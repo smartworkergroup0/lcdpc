@@ -558,6 +558,15 @@ loadItems(event: TableLazyLoadEvent): void {
 - Fallback: `/not-found.png` via `(error)="onImageError($event)"`
 - API images resolved via `resolveImageUrl(img)` which prepends `apiBaseUrl`
 
+### External API integrations (frontend)
+- **Model**: `core/models/external-{service-name}.model.ts` — interfaces + status label/severity maps
+- **Service**: `core/services/external-{service-name}-api.service.ts` — read-only list endpoints (no CRUD)
+- **Pages**: `pages/admin/external-{service-name}/` — parent layout with tabs + sub-modules
+  - Parent layout: `external-assistant-layout.component.ts` — `<router-outlet>` with tab navigation
+  - Sub-modules: `leads/leads-page.component.ts`, `orders/orders-page.component.ts`
+- **Routes**: `/admin/external-{service-name}/{sub-resource}` with `permissionGuard('{service-name}:view')`
+- **Sidebar**: collapsible group in `admin-layout.component.ts` with permission-gated visibility
+
 ### System Config (frontend)
 - **Model**: `core/models/system-config.model.ts` — `SystemConfig`, `CreateSystemConfigRequest`, `UpdateSystemConfigRequest`
 - **Service**: `core/services/system-config-api.service.ts` — CRUD (authenticated) + public endpoints + `resolveImageUrl()`

@@ -6,6 +6,7 @@ export interface Person {
   whatsappPhone: string;
   fullAddress: string;
   isClient: boolean;
+  isStaff: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
 }

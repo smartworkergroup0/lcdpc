@@ -15,6 +15,13 @@
         <span class="nav-label">Dashboard</span>
       </a>
 
+      @if (canViewSales()) {
+        <a routerLink="/admin/sales" routerLinkActive="active" (click)="collapseAll()">
+          <span class="pi pi-dollar"></span>
+          <span class="nav-label">Ventas</span>
+        </a>
+      }
+
       @if (canViewProducts()) {
         <a routerLink="/admin/products" routerLinkActive="active" (click)="collapseAll()">
           <span class="pi pi-box"></span>
@@ -124,6 +131,27 @@
                 <span class="nav-label">Sistema</span>
               </a>
             }
+          </div>
+        }
+      }
+
+      @if (canViewAssistant()) {
+        <button class="nav-group-toggle" [class.expanded]="assistantExpanded()" (click)="toggleAssistant()">
+          <span class="pi pi-android"></span>
+          <span class="nav-label">Asistente</span>
+          <span class="pi pi-chevron-down toggle-chevron"></span>
+        </button>
+
+        @if (assistantExpanded() && !collapsed()) {
+          <div class="nav-group-children">
+            <a routerLink="/admin/external-assistant/leads" routerLinkActive="active" (click)="collapseAll()">
+              <span class="pi pi-users"></span>
+              <span class="nav-label">Leads</span>
+            </a>
+            <a routerLink="/admin/external-assistant/orders" routerLinkActive="active" (click)="collapseAll()">
+              <span class="pi pi-shopping-cart"></span>
+              <span class="nav-label">Ordenes</span>
+            </a>
           </div>
         }
       }

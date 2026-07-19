@@ -46,3 +46,15 @@ Before working on any code, also load the domain-specific guidance:
 - No `.github/` workflows are present; do not invent CI expectations.
 - `docs/` contains SDD artifacts; read them before feature work.
 - `go_plan_finalized.md` contains the migration analysis (C# vs Go trade-offs).
+
+## External API integrations
+
+Integrations with external APIs follow a naming convention:
+- **Backend**: `api/internal/external/{service-name}/` — client, models, handler
+- **Frontend**: `web/src/app/core/models/external-{service-name}.model.ts` + `core/services/external-{service-name}-api.service.ts`
+- **Frontend pages**: `web/src/app/pages/admin/external-{service-name}/` with parent layout + sub-modules
+- **RBAC**: permission code `{service-name}:view`
+- **Routes**: `/api/v1/external/{service-name}/` (backend), `/admin/external-{service-name}/` (frontend)
+
+Currently implemented:
+- `assistant` — SmartWorker API (leads, orders)

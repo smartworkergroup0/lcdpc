@@ -22,6 +22,8 @@ coverage/
 # Environment secrets
 **/.env
 !.env.example
+api/paseto.key
+api/paseto_sa.key
 
 # Python (if present)
 __pycache__/

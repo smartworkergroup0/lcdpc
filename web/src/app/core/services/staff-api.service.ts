@@ -5,7 +5,9 @@ import { API_BASE_URL } from '../../pages/auth-page/auth-api-go.service';
 import { PaginatedResponse } from '../models/pagination.model';
 import {
   CreateStaffRequest,
+  ProfileOption,
   StaffListFilter,
+  StaffLookupResult,
   StaffMember,
   UpdateStaffRequest,
 } from '../models/staff.model';
@@ -26,9 +28,6 @@ interface StaffGoData {
   whatsapp_phone: string;
   profile_id: string;
   profile_name: string;
-  profile_code: string;
-  role_code: string;
-  role_name: string;
   created_at_utc: string;
 }
 
@@ -48,6 +47,12 @@ export class StaffApiService {
     @Inject(API_BASE_URL) apiBaseUrl: string
   ) {
     this.baseUrl = apiBaseUrl.replace(/\/$/, '');
+  }
+
+  lookupByDocument(doc: string): Observable<StaffLookupResult> {
+    return this.http
+      .get<JsendEnvelope<StaffLookupResult>>(`${this.baseUrl}/api/v1/staff/lookup-by-document/${encodeURIComponent(doc)}`)
+      .pipe(map((res) => res.data));
   }
 
   list(filter?: StaffListFilter): Observable<PaginatedResponse<StaffMember>> {
@@ -97,6 +102,18 @@ export class StaffApiService {
       .pipe(map(() => undefined));
   }
 
+  toggleStatus(id: string): Observable<StaffMember> {
+    return this.http
+      .patch<JsendEnvelope<StaffGoData>>(`${this.baseUrl}/api/v1/staff/${id}/toggle-status`, {})
+      .pipe(map((res) => this.map(res.data)));
+  }
+
+  listProfiles(): Observable<ProfileOption[]> {
+    return this.http
+      .get<JsendEnvelope<ProfileOption[]>>(`${this.baseUrl}/api/v1/staff/profiles`)
+      .pipe(map((res) => res.data));
+  }
+
   private map(raw: StaffGoData): StaffMember {
     return {
       userId: raw.user_id,
@@ -108,9 +125,6 @@ export class StaffApiService {
       whatsappPhone: raw.whatsapp_phone,
       profileId: raw.profile_id,
       profileName: raw.profile_name,
-      profileCode: raw.profile_code,
-      roleCode: raw.role_code,
-      roleName: raw.role_name,
       createdAtUtc: raw.created_at_utc,
     };
   }

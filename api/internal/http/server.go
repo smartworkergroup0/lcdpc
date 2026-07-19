@@ -17,6 +17,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/brand"
 	"github.com/lcdpc/lcdpc-go/internal/category"
 	"github.com/lcdpc/lcdpc-go/internal/dashboard"
+	assistant "github.com/lcdpc/lcdpc-go/internal/external/assistant"
 	"github.com/lcdpc/lcdpc-go/internal/http/handler"
 	"github.com/lcdpc/lcdpc-go/internal/http/middleware"
 	"github.com/lcdpc/lcdpc-go/internal/order"
@@ -54,6 +55,7 @@ func NewServer(
 	apiTokenSvc *apitoken.Service,
 	svcAccountSvc *serviceaccount.Service,
 	workflowSvc *workflow.Service,
+	assistantClient *assistant.Client,
 	frontendFS fs.FS,
 ) *chi.Mux {
 	r := chi.NewRouter()
@@ -95,6 +97,7 @@ func NewServer(
 	saPricingH := handler.NewSAPricingHandler(pricingSvc, rbacStore, cfg.CatalogDomain)
 	saBranchH := handler.NewSABranchHandler(branchSvc, rbacStore)
 	workflowH := workflow.NewHandler(workflowSvc)
+	assistantH := assistant.NewHandler(assistantClient)
 
 	// Public
 	if frontendFS == nil {
@@ -430,6 +433,8 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "staff:create"))
 			r.Post("/", staffH.Create)
+			r.Get("/lookup-by-document/{doc}", staffH.LookupByDocument)
+			r.Get("/profiles", staffH.ListProfiles)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -437,6 +442,7 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "staff:update"))
 			r.Put("/{id}", staffH.Update)
+			r.Patch("/{id}/toggle-status", staffH.ToggleStatus)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -569,6 +575,7 @@ func NewServer(
 			r.Use(middleware.RequireAuth())
 			r.Use(middleware.RequirePermission(rbacStore, "client:create"))
 			r.Post("/clients", personH.CreateClient)
+			r.Get("/lookup-by-document/{doc}", personH.LookupByDocument)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth())
@@ -738,6 +745,16 @@ func NewServer(
 			r.Use(middleware.RequirePermission(rbacStore, "workflow:delete"))
 			r.Delete("/{id}", workflowH.DeleteWorkflow)
 		})
+	})
+
+	// External Assistant API (SmartWorker)
+	r.Route("/api/v1/external/assistant", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+		r.Use(middleware.RequirePermission(rbacStore, "assistant:view"))
+
+		r.Get("/leads", assistantH.ListLeads)
+		r.Get("/orders", assistantH.ListOrders)
 	})
 
 	// SPA frontend (embedded)

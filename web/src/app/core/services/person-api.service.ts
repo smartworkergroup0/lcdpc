@@ -18,6 +18,7 @@ interface PersonGoData {
   whatsapp_phone: string;
   full_address: string;
   is_client: boolean;
+  is_staff: boolean;
   created_at_utc: string;
   updated_at_utc: string;
 }
@@ -94,6 +95,7 @@ export class PersonApiService {
       whatsappPhone: raw.whatsapp_phone,
       fullAddress: raw.full_address,
       isClient: raw.is_client,
+      isStaff: raw.is_staff,
       createdAtUtc: raw.created_at_utc,
       updatedAtUtc: raw.updated_at_utc,
     };

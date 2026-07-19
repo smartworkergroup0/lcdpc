@@ -1,0 +1,142 @@
+:host ::ng-deep .p-dialog-header {
+  padding-bottom: 0;
+}
+
+:host ::ng-deep .p-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.client-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  margin-top: 25px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-hint {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.search-actions-inline {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.25rem;
+}
+
+.client-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--blue-50, #eff6ff);
+  border: 1px solid var(--blue-200, #bfdbfe);
+  border-radius: 8px;
+  color: var(--blue-900, #1e3a5f);
+
+  i {
+    font-size: 1.25rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.85;
+  }
+}
+
+.client-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--orange-50, #fff7ed);
+  border: 1px solid var(--orange-200, #fed7aa);
+  border-radius: 8px;
+  color: var(--orange-900, #7c2d12);
+
+  i {
+    font-size: 1.25rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.85;
+  }
+}
+
+.not-found-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--gray-50, #f9fafb);
+  border: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: 8px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+
+  i {
+    flex-shrink: 0;
+  }
+}

@@ -22,6 +22,7 @@ type Person struct {
 	WhatsAppPhone    string    `json:"whatsapp_phone"`
 	FullAddress      string    `json:"full_address"`
 	IsClient         bool      `json:"is_client"`
+	IsStaff          bool      `json:"is_staff"`
 	CreatedAtUtc     time.Time `json:"created_at_utc"`
 	UpdatedAtUtc     time.Time `json:"updated_at_utc"`
 }
@@ -56,12 +57,12 @@ func (s *Service) LookupByDocument(ctx context.Context, userID *uuid.UUID, docum
 	if userID != nil {
 		var p Person
 		err := s.pool.QueryRow(ctx, `
-			SELECT p.id, p.name, p.identity_document, p.tax_id, p.whatsapp_phone, p.full_address, p.is_client, p.created_at_utc, p.updated_at_utc
+			SELECT p.id, p.name, p.identity_document, p.tax_id, p.whatsapp_phone, p.full_address, p.is_client, p.is_staff, p.created_at_utc, p.updated_at_utc
 			FROM persons p
 			JOIN users u ON u.person_id = p.id
 			WHERE u.id = $1 AND p.identity_document = $2
 		`, *userID, document).Scan(
-			&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+			&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc,
 		)
 		if err == pgx.ErrNoRows {
 			return &LookupResult{Exists: false}, nil
@@ -74,11 +75,11 @@ func (s *Service) LookupByDocument(ctx context.Context, userID *uuid.UUID, docum
 
 	var p Person
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 		FROM persons
 		WHERE identity_document = $1
 	`, document).Scan(
-		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -257,9 +258,9 @@ func (s *Service) updatePerson(ctx context.Context, tx pgx.Tx, personID uuid.UUI
 			is_client = true,
 			updated_at_utc = now()
 		WHERE id = $1
-		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 	`, personID, req.Name, req.IdentityDocument, req.TaxID, req.WhatsAppPhone, req.FullAddress).Scan(
-		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("PERSON_NOT_FOUND")
@@ -274,12 +275,12 @@ func (s *Service) createPerson(ctx context.Context, tx pgx.Tx, req UpsertRequest
 	var p Person
 	err := tx.QueryRow(ctx, `
 		INSERT INTO persons (
-			id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+			id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 		)
-		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, true, now(), now())
-		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, true, false, now(), now())
+		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 	`, uuid.New(), req.Name, req.IdentityDocument, req.TaxID, req.WhatsAppPhone, req.FullAddress).Scan(
-		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create person: %w", err)
@@ -356,7 +357,7 @@ func (f ClientFilter) GetOffset() int {
 func (s *Service) ListClients(ctx context.Context, filter ClientFilter) ([]Person, int, error) {
 	countQuery := `SELECT COUNT(*) FROM persons WHERE is_client = true`
 	dataQuery := `
-		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 		FROM persons
 		WHERE is_client = true
 	`
@@ -390,7 +391,7 @@ func (s *Service) ListClients(ctx context.Context, filter ClientFilter) ([]Perso
 	var persons []Person
 	for rows.Next() {
 		var p Person
-		if err := rows.Scan(&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc); err != nil {
 			return nil, 0, fmt.Errorf("scan client: %w", err)
 		}
 		persons = append(persons, p)
@@ -401,10 +402,10 @@ func (s *Service) ListClients(ctx context.Context, filter ClientFilter) ([]Perso
 func (s *Service) GetClientByID(ctx context.Context, id uuid.UUID) (*Person, error) {
 	var p Person
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		SELECT id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 		FROM persons
 		WHERE id = $1 AND is_client = true
-	`, id).Scan(&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc)
+	`, id).Scan(&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("NOT_FOUND")
 	}
@@ -447,9 +448,9 @@ func (s *Service) UpdateClient(ctx context.Context, id uuid.UUID, req UpsertRequ
 			full_address = COALESCE(NULLIF($6, ''), full_address),
 			updated_at_utc = now()
 		WHERE id = $1 AND is_client = true
-		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc
+		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
 	`, id, req.Name, req.IdentityDocument, req.TaxID, req.WhatsAppPhone, req.FullAddress).Scan(
-		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.CreatedAtUtc, &p.UpdatedAtUtc,
+		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("NOT_FOUND")
@@ -467,6 +468,17 @@ func (s *Service) DeleteClient(ctx context.Context, id uuid.UUID) error {
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("NOT_FOUND")
+	}
+	return nil
+}
+
+func (s *Service) MarkAsStaff(ctx context.Context, personID uuid.UUID) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE persons SET is_staff = true, updated_at_utc = now() WHERE id = $1`, personID)
+	if err != nil {
+		return fmt.Errorf("mark as staff: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("PERSON_NOT_FOUND")
 	}
 	return nil
 }

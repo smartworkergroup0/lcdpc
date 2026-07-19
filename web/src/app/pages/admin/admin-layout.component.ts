@@ -30,8 +30,13 @@ export class AdminLayoutComponent {
   protected readonly collapsed = signal(true);
   protected readonly configExpanded = signal(false);
   protected readonly peopleExpanded = signal(false);
+  protected readonly assistantExpanded = signal(false);
 
   protected readonly userName = computed(() => this.authStore.currentUser()?.displayName ?? 'Admin');
+
+  protected readonly canViewSales = computed(() =>
+    this.authStore.hasPermission('sales:view')
+  );
 
   protected readonly canViewProducts = computed(() =>
     this.authStore.hasPermission('product:view')
@@ -60,6 +65,10 @@ export class AdminLayoutComponent {
   );
   protected readonly canViewConfig = computed(() =>
     this.authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view')
+  );
+
+  protected readonly canViewAssistant = computed(() =>
+    this.authStore.hasPermission('assistant:view')
   );
 
   protected readonly canViewRbac = computed(() =>
@@ -101,8 +110,18 @@ export class AdminLayoutComponent {
     }
   }
 
+  protected toggleAssistant(): void {
+    if (this.collapsed()) {
+      this.collapsed.set(false);
+      this.assistantExpanded.set(true);
+    } else {
+      this.assistantExpanded.update((v) => !v);
+    }
+  }
+
   protected collapseAll(): void {
     this.configExpanded.set(false);
     this.peopleExpanded.set(false);
+    this.assistantExpanded.set(false);
   }
 }

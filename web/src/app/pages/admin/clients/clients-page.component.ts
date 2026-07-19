@@ -40,7 +40,6 @@ export class ClientsPageComponent implements OnInit {
 
   protected readonly canCreate = computed(() => this.authStore.hasPermission('client:create'));
   protected readonly canUpdate = computed(() => this.authStore.hasPermission('client:update'));
-  protected readonly canDelete = computed(() => this.authStore.hasPermission('client:delete'));
 
   protected readonly items = signal<Client[]>([]);
   protected readonly loading = signal(false);
@@ -115,29 +114,5 @@ export class ClientsPageComponent implements OnInit {
     this.closeForm();
     this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Cliente guardado correctamente' });
     this.applyFilters();
-  }
-
-  confirmDelete(item: Client): void {
-    this.confirmationService.confirm({
-      message: `¿Eliminar al cliente <b>${item.name}</b>? Esta acción no se puede deshacer.`,
-      header: 'Confirmar eliminación',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Eliminar',
-      rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.doDelete(item),
-    });
-  }
-
-  private doDelete(item: Client): void {
-    this.clientApi.delete(item.id).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Cliente eliminado' });
-        this.applyFilters();
-      },
-      error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar el cliente' });
-      },
-    });
   }
 }

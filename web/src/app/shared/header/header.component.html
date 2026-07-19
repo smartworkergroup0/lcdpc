@@ -30,50 +30,43 @@
         ></p-button>
       }
 
-      <p-button
-        label="Buscar"
-        icon="pi pi-search"
-        styleClass="search-nav-button"
-        [text]="true"
-        severity="secondary"
-        ariaLabel="Ir a búsqueda"
-        routerLink="/search"
-      ></p-button>
+      @if (!isAdminRoute()) {
+        <label class="branch-picker" aria-label="Seleccionar sucursal">
+          <span class="pi pi-map-marker branch-icon"></span>
+          <p-select
+            styleClass="branch-select"
+            [options]="branches"
+            [ngModel]="selectedBranchId"
+            (ngModelChange)="branchChange.emit($event)"
+            optionLabel="name"
+            optionValue="id"
+            [showClear]="false"
+            appendTo="body"
+          ></p-select>
+        </label>
+      }
 
-      <label class="branch-picker" aria-label="Seleccionar sucursal">
-        <span class="pi pi-map-marker branch-icon"></span>
-        <p-select
-          styleClass="branch-select"
-          [options]="branches"
-          [ngModel]="selectedBranchId"
-          (ngModelChange)="branchChange.emit($event)"
-          optionLabel="name"
-          optionValue="id"
-          [showClear]="false"
+      @if (!isAdminRoute()) {
+        <div class="cart-wrap">
+          <p-button
+            icon="pi pi-shopping-cart"
+            styleClass="cart-button"
+            [rounded]="true"
+            [text]="true"
+            [severity]="isCartRoute() ? 'warn' : 'secondary'"
+            ariaLabel="Carrito"
+            (onClick)="toggleCartOverlay($event)"
+          ></p-button>
+          <span class="cart-count-badge">{{ cartCount() }}</span>
+        </div>
+
+        <p-popover
+          #cartOverlay
+          [style]="{ width: '19rem', padding: '0' }"
+          [dismissable]="true"
           appendTo="body"
-        ></p-select>
-      </label>
-
-      <div class="cart-wrap">
-        <p-button
-          icon="pi pi-shopping-cart"
-          styleClass="cart-button"
-          [rounded]="true"
-          [text]="true"
-          [severity]="isCartRoute() ? 'warn' : 'secondary'"
-          ariaLabel="Carrito"
-          (onClick)="toggleCartOverlay($event)"
-        ></p-button>
-        <span class="cart-count-badge">{{ cartCount() }}</span>
-      </div>
-
-      <p-popover
-        #cartOverlay
-        [style]="{ width: '19rem', padding: '0' }"
-        [dismissable]="true"
-        appendTo="body"
-      >
-        <div class="cart-popover">
+        >
+          <div class="cart-popover">
           <div class="cart-popover-header">
             <div>
               <p class="cart-popover-kicker">Resumen del carrito</p>
@@ -118,16 +111,15 @@
           }
         </div>
       </p-popover>
+      }
 
       @if (isAuthenticated()) {
         <div class="user-menu">
           <p-button
-            [label]="user()?.displayName ?? ''"
-            icon="pi pi-user"
+            [label]="userInitial()"
+            [style.--avatar-bg]="userColor()"
             styleClass="account-button"
             [rounded]="true"
-            [text]="true"
-            severity="secondary"
             ariaLabel="Cuenta"
           ></p-button>
           <p-button
@@ -143,7 +135,6 @@
 		} @else {
 			<p-button
 				icon="pi pi-user"
-				styleClass="account-button"
 				[rounded]="true"
 				[text]="true"
 				severity="secondary"

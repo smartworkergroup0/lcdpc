@@ -7,10 +7,8 @@
     <ng-template pTemplate="start">
       <p-iconfield>
         <p-inputicon><i class="pi pi-search"></i></p-inputicon>
-        <input pInputText type="text" placeholder="Buscar por nombre, email o cédula..." [(ngModel)]="search" (keyup.enter)="applyFilters()" />
+        <input pInputText type="text" placeholder="Buscar por nombre, email o cedula..." [(ngModel)]="search" (keyup.enter)="applyFilters()" />
       </p-iconfield>
-      <p-select [options]="roleOptions" [(ngModel)]="selectedRoleCode" optionLabel="label" optionValue="value"
-                 placeholder="Rol" [style]="{'width':'150px', 'margin-left':'0.75rem'}" (onChange)="applyFilters()" />
     </ng-template>
     <ng-template pTemplate="end">
       @if (canCreate()) {
@@ -26,26 +24,22 @@
     <ng-template pTemplate="header">
       <tr>
         <th>Nombre</th>
-        <th>Email</th>
         <th>WhatsApp</th>
         <th>Documento</th>
         <th>Sucursal</th>
-        <th style="width: 100px">Rol</th>
+        <th>Perfil</th>
         <th style="width: 100px">Estado</th>
-        <th style="width: 130px">Creado</th>
         <th style="width: 140px">Acciones</th>
       </tr>
     </ng-template>
     <ng-template pTemplate="body" let-item>
       <tr>
         <td>{{ item.profileName }}</td>
-        <td>{{ item.email }}</td>
         <td>{{ item.whatsappPhone ?? '—' }}</td>
         <td>{{ item.identityDocument }}</td>
         <td>{{ item.branchName ?? '—' }}</td>
-        <td><p-tag [value]="item.roleName" [severity]="roleSeverity(item.roleCode)" /></td>
+        <td>{{ item.profileName }}</td>
         <td><p-tag [value]="item.status" [severity]="statusSeverity(item.status)" /></td>
-        <td>{{ formatDate(item.createdAtUtc) }}</td>
         <td>
           <p-button icon="pi pi-eye" [text]="true" [rounded]="true" pTooltip="Ver detalles"
                     (onClick)="openDetail(item)" />
@@ -53,8 +47,11 @@
             <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" pTooltip="Editar"
                       (onClick)="openEdit(item)" />
           }
-          @if (canDelete()) {
-            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" pTooltip="Eliminar"
+          @if (canUpdate()) {
+            <p-button [icon]="item.status === 'Active' ? 'pi pi-ban' : 'pi pi-check-circle'"
+                      [text]="true" [rounded]="true"
+                      [severity]="item.status === 'Active' ? 'danger' : 'success'"
+                      [pTooltip]="item.status === 'Active' ? 'Inactivar' : 'Activar'"
                       (onClick)="confirmDelete(item)" />
           }
         </td>
@@ -62,7 +59,7 @@
     </ng-template>
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td colspan="9" class="empty-state">No hay miembros de personal registrados</td>
+        <td colspan="7" class="empty-state">No hay miembros de personal registrados</td>
       </tr>
     </ng-template>
   </p-table>
@@ -94,11 +91,7 @@
       </div>
       <div>
         <span>Perfil</span>
-        <strong>{{ selectedItem()?.profileCode ?? '—' }}</strong>
-      </div>
-      <div>
-        <span>Rol</span>
-        <strong>{{ selectedItem()?.roleName ?? '—' }}</strong>
+        <strong>{{ selectedItem()?.profileName ?? '—' }}</strong>
       </div>
       <div>
         <span>Estado</span>

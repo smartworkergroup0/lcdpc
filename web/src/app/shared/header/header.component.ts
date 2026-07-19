@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, ViewChild, computed, inject } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Input, Output, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { Popover, PopoverModule } from 'primeng/popover';
 import { SelectModule } from 'primeng/select';
@@ -15,6 +16,15 @@ export type HeaderBranch = {
   name: string;
 };
 
+function generateColorFromName(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = ((hash % 360) + 360) % 360;
+  return `hsl(${hue}, 70%, 45%)`;
+}
+
 @Component({
 	selector: 'app-header',
 	standalone: true,
@@ -26,6 +36,7 @@ export class HeaderComponent {
 	private readonly authStore = inject(AuthStore);
 	private readonly cartStore = inject(CartStore);
 	private readonly router = inject(Router);
+	private readonly destroyRef = inject(DestroyRef);
 	readonly systemConfigStore = inject(SystemConfigStore);
 
 	@ViewChild('cartOverlay') cartOverlay!: Popover;
@@ -43,8 +54,10 @@ export class HeaderComponent {
   protected readonly visibleCartItems = computed(() => this.cartItems().slice(0, 4));
   protected readonly hiddenCartItems = computed(() => Math.max(0, this.cartItems().length - 4));
   protected readonly hasCartItems = computed(() => this.cartCount() > 0);
+  protected readonly userInitial = computed(() => (this.user()?.displayName ?? '').charAt(0).toUpperCase());
+  protected readonly userColor = computed(() => generateColorFromName(this.user()?.displayName ?? ''));
 
-  protected readonly isAdminRoute = computed(() => this.router.url.startsWith('/admin'));
+  protected readonly isAdminRoute = signal(this.router.url.startsWith('/admin'));
 
   protected isCartRoute(): boolean {
     return this.router.url.startsWith('/cart');
@@ -59,6 +72,15 @@ export class HeaderComponent {
       'staff:view'
     )
   );
+
+  constructor() {
+    const subscription = this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe((event) => {
+        this.isAdminRoute.set(event.urlAfterRedirects.startsWith('/admin'));
+      });
+    this.destroyRef.onDestroy(() => subscription.unsubscribe());
+  }
 
 	protected onLogoError(event: Event): void {
 		(event.target as HTMLImageElement).src = '/not-found.png';

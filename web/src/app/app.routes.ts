@@ -17,6 +17,10 @@ import { StaffPageComponent } from './pages/admin/staff/staff-page.component';
 import { ClientsPageComponent } from './pages/admin/clients/clients-page.component';
 import { ConfigPageComponent } from './pages/admin/config/config-page.component';
 import { WorkflowEditorPageComponent } from './pages/admin/workflows/workflow-editor-page.component';
+import { ExternalAssistantLayoutComponent } from './pages/admin/external-assistant/external-assistant-layout.component';
+import { AssistantLeadsPageComponent } from './pages/admin/external-assistant/leads/leads-page.component';
+import { AssistantOrdersPageComponent } from './pages/admin/external-assistant/orders/orders-page.component';
+import { SalesPageComponent } from './pages/admin/sales/sales-page.component';
 import { adminGuard } from './core/auth/admin.guard';
 import { permissionGuard } from './core/auth/permission.guard';
 
@@ -36,6 +40,7 @@ export const routes: Routes = [
 			{ path: 'products', component: ProductsPageComponent, canActivate: [permissionGuard('product:view')] },
 			{ path: 'bundles', component: BundlesPageComponent, canActivate: [permissionGuard('bundle:view')] },
 			{ path: 'orders', component: OrdersPageComponent, canActivate: [permissionGuard('order:view')] },
+			{ path: 'sales', component: SalesPageComponent, canActivate: [permissionGuard('sales:view')] },
 			{ path: 'orders-matrix', component: OrderMatrixPageComponent, canActivate: [permissionGuard('order:view')] },
 			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('workflow:view')] },
 			{ path: 'staff', component: StaffPageComponent, canActivate: [permissionGuard('staff:view')] },
@@ -46,6 +51,16 @@ export const routes: Routes = [
 				if (authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view')) return true;
 				return router.createUrlTree(['/admin']);
 			}] },
+			{
+				path: 'external-assistant',
+				component: ExternalAssistantLayoutComponent,
+				canActivate: [permissionGuard('assistant:view')],
+				children: [
+					{ path: 'leads', component: AssistantLeadsPageComponent },
+					{ path: 'orders', component: AssistantOrdersPageComponent },
+					{ path: '', redirectTo: 'leads', pathMatch: 'full' },
+				],
+			},
 		]
 	}
 ];

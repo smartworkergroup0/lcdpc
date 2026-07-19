@@ -45,10 +45,6 @@
             <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" pTooltip="Editar"
                       (onClick)="openEdit(item)" />
           }
-          @if (canDelete()) {
-            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" pTooltip="Eliminar"
-                      (onClick)="confirmDelete(item)" />
-          }
         </td>
       </tr>
     </ng-template>

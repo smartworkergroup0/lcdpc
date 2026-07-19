@@ -41,9 +41,6 @@ func (h *StaffHandler) List(w http.ResponseWriter, r *http.Request) {
 			f.BranchID = &id
 		}
 	}
-	if v := q.Get("role_code"); v != "" {
-		f.RoleCode = &v
-	}
 	if v := q.Get("search"); v != "" {
 		f.Search = &v
 	}
@@ -78,6 +75,22 @@ func (h *StaffHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	result, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		response.Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	response.Success(w, result)
+}
+
+func (h *StaffHandler) LookupByDocument(w http.ResponseWriter, r *http.Request) {
+	doc := chi.URLParam(r, "doc")
+	if doc == "" {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"doc": "required"})
+		return
+	}
+
+	result, err := h.svc.LookupByDocument(r.Context(), doc)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -123,6 +136,23 @@ func (h *StaffHandler) Update(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, result)
 }
 
+func (h *StaffHandler) ToggleStatus(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	result, err := h.svc.ToggleStatus(r.Context(), id)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(w, result)
+}
+
 func (h *StaffHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
@@ -141,4 +171,14 @@ func (h *StaffHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, map[string]string{"status": "deleted"})
+}
+
+func (h *StaffHandler) ListProfiles(w http.ResponseWriter, r *http.Request) {
+	profiles, err := h.svc.ListProfiles(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(w, profiles)
 }

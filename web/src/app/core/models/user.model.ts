@@ -7,6 +7,7 @@ export interface AppUser {
   whatsappPhone: string | null;
   fullAddress: string | null;
   isClient: boolean | null;
+  isStaff: boolean | null;
   status: string;
   createdAtUtc: string;
 }

@@ -3,7 +3,87 @@
           [modal]="true" [dismissableMask]="true" [draggable]="false" [style]="{width: 'min(550px, 95vw)'}"
           (onHide)="close()">
   <div class="staff-form">
-    @if (!isEditMode) {
+    @if (isEditMode) {
+      <!-- EDIT MODE -->
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="name" [class.ng-invalid]="submitted && !name" style="width: 100%" placeholder=" " />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="identityDocument" [(ngModel)]="identityDocument" style="width: 100%" placeholder=" " />
+            <label for="identityDocument">Cedula</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone" style="width: 100%" placeholder=" " />
+            <label for="whatsappPhone">WhatsApp</label>
+          </p-floatlabel>
+        </div>
+      </div>
+
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="fullAddress" [(ngModel)]="fullAddress" style="width: 100%" placeholder=" " />
+          <label for="fullAddress">Direccion</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        @if (canViewAllBranches()) {
+          <div class="field">
+            <p-select id="branch" [options]="branches" [(ngModel)]="branchId"
+                      optionLabel="name" optionValue="id"
+                      placeholder="Sucursal *" [style]="{'width':'100%'}" appendTo="body" />
+          </div>
+        }
+        <div class="field">
+          <p-select id="profile" [options]="profileOptions()" [(ngModel)]="profileId"
+                    optionLabel="name" optionValue="id"
+                    placeholder="Perfil *" [style]="{'width':'100%'}" appendTo="body" />
+        </div>
+      </div>
+    } @else if (showSearch) {
+      <!-- SEARCH MODE -->
+      <div class="search-section">
+        <p class="search-hint">Ingrese la cedula de la persona para verificar si existe en el sistema.</p>
+        <div class="search-row">
+          <p-select id="docType" [options]="documentTypeOptions" [(ngModel)]="searchDocumentType"
+                    optionLabel="label" optionValue="value"
+                    placeholder="Tipo" [style]="{'width':'70px'}" appendTo="body" />
+          <p-floatlabel>
+            <input pInputText id="docNumber" [(ngModel)]="searchDocumentNumber"
+                   style="width: 100%" placeholder=" "
+                   (keyup.enter)="searchByDocument()" />
+            <label for="docNumber">Numero de cedula</label>
+          </p-floatlabel>
+          <p-button icon="pi pi-search" [loading]="searching()" (onClick)="searchByDocument()" />
+        </div>
+      </div>
+    } @else if (showStaffWarning) {
+      <!-- STAFF ALREADY EXISTS -->
+      <div class="staff-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+        <div>
+          <strong>Esta persona ya es un empleado del sistema.</strong>
+          <p>No se puede crear un nuevo registro de personal.</p>
+        </div>
+      </div>
+    } @else if (showClientForm) {
+      <!-- CLIENT FOUND: readonly person fields + editable fields -->
+      <div class="client-banner">
+        <i class="pi pi-info-circle"></i>
+        <div>
+          <strong>Datos cargados desde el registro existente.</strong>
+          <p>Los campos personales son de solo lectura.</p>
+        </div>
+      </div>
+
       <div class="field-row">
         <div class="field">
           <p-floatlabel>
@@ -18,64 +98,130 @@
           </p-floatlabel>
         </div>
       </div>
-    }
 
-    <div class="field-row">
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="name" [(ngModel)]="name" [readonly]="clientDataReadonly()" [class.ng-invalid]="submitted && !name" style="width: 100%" placeholder=" " />
+          <label for="name">Nombre *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="identityDocument" [(ngModel)]="identityDocument" [readonly]="clientDataReadonly()" [class.ng-invalid]="submitted && !identityDocument" style="width: 100%" placeholder=" " />
+            <label for="identityDocument">Cedula *</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone" [readonly]="clientDataReadonly()" [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" placeholder=" " />
+            <label for="whatsappPhone">WhatsApp *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="fullAddress" [(ngModel)]="fullAddress" [readonly]="clientDataReadonly()" [class.ng-invalid]="submitted && !fullAddress" style="width: 100%" placeholder=" " />
+          <label for="fullAddress">Direccion *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        @if (canViewAllBranches()) {
+          <div class="field">
+            <p-select id="branch" [options]="branches" [(ngModel)]="branchId"
+                      optionLabel="name" optionValue="id"
+                      placeholder="Sucursal *" [style]="{'width':'100%'}" appendTo="body" />
+          </div>
+        }
+        <div class="field">
+          <p-select id="profile" [options]="profileOptions()" [(ngModel)]="profileId"
+                    optionLabel="name" optionValue="id"
+                    placeholder="Perfil *" [style]="{'width':'100%'}" appendTo="body" />
+        </div>
+      </div>
+    } @else if (showEmptyForm) {
+      <!-- NOT FOUND: empty form -->
+      <div class="not-found-banner">
+        <i class="pi pi-info-circle"></i>
+        <span>Persona no encontrada. Complete los datos para crear un nuevo registro.</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="email" [(ngModel)]="email" [class.ng-invalid]="submitted && !email" style="width: 100%" placeholder=" " />
+            <label for="email">Email *</label>
+          </p-floatlabel>
+        </div>
+        <div class="field">
+          <p-floatlabel>
+            <p-password id="password" [(ngModel)]="password" [toggleMask]="true" [class.ng-invalid]="submitted && !password" style="width: 100%" placeholder=" " />
+            <label for="password">Password *</label>
+          </p-floatlabel>
+        </div>
+      </div>
+
       <div class="field">
         <p-floatlabel>
           <input pInputText id="name" [(ngModel)]="name" [class.ng-invalid]="submitted && !name" style="width: 100%" placeholder=" " />
           <label for="name">Nombre *</label>
         </p-floatlabel>
       </div>
-      <div class="field">
-        <p-floatlabel>
-          <input pInputText id="code" [(ngModel)]="code" [class.ng-invalid]="submitted && !code" style="width: 100%" placeholder=" " />
-          <label for="code">Codigo *</label>
-        </p-floatlabel>
-      </div>
-    </div>
 
-    <div class="field-row">
-      <div class="field">
-        <p-floatlabel>
-          <input pInputText id="identityDocument" [(ngModel)]="identityDocument" [class.ng-invalid]="submitted && !identityDocument" style="width: 100%" placeholder=" " />
-          <label for="identityDocument">Cedula *</label>
-        </p-floatlabel>
-      </div>
-      <div class="field">
-        <p-floatlabel>
-          <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone" [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" placeholder=" " />
-          <label for="whatsappPhone">WhatsApp *</label>
-        </p-floatlabel>
-      </div>
-    </div>
-
-    <div class="field">
-      <p-floatlabel>
-        <input pInputText id="fullAddress" [(ngModel)]="fullAddress" style="width: 100%" placeholder=" " />
-        <label for="fullAddress">Direccion</label>
-      </p-floatlabel>
-    </div>
-
-    <div class="field-row">
-      @if (canViewAllBranches()) {
+      <div class="field-row">
         <div class="field">
-          <p-select id="branch" [options]="branches" [(ngModel)]="branchId"
-                    optionLabel="name" optionValue="id"
-                    placeholder="Sucursal *" [style]="{'width':'100%'}" />
+          <p-floatlabel>
+            <input pInputText id="identityDocument" [(ngModel)]="identityDocument" [class.ng-invalid]="submitted && !identityDocument" style="width: 100%" placeholder=" " />
+            <label for="identityDocument">Cedula *</label>
+          </p-floatlabel>
         </div>
-      }
-      <div class="field">
-        <p-select id="role" [options]="roleOptions" [(ngModel)]="roleCode"
-                  optionLabel="label" optionValue="value"
-                  placeholder="Rol *" [style]="{'width':'100%'}" />
+        <div class="field">
+          <p-floatlabel>
+            <input pInputText id="whatsappPhone" [(ngModel)]="whatsappPhone" [class.ng-invalid]="submitted && !whatsappPhone" style="width: 100%" placeholder=" " />
+            <label for="whatsappPhone">WhatsApp *</label>
+          </p-floatlabel>
+        </div>
       </div>
-    </div>
+
+      <div class="field">
+        <p-floatlabel>
+          <input pInputText id="fullAddress" [(ngModel)]="fullAddress" [class.ng-invalid]="submitted && !fullAddress" style="width: 100%" placeholder=" " />
+          <label for="fullAddress">Direccion *</label>
+        </p-floatlabel>
+      </div>
+
+      <div class="field-row">
+        @if (canViewAllBranches()) {
+          <div class="field">
+            <p-select id="branch" [options]="branches" [(ngModel)]="branchId"
+                      optionLabel="name" optionValue="id"
+                      placeholder="Sucursal *" [style]="{'width':'100%'}" appendTo="body" />
+          </div>
+        }
+        <div class="field">
+          <p-select id="profile" [options]="profileOptions()" [(ngModel)]="profileId"
+                    optionLabel="name" optionValue="id"
+                    placeholder="Perfil *" [style]="{'width':'100%'}" appendTo="body" />
+        </div>
+      </div>
+    }
   </div>
 
   <ng-template pTemplate="footer">
-    <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
-    <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Miembro'"
-              icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+    <div class="footer-left">
+      @if (!showSearch) {
+        <p-button label="Nueva busqueda" icon="pi pi-search" severity="secondary" size="small" (onClick)="resetSearch()" />
+      }
+    </div>
+    <div class="footer-right">
+      <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
+      @if (!showSearch && !showStaffWarning) {
+        <p-button [label]="isEditMode ? 'Guardar Cambios' : 'Crear Miembro'"
+                  icon="pi pi-check" [loading]="saving()" (onClick)="save()"></p-button>
+      }
+    </div>
   </ng-template>
 </p-dialog>

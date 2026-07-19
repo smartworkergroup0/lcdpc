@@ -84,8 +84,8 @@ func seedSuperUser(ctx context.Context, pool *pgxpool.Pool, cfg SeedConfig) erro
 	}
 
 	_, err = pool.Exec(ctx, `
-		INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc)
-		VALUES ($1, $2, $3, NULL, $4, $5, false, now(), now())
+		INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc)
+		VALUES ($1, $2, $3, NULL, $4, $5, false, true, now(), now())
 	`, personID, profileName, cfg.SuperUserIdentityDocument, cfg.SuperUserWhatsAppPhone, cfg.SuperUserFullAddress)
 	if err != nil {
 		return err

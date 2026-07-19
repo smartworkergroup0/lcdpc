@@ -191,3 +191,11 @@ if !middleware.HasPermission(r.Context(), s.rbac, "view:branch:all") && branchID
 - Backend stores images in `api/static/img/` with subdirectories: `products/`, `bundles/`, `config/`
 - `saveUploadedFile(file, ext, subDir string)` creates the subdirectory if it doesn't exist
 - `deleteOldFile(oldImg)` handles subdirectory paths correctly (trims `/static/img/` prefix, preserves subdirectory in the remaining path)
+
+### External API integrations (backend)
+- External API clients live in `api/internal/external/{service-name}/` (e.g., `external/assistant/`)
+- Each package contains: `client.go` (HTTP client), `models.go` (domain types), `handler.go` (LCDPC endpoints)
+- Config vars: `SMARTWORKER_API_URL`, `SMARTWORKER_USERNAME`, `SMARTWORKER_PASSWORD` (in `configs/config.go`)
+- Routes: `/api/v1/external/{service-name}/{resource}` (e.g., `/api/v1/external/assistant/leads`)
+- RBAC: permission code `{service-name}:view` (e.g., `assistant:view`)
+- Client handles JWT auth token caching and refresh automatically

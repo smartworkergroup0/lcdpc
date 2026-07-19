@@ -1113,8 +1113,8 @@ func (s *Service) createPersonFromOrderRequest(ctx context.Context, req CreateOr
 	}
 	var personID uuid.UUID
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, created_at_utc, updated_at_utc)
-		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, true, now(), now())
+		INSERT INTO persons (id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc)
+		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, true, false, now(), now())
 		RETURNING id
 	`, uuid.New(), name, doc, taxID, phone, address).Scan(&personID)
 	if err != nil {

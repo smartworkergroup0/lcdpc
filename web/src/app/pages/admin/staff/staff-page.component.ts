@@ -43,7 +43,6 @@ export class StaffPageComponent implements OnInit {
 
   protected readonly canCreate = computed(() => this.authStore.hasPermission('staff:create'));
   protected readonly canUpdate = computed(() => this.authStore.hasPermission('staff:update'));
-  protected readonly canDelete = computed(() => this.authStore.hasPermission('staff:delete'));
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
 
@@ -53,19 +52,12 @@ export class StaffPageComponent implements OnInit {
   protected readonly pageSize = 10;
 
   protected search = '';
-  protected selectedRoleCode = '';
 
   protected readonly detailVisible = signal(false);
   protected readonly selectedItem = signal<StaffMember | null>(null);
   protected readonly formVisible = signal(false);
   protected readonly editItem = signal<StaffMember | null>(null);
   protected readonly branches = signal<{ id: string; name: string }[]>([]);
-
-  protected readonly roleOptions = [
-    { label: 'Todos', value: '' },
-    { label: 'Staff', value: 'staff' },
-    { label: 'Manager', value: 'manager' },
-  ];
 
   ngOnInit(): void {
     this.loadBranches();
@@ -85,7 +77,6 @@ export class StaffPageComponent implements OnInit {
 
     const filters: Record<string, string> = {};
     if (this.search.trim()) filters['search'] = this.search.trim();
-    if (this.selectedRoleCode) filters['role_code'] = this.selectedRoleCode;
     if (!this.canViewAllBranches() && this.userBranchId()) {
       filters['branch_id'] = this.userBranchId()!;
     }
@@ -102,14 +93,6 @@ export class StaffPageComponent implements OnInit {
 
   applyFilters(): void {
     this.loadItems({ first: 0, rows: this.pageSize });
-  }
-
-  roleSeverity(code: string): 'success' | 'warn' | 'info' | 'secondary' {
-    switch (code) {
-      case 'manager': return 'warn';
-      case 'staff': return 'info';
-      default: return 'secondary';
-    }
   }
 
   statusSeverity(status: string): 'success' | 'danger' | 'secondary' {
@@ -158,25 +141,28 @@ export class StaffPageComponent implements OnInit {
   }
 
   confirmDelete(item: StaffMember): void {
+    const newStatus = item.status === 'Active' ? 'Inactivo' : 'Activo';
+    const action = item.status === 'Active' ? 'inactivar' : 'activar';
     this.confirmationService.confirm({
-      message: `¿Eliminar a <b>${item.profileName}</b>? Esta acción no se puede deshacer.`,
-      header: 'Confirmar eliminación',
+      message: `¿${action.charAt(0).toUpperCase() + action.slice(1)} a <b>${item.profileName}</b>?`,
+      header: `Confirmar ${action}`,
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Eliminar',
+      acceptLabel: action.charAt(0).toUpperCase() + action.slice(1),
       rejectLabel: 'Cancelar',
-      acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.doDelete(item),
+      acceptButtonStyleClass: item.status === 'Active' ? 'p-button-danger' : '',
+      accept: () => this.doToggleStatus(item),
     });
   }
 
-  private doDelete(item: StaffMember): void {
-    this.staffApi.delete(item.userId).subscribe({
+  private doToggleStatus(item: StaffMember): void {
+    this.staffApi.toggleStatus(item.userId).subscribe({
       next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Miembro eliminado' });
+        const action = item.status === 'Active' ? 'inactivado' : 'activado';
+        this.messageService.add({ severity: 'success', summary: 'Exito', detail: `Miembro ${action}` });
         this.applyFilters();
       },
       error: () => {
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo eliminar el miembro' });
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cambiar el estado' });
       },
     });
   }

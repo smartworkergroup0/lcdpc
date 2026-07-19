@@ -20,6 +20,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/dashboard"
 	"github.com/lcdpc/lcdpc-go/internal/db"
 	"github.com/lcdpc/lcdpc-go/internal/email"
+	assistant "github.com/lcdpc/lcdpc-go/internal/external/assistant"
 	httpserver "github.com/lcdpc/lcdpc-go/internal/http"
 	"github.com/lcdpc/lcdpc-go/internal/order"
 	"github.com/lcdpc/lcdpc-go/internal/person"
@@ -160,8 +161,9 @@ func main() {
 	dashboardSvc := dashboard.NewService(pool)
 	apiTokenSvc := apitoken.NewService(pool)
 	svcAccountSvc := serviceaccount.NewService(pool)
+	assistantClient := assistant.NewClient(cfg.SmartWorkerAPIURL, cfg.SmartWorkerUser, cfg.SmartWorkerPass)
 
-	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc, workflowSvc, frontendFS)
+	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc, workflowSvc, assistantClient, frontendFS)
 
 	addr := ":" + cfg.Port
 	srv := &http.Server{
