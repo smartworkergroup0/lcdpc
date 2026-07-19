@@ -30,7 +30,11 @@ function generateColorFromName(name: string): string {
 	standalone: true,
 	imports: [CommonModule, FormsModule, RouterLink, ButtonModule, PopoverModule, SelectModule, ToastModule],
 	templateUrl: './header.component.html',
-	styleUrl: './header.component.scss'
+	styleUrl: './header.component.scss',
+	host: {
+		'[class.admin-mode]': 'isAdminRoute()',
+		'[class.sidebar-collapsed]': 'sidebarCollapsed',
+	},
 })
 export class HeaderComponent {
 	private readonly authStore = inject(AuthStore);
@@ -43,6 +47,7 @@ export class HeaderComponent {
 
   @Input() branches: HeaderBranch[] = [];
   @Input() selectedBranchId = '';
+  @Input() sidebarCollapsed = false;
 
   @Output() branchChange = new EventEmitter<string>();
 

@@ -1,4 +1,4 @@
-@if (showStoreShell()) {
+@if (showStoreShell() && !isAdminRoute()) {
   <app-header
     [branches]="branchStore.branches()"
     [selectedBranchId]="branchStore.selectedBranchId()"
@@ -30,10 +30,12 @@
   </nav>
 
   <app-footer></app-footer>
-} @else {
+} @else if (!isAdminRoute()) {
   <main class="auth-shell auth-shell--page">
     <router-outlet></router-outlet>
   </main>
+} @else {
+  <router-outlet></router-outlet>
 }
 
 @if (loadingState.isLoading()) {

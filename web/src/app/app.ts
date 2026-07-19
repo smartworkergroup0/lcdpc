@@ -26,12 +26,14 @@ export class App implements OnInit {
 
   protected readonly showStoreShell = signal(!this.isAuthRoute(this.router.url));
   protected readonly isCartRoute = signal(this.router.url.startsWith('/cart'));
+  protected readonly isAdminRoute = signal(this.router.url.startsWith('/admin'));
 
   constructor() {
     const subscription = this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
       .subscribe((event) => {
         this.isCartRoute.set(event.urlAfterRedirects.startsWith('/cart'));
+        this.isAdminRoute.set(event.urlAfterRedirects.startsWith('/admin'));
         this.showStoreShell.set(!this.isAuthRoute(event.urlAfterRedirects));
       });
 

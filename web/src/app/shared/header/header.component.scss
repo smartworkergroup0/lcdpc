@@ -2,6 +2,17 @@
   display: block;
 }
 
+:host.admin-mode .topbar {
+  left: 260px;
+  width: calc(100% - 260px);
+  transition: left 0.25s ease, width 0.25s ease;
+}
+
+:host.admin-mode.sidebar-collapsed .topbar {
+  left: 80px;
+  width: calc(100% - 80px);
+}
+
 .topbar {
   position: fixed;
   top: 0;
@@ -19,7 +30,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  width: min(1280px, calc(100vw - 2rem));
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0.8rem 1rem;
   border-radius: 0 0 1rem 1rem;

@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthStore } from '../../core/auth/auth.store';
+import { BranchStore } from '../../core/stores/branch.store';
+import { HeaderComponent } from '../../shared/header/header.component';
 
 interface SubMenuItem {
   label: string;
@@ -20,17 +22,21 @@ interface MenuGroup {
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, HeaderComponent],
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.scss'
 })
 export class AdminLayoutComponent {
   private readonly authStore = inject(AuthStore);
+  private readonly branchStore = inject(BranchStore);
 
   protected readonly collapsed = signal(true);
   protected readonly configExpanded = signal(false);
   protected readonly peopleExpanded = signal(false);
   protected readonly assistantExpanded = signal(false);
+
+  protected readonly branches = this.branchStore.branches;
+  protected readonly selectedBranchId = this.branchStore.selectedBranchId;
 
   protected readonly userName = computed(() => this.authStore.currentUser()?.displayName ?? 'Admin');
 
@@ -123,5 +129,9 @@ export class AdminLayoutComponent {
     this.configExpanded.set(false);
     this.peopleExpanded.set(false);
     this.assistantExpanded.set(false);
+  }
+
+  protected onBranchChange(branchId: string): void {
+    this.branchStore.selectBranch(branchId);
   }
 }

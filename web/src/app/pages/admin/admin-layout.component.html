@@ -1,4 +1,11 @@
 <div class="admin-shell" [class.sidebar-collapsed]="collapsed()">
+  <app-header
+    [branches]="branches()"
+    [selectedBranchId]="selectedBranchId()"
+    [sidebarCollapsed]="collapsed()"
+    (branchChange)="onBranchChange($event)"
+  ></app-header>
+
   <aside class="admin-sidebar">
     <div class="sidebar-header">
       @if (!collapsed()) {
