@@ -31,7 +31,19 @@
           </div>
 
           <h2 class="detail-name">{{ product.name }}</h2>
-          <span class="detail-price">{{ product.price }}</span>
+
+          @if (product.priceOptions && product.priceOptions.length > 0) {
+            <div class="detail-price-select">
+              <span class="detail-price">{{ product.price }}</span>
+              <p-select [options]="product.priceOptions"
+                        [ngModel]="product.selectedPriceId"
+                        (onChange)="onPriceChange($event.value)"
+                        optionLabel="label" optionValue="id"
+                        appendTo="body" styleClass="price-select" />
+            </div>
+          } @else {
+            <span class="detail-price">{{ product.price || 'Sin precio' }}</span>
+          }
 
           @if (negativeStock || product.stockAvailable > 0) {
             <span class="detail-stock">{{ product.stockAvailable }} disponibles</span>

@@ -64,6 +64,24 @@
   color: var(--accent);
 }
 
+.detail-price-select {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.detail-price-select .detail-price {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .price-select .p-select {
+  min-width: 200px;
+}
+
 .detail-stock {
   font-size: 0.85rem;
   color: var(--text-soft);

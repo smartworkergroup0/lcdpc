@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
+import { SelectModule } from 'primeng/select';
+
+type PriceOption = { label: string; id: string; amount: number };
 
 type ProductCard = {
   id: string;
@@ -19,12 +22,14 @@ type ProductCard = {
   stockAvailable: number;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
+  priceOptions?: PriceOption[];
+  selectedPriceId?: string | null;
 };
 
 @Component({
   selector: 'app-product-detail-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, DialogModule, TagModule],
+  imports: [CommonModule, FormsModule, ButtonModule, DialogModule, TagModule, SelectModule],
   templateUrl: './product-detail-dialog.component.html',
   styleUrl: './product-detail-dialog.component.scss',
 })
@@ -34,7 +39,7 @@ export class ProductDetailDialogComponent implements OnChanges {
   @Input() negativeStock = false;
 
   @Output() visibleChange = new EventEmitter<boolean>();
-  @Output() addToCart = new EventEmitter<{ id: string; quantity: number }>();
+  @Output() addToCart = new EventEmitter<{ id: string; quantity: number; selectedPriceId: string | null }>();
 
   protected quantity = 1;
 
@@ -58,9 +63,18 @@ export class ProductDetailDialogComponent implements OnChanges {
     this.quantity = Math.max(1, this.quantity - 1);
   }
 
+  protected onPriceChange(id: string): void {
+    if (!this.product || !this.product.priceOptions) return;
+    const option = this.product.priceOptions.find(o => o.id === id);
+    if (option) {
+      this.product.selectedPriceId = id;
+      this.product.price = `$${option.amount.toFixed(2)}`;
+    }
+  }
+
   protected add(): void {
     if (!this.product) return;
-    this.addToCart.emit({ id: this.product.id, quantity: this.quantity });
+    this.addToCart.emit({ id: this.product.id, quantity: this.quantity, selectedPriceId: this.product.selectedPriceId ?? null });
     this.close();
   }
 

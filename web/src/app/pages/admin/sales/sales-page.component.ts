@@ -38,6 +38,8 @@ import { ProductDetailDialogComponent } from '../../../shared/product-detail-dia
 
 type CatalogItem = (Product & { itemType: 'product'; id: string }) | (Bundle & { itemType: 'bundle'; id: string });
 
+export type PriceOption = { label: string; id: string; amount: number };
+
 type DetailProductCard = {
   id: string;
   name: string;
@@ -52,6 +54,8 @@ type DetailProductCard = {
   stockAvailable: number;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
+  priceOptions: PriceOption[];
+  selectedPriceId: string | null;
 };
 
 @Component({
@@ -365,7 +369,7 @@ export class SalesPageComponent implements OnInit {
     }
   }
 
-  private async addProductToCart(product: Product, quantity: number = 1): Promise<void> {
+  private async addProductToCart(product: Product, quantity: number = 1, selectedPriceId?: string | null): Promise<void> {
     const stockAvailable = product.stock - product.stockBlocked;
     if (!this.systemConfigStore.negativeStock() && stockAvailable <= 0) {
       this.messageService.add({
@@ -387,8 +391,9 @@ export class SalesPageComponent implements OnInit {
         return;
       }
 
-      const price = prices[0];
-      const category = this.priceCategories().find(c => c.id === price.priceCategoryId);
+      const price = selectedPriceId
+        ? (prices.find(p => p.id === selectedPriceId) ?? prices[0])
+        : prices[0];
 
       const cartItem: SalesCartItem = {
         id: product.productId,
@@ -427,7 +432,7 @@ export class SalesPageComponent implements OnInit {
     }
   }
 
-  private async addBundleToCart(bundle: Bundle, quantity: number = 1): Promise<void> {
+  private async addBundleToCart(bundle: Bundle, quantity: number = 1, selectedPriceId?: string | null): Promise<void> {
     const stockAvailable = bundle.stock - bundle.stockBlocked;
     if (!this.systemConfigStore.negativeStock() && stockAvailable <= 0) {
       this.messageService.add({
@@ -448,18 +453,22 @@ export class SalesPageComponent implements OnInit {
       return;
     }
 
+    const price = selectedPriceId
+      ? (bundle.prices.find(p => p.id === selectedPriceId) ?? firstPrice)
+      : firstPrice;
+
     const cartItem: SalesCartItem = {
       id: bundle.bundleId,
       itemType: 'bundle',
       name: bundle.name,
       sku: bundle.code,
       imageUrl: bundle.img ?? null,
-      unitPrice: firstPrice.amount,
+      unitPrice: price.amount,
       quantity,
       stockAvailable,
       stock: bundle.stock,
-      priceCategoryId: firstPrice.priceCategoryId ?? null,
-      selectedPriceId: firstPrice.id,
+      priceCategoryId: price.priceCategoryId ?? null,
+      selectedPriceId: price.id,
     };
 
     if (!this.salesCart.addItem(cartItem)) {
@@ -488,27 +497,56 @@ export class SalesPageComponent implements OnInit {
   }
 
   openDetail(item: CatalogItem): void {
-    let card: DetailProductCard;
     if (item.itemType === 'product') {
       const p = item as Product;
-      card = {
-        id: p.productId,
-        name: p.name,
-        price: '',
-        description: '',
-        imageUrl: p.img ?? '',
-        alt: p.name,
-        category: this.categoryStore.getCategoryName(p.categoryId),
-        quantity: 1,
-        stockAvailable: p.stock - p.stockBlocked,
-        itemType: 'product',
-      };
+      this.priceApi.listByProductId(p.productId).subscribe({
+        next: (prices) => {
+          const options = this.buildPriceOptions(prices);
+          const selected = options.length > 0 ? options[0] : null;
+          const card: DetailProductCard = {
+            id: p.productId,
+            name: p.name,
+            price: selected ? `$${selected.amount.toFixed(2)}` : '',
+            description: '',
+            imageUrl: p.img ?? '',
+            alt: p.name,
+            category: this.categoryStore.getCategoryName(p.categoryId),
+            quantity: 1,
+            stockAvailable: p.stock - p.stockBlocked,
+            itemType: 'product',
+            priceOptions: options,
+            selectedPriceId: selected?.id ?? null,
+          };
+          this.detailProduct.set(card);
+          this.detailVisible.set(true);
+        },
+        error: () => {
+          const card: DetailProductCard = {
+            id: p.productId,
+            name: p.name,
+            price: '',
+            description: '',
+            imageUrl: p.img ?? '',
+            alt: p.name,
+            category: this.categoryStore.getCategoryName(p.categoryId),
+            quantity: 1,
+            stockAvailable: p.stock - p.stockBlocked,
+            itemType: 'product',
+            priceOptions: [],
+            selectedPriceId: null,
+          };
+          this.detailProduct.set(card);
+          this.detailVisible.set(true);
+        },
+      });
     } else {
       const b = item as Bundle;
-      card = {
+      const options = this.buildBundlePriceOptions(b.prices);
+      const selected = options.length > 0 ? options[0] : null;
+      const card: DetailProductCard = {
         id: b.bundleId,
         name: b.name,
-        price: '',
+        price: selected ? `$${selected.amount.toFixed(2)}` : '',
         description: '',
         imageUrl: b.img ?? '',
         alt: b.name,
@@ -517,21 +555,39 @@ export class SalesPageComponent implements OnInit {
         stockAvailable: b.stock - b.stockBlocked,
         itemType: 'bundle',
         items: b.items?.map(i => ({ name: i.productId, quantity: i.quantity })),
+        priceOptions: options,
+        selectedPriceId: selected?.id ?? null,
       };
+      this.detailProduct.set(card);
+      this.detailVisible.set(true);
     }
-    this.detailProduct.set(card);
-    this.detailVisible.set(true);
   }
 
-  onDetailAddToCart(event: { id: string; quantity: number }): void {
+  private buildPriceOptions(prices: ProductBranchPrice[]): PriceOption[] {
+    return prices.map(p => {
+      const cat = this.priceCategories().find(c => c.id === p.priceCategoryId);
+      const name = cat?.name ?? 'Precio base';
+      return { label: `${name} — $${p.amount.toFixed(2)}`, id: p.id, amount: p.amount };
+    });
+  }
+
+  private buildBundlePriceOptions(prices: { id: string; priceCategoryId: string | null; amount: number }[]): PriceOption[] {
+    return prices.map(p => {
+      const cat = this.priceCategories().find(c => c.id === p.priceCategoryId);
+      const name = cat?.name ?? 'Precio base';
+      return { label: `${name} — $${p.amount.toFixed(2)}`, id: p.id, amount: p.amount };
+    });
+  }
+
+  onDetailAddToCart(event: { id: string; quantity: number; selectedPriceId: string | null }): void {
     const product = this.allProducts().find(p => p.productId === event.id);
     if (product) {
-      this.addProductToCart(product, event.quantity);
+      this.addProductToCart(product, event.quantity, event.selectedPriceId);
       return;
     }
     const bundle = this.allBundles().find(b => b.bundleId === event.id);
     if (bundle) {
-      this.addBundleToCart(bundle, event.quantity);
+      this.addBundleToCart(bundle, event.quantity, event.selectedPriceId);
     }
   }
 
