@@ -16,7 +16,7 @@ import { TagModule } from 'primeng/tag';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../core/auth/auth.store';
-import { SalesCartStore, SalesCartItem } from '../../../core/stores/sales-cart.store';
+import { SalesCartStore, SalesCartItem, CartPriceOption } from '../../../core/stores/sales-cart.store';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
 import { CategoryStore } from '../../../core/stores/category.store';
 import { ProductApiService } from '../../../core/services/product-api.service';
@@ -395,6 +395,8 @@ export class SalesPageComponent implements OnInit {
         ? (prices.find(p => p.id === selectedPriceId) ?? prices[0])
         : prices[0];
 
+      const options = this.buildPriceOptions(prices);
+
       const cartItem: SalesCartItem = {
         id: product.productId,
         itemType: 'product',
@@ -407,6 +409,7 @@ export class SalesPageComponent implements OnInit {
         stock: product.stock,
         priceCategoryId: price.priceCategoryId ?? null,
         selectedPriceId: price.id,
+        priceOptions: options,
       };
 
       if (!this.salesCart.addItem(cartItem)) {
@@ -457,6 +460,8 @@ export class SalesPageComponent implements OnInit {
       ? (bundle.prices.find(p => p.id === selectedPriceId) ?? firstPrice)
       : firstPrice;
 
+    const options = this.buildBundlePriceOptions(bundle.prices);
+
     const cartItem: SalesCartItem = {
       id: bundle.bundleId,
       itemType: 'bundle',
@@ -469,6 +474,7 @@ export class SalesPageComponent implements OnInit {
       stock: bundle.stock,
       priceCategoryId: price.priceCategoryId ?? null,
       selectedPriceId: price.id,
+      priceOptions: options,
     };
 
     if (!this.salesCart.addItem(cartItem)) {
@@ -494,6 +500,17 @@ export class SalesPageComponent implements OnInit {
 
   canDecrement(item: SalesCartItem): boolean {
     return item.quantity > 1;
+  }
+
+  onCartPriceChange(itemId: string, priceId: string): void {
+    const item = this.salesCart.items().find(i => i.id === itemId);
+    if (!item) return;
+    const option = item.priceOptions.find(o => o.id === priceId);
+    if (!option) return;
+    const priceCatId = item.priceOptions.length > 0
+      ? this.priceCategories().find(c => option.label.startsWith(c.name))?.id ?? null
+      : null;
+    this.salesCart.updateItemPrice(itemId, option.amount, priceId, priceCatId);
   }
 
   openDetail(item: CatalogItem): void {

@@ -264,6 +264,12 @@
   gap: 0.25rem;
 }
 
+.cart-item-controls ::ng-deep .cart-price-select .p-select {
+  min-width: 160px;
+  max-width: 200px;
+  font-size: 0.78rem;
+}
+
 .cart-item-qty {
   min-width: 24px;
   text-align: center;

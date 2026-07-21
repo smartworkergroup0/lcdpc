@@ -138,7 +138,6 @@
         <div class="cart-item">
           <div class="cart-item-info">
             <span class="cart-item-name">{{ item.name }}</span>
-            <span class="cart-item-price">${{ item.unitPrice.toFixed(2) }}</span>
           </div>
           <div class="cart-item-controls">
             <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small"
@@ -148,6 +147,15 @@
             <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small"
                       [disabled]="!canIncrement(item)"
                       (onClick)="salesCart.incrementItem(item.id)" />
+            @if (item.priceOptions.length > 0) {
+              <p-select [options]="item.priceOptions"
+                        [ngModel]="item.selectedPriceId"
+                        (onChange)="onCartPriceChange(item.id, $event.value)"
+                        optionLabel="label" optionValue="id"
+                        appendTo="body" styleClass="cart-price-select" />
+            } @else {
+              <span class="cart-item-price">${{ item.unitPrice.toFixed(2) }}</span>
+            }
             <p-button icon="pi pi-trash" [text]="true" [rounded]="true" size="small"
                       severity="danger" (onClick)="salesCart.removeItem(item.id)" />
           </div>

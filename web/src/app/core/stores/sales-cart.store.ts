@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { SystemConfigStore } from './system-config.store';
 
+export type CartPriceOption = { label: string; id: string; amount: number };
+
 export interface SalesCartItem {
   id: string;
   itemType: 'product' | 'bundle';
@@ -13,6 +15,7 @@ export interface SalesCartItem {
   stock: number;
   priceCategoryId: string | null;
   selectedPriceId: string | null;
+  priceOptions: CartPriceOption[];
 }
 
 @Injectable({ providedIn: 'root' })
