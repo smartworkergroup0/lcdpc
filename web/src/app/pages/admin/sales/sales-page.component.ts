@@ -365,7 +365,7 @@ export class SalesPageComponent implements OnInit {
     }
   }
 
-  private async addProductToCart(product: Product): Promise<void> {
+  private async addProductToCart(product: Product, quantity: number = 1): Promise<void> {
     const stockAvailable = product.stock - product.stockBlocked;
     if (!this.systemConfigStore.negativeStock() && stockAvailable <= 0) {
       this.messageService.add({
@@ -397,7 +397,7 @@ export class SalesPageComponent implements OnInit {
         sku: product.sku,
         imageUrl: product.img ?? null,
         unitPrice: price.amount,
-        quantity: 1,
+        quantity,
         stockAvailable,
         stock: product.stock,
         priceCategoryId: price.priceCategoryId ?? null,
@@ -416,7 +416,7 @@ export class SalesPageComponent implements OnInit {
       this.messageService.add({
         severity: 'success',
         summary: 'Agregado',
-        detail: `${product.name} x1`,
+        detail: `${product.name} x${quantity}`,
       });
     } catch {
       this.messageService.add({
@@ -427,7 +427,7 @@ export class SalesPageComponent implements OnInit {
     }
   }
 
-  private async addBundleToCart(bundle: Bundle): Promise<void> {
+  private async addBundleToCart(bundle: Bundle, quantity: number = 1): Promise<void> {
     const stockAvailable = bundle.stock - bundle.stockBlocked;
     if (!this.systemConfigStore.negativeStock() && stockAvailable <= 0) {
       this.messageService.add({
@@ -455,7 +455,7 @@ export class SalesPageComponent implements OnInit {
       sku: bundle.code,
       imageUrl: bundle.img ?? null,
       unitPrice: firstPrice.amount,
-      quantity: 1,
+      quantity,
       stockAvailable,
       stock: bundle.stock,
       priceCategoryId: firstPrice.priceCategoryId ?? null,
@@ -474,7 +474,7 @@ export class SalesPageComponent implements OnInit {
     this.messageService.add({
       severity: 'success',
       summary: 'Agregado',
-      detail: `${bundle.name} x1`,
+      detail: `${bundle.name} x${quantity}`,
     });
   }
 
@@ -526,12 +526,12 @@ export class SalesPageComponent implements OnInit {
   onDetailAddToCart(event: { id: string; quantity: number }): void {
     const product = this.allProducts().find(p => p.productId === event.id);
     if (product) {
-      this.addProductToCart(product);
+      this.addProductToCart(product, event.quantity);
       return;
     }
     const bundle = this.allBundles().find(b => b.bundleId === event.id);
     if (bundle) {
-      this.addBundleToCart(bundle);
+      this.addBundleToCart(bundle, event.quantity);
     }
   }
 

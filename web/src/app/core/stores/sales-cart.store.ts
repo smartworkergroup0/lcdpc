@@ -50,7 +50,7 @@ export class SalesCartStore {
     this._items.update(items => {
       const existing = items.find(i => i.id === item.id);
       if (existing) {
-        const newQty = existing.quantity + 1;
+        const newQty = existing.quantity + item.quantity;
         if (!this.systemConfigStore.negativeStock() && newQty > item.stockAvailable) {
           return items;
         }
@@ -58,7 +58,7 @@ export class SalesCartStore {
           i.id === item.id ? { ...i, quantity: newQty } : i
         );
       }
-      return [...items, { ...item, quantity: 1 }];
+      return [...items, item];
     });
     return true;
   }
