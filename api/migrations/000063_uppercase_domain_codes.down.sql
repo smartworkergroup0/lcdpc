@@ -1,0 +1,2 @@
+-- This migration cannot be reversed safely as original case information is lost
+-- Intentionally left empty

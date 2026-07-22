@@ -9,6 +9,7 @@
     <tr>
       <th>Nombre</th>
       <th>Codigo</th>
+      <th>Stock Decimal</th>
       @if (canModify()) {
         <th style="width: 120px">Acciones</th>
       }
@@ -18,6 +19,13 @@
     <tr>
       <td>{{ item.name }}</td>
       <td><code>{{ item.code }}</code></td>
+      <td>
+        @if (item.canDecimalStock) {
+          <p-tag value="Si" severity="success" />
+        } @else {
+          <p-tag value="No" severity="secondary" />
+        }
+      </td>
       @if (canModify()) {
       <td>
         @if (canUpdate()) {
@@ -34,7 +42,7 @@
   </ng-template>
   <ng-template pTemplate="emptymessage">
     <tr>
-      <td [attr.colspan]="canModify() ? 3 : 2" class="empty-state">No hay clasificaciones registradas</td>
+      <td [attr.colspan]="canModify() ? 4 : 3" class="empty-state">No hay clasificaciones registradas</td>
     </tr>
   </ng-template>
 </p-table>

@@ -85,7 +85,8 @@
           <p-select class="product-field" [options]="products()" [(ngModel)]="item.product_id"
                     optionLabel="name" optionValue="productId"
                     placeholder="Producto" (onChange)="onProductSelect(i)" />
-          <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1" [maxFractionDigits]="2"
+          <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1"
+                         [maxFractionDigits]="getItemMaxFractionDigits(i)"
                          placeholder="Cant." />
           <p-select class="price-field" [options]="item.priceOptions"
                     [(ngModel)]="item.selectedPriceId" optionLabel="label" optionValue="id"

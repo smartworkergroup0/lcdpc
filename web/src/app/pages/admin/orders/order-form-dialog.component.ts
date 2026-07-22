@@ -11,6 +11,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
+import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
+import { MeasurementUnitApiService } from '../../../core/services/measurement-unit-api.service';
 import { AppUser } from '../../../core/models/user.model';
 import { Person } from '../../../core/models/person.model';
 import { DOCUMENT_TYPE_OPTIONS } from '../../../core/models/document-type.model';
@@ -21,6 +23,7 @@ import { ProductApiService } from '../../../core/services/product-api.service';
 import { PriceApiService } from '../../../core/services/price-api.service';
 import { PriceCategoryApiService } from '../../../core/services/price-category-api.service';
 import { Product } from '../../../core/models/product.model';
+import { MeasurementUnit } from '../../../core/models/measurement-unit.model';
 import { PriceCategory } from '../../../core/models/price-category.model';
 import { ProductBranchPrice } from '../../../core/models/price.model';
 import { CreateOrderRequest } from '../../../core/models/order.model';
@@ -60,6 +63,8 @@ export class OrderFormDialogComponent implements OnChanges {
 
   private readonly authStore = inject(AuthStore);
   private readonly systemConfigStore = inject(SystemConfigStore);
+  private readonly classificationStore = inject(MeasurementUnitClassificationStore);
+  private readonly unitApi = inject(MeasurementUnitApiService);
   private readonly userApi = inject(UserApiService);
   private readonly personApi = inject(PersonApiService);
   private readonly orderApi = inject(OrderApiService);
@@ -74,6 +79,7 @@ export class OrderFormDialogComponent implements OnChanges {
     this.authStore.hasPermission('client:create') && this.authStore.hasPermission('client:update')
   );
   protected readonly products = signal<Product[]>([]);
+  protected readonly allUnits = signal<MeasurementUnit[]>([]);
   protected readonly priceCategories = signal<PriceCategory[]>([]);
   protected readonly DOCUMENT_TYPE_OPTIONS = DOCUMENT_TYPE_OPTIONS;
   protected submitted = false;
@@ -146,6 +152,16 @@ export class OrderFormDialogComponent implements OnChanges {
     return `Disponible: ${available} | Bloqueado: ${product.stockBlocked} | Total: ${product.stock}`;
   }
 
+  protected getItemMaxFractionDigits(index: number): number {
+    const item = this.form.items[index];
+    if (!item?.product_id) return 0;
+    const product = this.products().find((p) => p.productId === item.product_id);
+    if (!product?.baseUnitId) return 0;
+    const unit = this.allUnits().find((u) => u.id === product.baseUnitId);
+    if (!unit?.classificationId) return 0;
+    return this.classificationStore.canDecimalStock(unit.classificationId) ? 2 : 0;
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
       this.form = this.emptyForm();
@@ -159,6 +175,11 @@ export class OrderFormDialogComponent implements OnChanges {
       this.showClientDialog.set(false);
       this.products.set([]);
       this.submitted = false;
+
+      this.classificationStore.load();
+      this.unitApi.list().subscribe({
+        next: (units) => this.allUnits.set(units),
+      });
 
       this.priceCategoryApi.list().subscribe({
         next: (cats) => this.priceCategories.set(cats),

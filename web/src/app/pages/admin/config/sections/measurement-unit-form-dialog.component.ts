@@ -99,6 +99,10 @@ export class MeasurementUnitFormDialogComponent implements OnChanges {
     this.submitted = true;
     if (!this.form.name || !this.form.code) return;
 
+    this.form.code = this.form.code.toUpperCase();
+    if (this.form.symbol) {
+      this.form.symbol = this.form.symbol.toUpperCase();
+    }
     this.saving.set(true);
     const operation = this.isEditMode
       ? this.unitApi.update(this.item!.id, this.form)

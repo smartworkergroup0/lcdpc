@@ -3,6 +3,7 @@ package category
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ type CreateCategoryRequest struct {
 }
 
 func (s *Service) Create(ctx context.Context, req CreateCategoryRequest) (*Category, error) {
+	req.Code = strings.ToUpper(req.Code)
 	c := &Category{}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO categories (category_id, name, code, created_at_utc, updated_at_utc)
@@ -85,6 +87,7 @@ func (s *Service) List(ctx context.Context) ([]Category, error) {
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, req CreateCategoryRequest) (*Category, error) {
+	req.Code = strings.ToUpper(req.Code)
 	c := &Category{}
 	err := s.pool.QueryRow(ctx, `
 		UPDATE categories SET name = $2, code = $3, updated_at_utc = now()

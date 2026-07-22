@@ -23,6 +23,7 @@ import { MeasurementUnitApiService } from '../../../core/services/measurement-un
 import { PriceCategoryApiService } from '../../../core/services/price-category-api.service';
 import { CategoryStore } from '../../../core/stores/category.store';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
+import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
 
 type PriceRow = {
   price_category_id: string | null;
@@ -57,6 +58,7 @@ export class ProductFormDialogComponent implements OnChanges {
 
   private readonly authStore = inject(AuthStore);
   private readonly systemConfigStore = inject(SystemConfigStore);
+  private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly productApi = inject(ProductApiService);
   private readonly priceApi = inject(PriceApiService);
   private readonly conversionApi = inject(ConversionFactorApiService);
@@ -74,6 +76,7 @@ export class ProductFormDialogComponent implements OnChanges {
   protected readonly allUnits = signal<MeasurementUnit[]>([]);
   protected readonly measurementUnits = signal<{ label: string; value: string }[]>([]);
   protected readonly priceCategories = signal<{ label: string; value: string }[]>([]);
+  protected readonly canDecimalStockForStock = signal(false);
 
   protected submitted = false;
   protected imageFile: File | null = null;
@@ -154,6 +157,7 @@ export class ProductFormDialogComponent implements OnChanges {
   }
 
   private loadData(): void {
+    this.classificationStore.load();
     forkJoin({
       branches: this.branchApi.listAdmin(),
       brands: this.brandApi.list(),
@@ -173,15 +177,17 @@ export class ProductFormDialogComponent implements OnChanges {
         })));
         this.priceCategories.set(categories.map((c) => ({ label: c.name, value: c.id })));
 
-        const retail = categories.find((c) => c.code === 'retail');
+        const retail = categories.find((c) => c.code === 'RETAIL');
         this.retailCategoryId = retail?.id ?? null;
 
         if (!this.isEditMode) {
-          const retail = categories.find((c) => c.code === 'retail');
+          const retail = categories.find((c) => c.code === 'RETAIL');
           if (retail && this.prices.length === 1 && !this.prices[0].price_category_id) {
             this.prices[0].price_category_id = retail.id;
           }
         }
+
+        this.updateCanDecimalStock();
       },
     });
   }
@@ -190,6 +196,11 @@ export class ProductFormDialogComponent implements OnChanges {
     if (!unitId) return null;
     const unit = this.allUnits().find((u) => u.id === unitId);
     return unit?.classificationId ?? null;
+  }
+
+  private updateCanDecimalStock(): void {
+    const classId = this.getClassificationId(this.form.base_unit_id);
+    this.canDecimalStockForStock.set(this.classificationStore.canDecimalStock(classId));
   }
 
   private loadExistingPricesAndConversions(): void {
@@ -271,6 +282,7 @@ export class ProductFormDialogComponent implements OnChanges {
     }
 
     this.previousClassificationId = newClassificationId;
+    this.updateCanDecimalStock();
   }
 
   onFileSelect(event: Event): void {
@@ -320,6 +332,7 @@ export class ProductFormDialogComponent implements OnChanges {
 
     this.saving.set(true);
 
+    this.form.sku = this.form.sku.toUpperCase();
     const req: CreateProductRequest = {
       ...this.form,
       is_active: this.isEditMode ? this.product!.isActive : true,

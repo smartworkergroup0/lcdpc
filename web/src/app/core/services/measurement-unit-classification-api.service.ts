@@ -14,6 +14,7 @@ interface MeasurementUnitClassificationGoData {
   id: string;
   name: string;
   code: string;
+  can_decimal_stock: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -65,6 +66,7 @@ export class MeasurementUnitClassificationApiService {
       id: raw.id,
       name: raw.name,
       code: raw.code,
+      canDecimalStock: raw.can_decimal_stock,
     };
   }
 }

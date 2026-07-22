@@ -3,6 +3,7 @@ package branch
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,6 +68,7 @@ type UpdateBranchRequest struct {
 }
 
 func (s *Service) Create(ctx context.Context, req CreateBranchRequest) (*Branch, error) {
+	req.Code = strings.ToUpper(req.Code)
 	var secPhone *string
 	if req.SecondaryContactPhone != "" {
 		secPhone = &req.SecondaryContactPhone

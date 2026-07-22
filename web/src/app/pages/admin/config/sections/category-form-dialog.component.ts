@@ -79,6 +79,7 @@ export class CategoryFormDialogComponent implements OnChanges {
     this.submitted = true;
     if (!this.form.name || !this.form.code) return;
 
+    this.form.code = this.form.code.toUpperCase();
     this.saving.set(true);
     const operation = this.isEditMode
       ? this.categoryApi.update(this.category!.categoryId, this.form)

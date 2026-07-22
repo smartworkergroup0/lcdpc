@@ -151,7 +151,7 @@ export class LandingPageComponent implements OnInit {
       priceCategories: this.priceCategoryApi.list(),
     }).subscribe({
       next: ({ products, bundles, priceCategories }) => {
-          const retailCategory = priceCategories.find((c) => c.code === 'retail');
+          const retailCategory = priceCategories.find((c) => c.code === 'RETAIL');
           const retailCategoryId = retailCategory?.id ?? null;
 
           const productMap = new Map(products.items.map((p) => [p.productId, p.name]));

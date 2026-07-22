@@ -42,6 +42,7 @@
       <div class="field">
         <p-floatlabel>
           <p-inputNumber id="stock" [(ngModel)]="form.stock" [min]="0" [useGrouping]="false"
+                         [maxFractionDigits]="0"
                          style="width: 100%" placeholder=" " />
           <label for="stock">Stock</label>
         </p-floatlabel>
@@ -67,7 +68,8 @@
           <p-select class="product-field" [options]="availableProducts" [(ngModel)]="item.product_id"
                     optionLabel="name" optionValue="productId"
                     placeholder="Producto" />
-          <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1" [maxFractionDigits]="2"
+          <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1"
+                         [maxFractionDigits]="getItemDecimalStock(i) ? 2 : 0"
                          placeholder="Cant." />
           <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
                     (onClick)="removeItem(i)"></p-button>

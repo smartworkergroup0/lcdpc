@@ -1,0 +1,1 @@
+ALTER TABLE measurement_unit_classifications DROP COLUMN can_decimal_stock;

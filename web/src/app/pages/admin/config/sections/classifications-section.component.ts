@@ -6,6 +6,7 @@ import { TableModule } from 'primeng/table';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
+import { TagModule } from 'primeng/tag';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../../core/auth/auth.store';
 import { MeasurementUnitClassificationApiService } from '../../../../core/services/measurement-unit-classification-api.service';
@@ -17,7 +18,7 @@ import { ClassificationFormDialogComponent } from './classification-form-dialog.
   standalone: true,
   imports: [
     CommonModule, FormsModule, ButtonModule, TableModule,
-    ConfirmDialogModule, ToastModule, TooltipModule,
+    ConfirmDialogModule, ToastModule, TooltipModule, TagModule,
     ClassificationFormDialogComponent,
   ],
   providers: [ConfirmationService, MessageService],

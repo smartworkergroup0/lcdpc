@@ -16,9 +16,12 @@ import { ProductApiService } from '../../../core/services/product-api.service';
 import { BundleApiService } from '../../../core/services/bundle-api.service';
 import { PriceApiService } from '../../../core/services/price-api.service';
 import { PriceCategoryApiService } from '../../../core/services/price-category-api.service';
+import { MeasurementUnitApiService } from '../../../core/services/measurement-unit-api.service';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
+import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
 import { Product } from '../../../core/models/product.model';
 import { Bundle } from '../../../core/models/bundle.model';
+import { MeasurementUnit } from '../../../core/models/measurement-unit.model';
 import { PriceCategory } from '../../../core/models/price-category.model';
 import { ProductBranchPrice } from '../../../core/models/price.model';
 import {
@@ -76,12 +79,15 @@ export class OrderItemsDialogComponent implements OnChanges {
   private readonly bundleApi = inject(BundleApiService);
   private readonly priceApi = inject(PriceApiService);
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
+  private readonly unitApi = inject(MeasurementUnitApiService);
+  private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly systemConfigStore = inject(SystemConfigStore);
   private readonly messageService = inject(MessageService);
 
   protected readonly saving = signal(false);
   protected readonly products = signal<Product[]>([]);
   protected readonly bundles = signal<Bundle[]>([]);
+  protected readonly allUnits = signal<MeasurementUnit[]>([]);
   protected readonly priceCategories = signal<PriceCategory[]>([]);
   protected items: EditableOrderItem[] = [];
   protected notes = '';
@@ -156,6 +162,11 @@ export class OrderItemsDialogComponent implements OnChanges {
       this.submitted = false;
       this.notes = this.order.notes ?? '';
       this.items = [];
+
+      this.classificationStore.load();
+      this.unitApi.list().subscribe({
+        next: (units) => this.allUnits.set(units),
+      });
 
       this.productApi.list({ branch_id: this.order.branchId, limit: 100 }).subscribe({
         next: (res) => this.products.set(res.items.filter((p) => p.isActive)),
@@ -321,6 +332,16 @@ export class OrderItemsDialogComponent implements OnChanges {
   protected isOverStock(item: EditableOrderItem): boolean {
     if (this.systemConfigStore.negativeStock()) return false;
     return this.checkStockIssue(item);
+  }
+
+  protected getItemMaxFractionDigits(item: EditableOrderItem): number {
+    if (item.itemType === 'bundle') return 0;
+    if (!item.productId) return 0;
+    const product = this.products().find((p) => p.productId === item.productId);
+    if (!product?.baseUnitId) return 0;
+    const unit = this.allUnits().find((u) => u.id === product.baseUnitId);
+    if (!unit?.classificationId) return 0;
+    return this.classificationStore.canDecimalStock(unit.classificationId) ? 2 : 0;
   }
 
   protected onPriceOptionSelect(item: EditableOrderItem, id: string): void {

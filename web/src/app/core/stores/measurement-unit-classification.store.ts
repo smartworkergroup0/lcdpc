@@ -21,6 +21,10 @@ export class MeasurementUnitClassificationStore {
     () => new Map(this._classifications().map((c) => [c.id, c.name]))
   );
 
+  readonly classificationDecimalMap = computed(
+    () => new Map(this._classifications().map((c) => [c.id, c.canDecimalStock]))
+  );
+
   readonly classificationOptions = computed(() =>
     this._classifications().map((c) => ({ label: c.name, value: c.id }))
   );
@@ -42,6 +46,11 @@ export class MeasurementUnitClassificationStore {
   getClassificationName(id: string | null): string {
     if (!id) return 'Sin clasificación';
     return this.classificationMap().get(id) ?? 'Sin clasificación';
+  }
+
+  canDecimalStock(classificationId: string | null | undefined): boolean {
+    if (!classificationId) return false;
+    return this.classificationDecimalMap().get(classificationId) ?? false;
   }
 
   refresh(): void {

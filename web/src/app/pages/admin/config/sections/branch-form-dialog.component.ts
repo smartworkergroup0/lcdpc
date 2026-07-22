@@ -273,6 +273,7 @@ export class BranchFormDialogComponent implements OnChanges {
         },
       });
     } else {
+      this.form.code = this.form.code.toUpperCase();
       const req: CreateBranchRequest = {
         code: this.form.code,
         store_name: this.form.store_name,

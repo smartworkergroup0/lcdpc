@@ -46,7 +46,7 @@
                         optionLabel="name" optionValue="productId"
                         placeholder="Producto" (onChange)="onProductSelect(item)" />
               <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1"
-                             [maxFractionDigits]="2" placeholder="Cant." />
+                             [maxFractionDigits]="getItemMaxFractionDigits(item)" placeholder="Cant." />
               <p-select class="price-field" [options]="item.priceOptions"
                         [(ngModel)]="item.selectedPriceId" optionLabel="label" optionValue="id"
                         (onChange)="onPriceOptionSelect(item, $event.value)"
@@ -103,7 +103,7 @@
                         optionLabel="name" optionValue="bundleId"
                         placeholder="Combo" (onChange)="onBundleSelect(item)" />
               <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1"
-                             [maxFractionDigits]="2" placeholder="Cant." />
+                             [maxFractionDigits]="0" placeholder="Cant." />
               <span class="price-field item-price">{{ item.unitPrice | currency:order.currency }}</span>
               <span class="item-subtotal">{{ (item.quantity * item.unitPrice) | currency:order.currency }}</span>
               <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger"

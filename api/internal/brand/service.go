@@ -3,6 +3,7 @@ package brand
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ type CreateBrandRequest struct {
 }
 
 func (s *Service) Create(ctx context.Context, req CreateBrandRequest) (*Brand, error) {
+	req.Code = strings.ToUpper(req.Code)
 	b := &Brand{}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO brands (id, name, code, created_at_utc, updated_at_utc)
@@ -77,6 +79,7 @@ func (s *Service) List(ctx context.Context) ([]Brand, error) {
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, req CreateBrandRequest) (*Brand, error) {
+	req.Code = strings.ToUpper(req.Code)
 	b := &Brand{}
 	err := s.pool.QueryRow(ctx, `
 		UPDATE brands SET name = $2, code = $3, updated_at_utc = now()

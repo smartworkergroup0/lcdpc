@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { FloatLabelModule } from 'primeng/floatlabel';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MeasurementUnitClassification, CreateMeasurementUnitClassificationRequest } from '../../../../core/models/measurement-unit-classification.model';
 import { MeasurementUnitClassificationApiService } from '../../../../core/services/measurement-unit-classification-api.service';
 
@@ -13,7 +14,7 @@ import { MeasurementUnitClassificationApiService } from '../../../../core/servic
   standalone: true,
   imports: [
     CommonModule, FormsModule, ButtonModule, DialogModule,
-    InputTextModule, FloatLabelModule,
+    InputTextModule, FloatLabelModule, CheckboxModule,
   ],
   template: `
     <p-dialog [header]="isEditMode ? 'Editar Clasificacion' : 'Nueva Clasificacion'"
@@ -35,6 +36,10 @@ import { MeasurementUnitClassificationApiService } from '../../../../core/servic
             <label for="code">Codigo *</label>
           </p-floatlabel>
         </div>
+        <div class="field-checkbox">
+          <p-checkbox [(ngModel)]="form.canDecimalStock" [binary]="true" inputId="canDecimalStock" />
+          <label for="canDecimalStock">Permitir stock decimal</label>
+        </div>
       </div>
       <ng-template pTemplate="footer">
         <p-button label="Cancelar" severity="secondary" (onClick)="close()"></p-button>
@@ -43,7 +48,7 @@ import { MeasurementUnitClassificationApiService } from '../../../../core/servic
       </ng-template>
     </p-dialog>
   `,
-  styles: [`:host ::ng-deep .p-dialog-header { padding-bottom: 0; } .form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; }`],
+  styles: [`:host ::ng-deep .p-dialog-header { padding-bottom: 0; } .form-fields { display: flex; flex-direction: column; gap: 1.75rem; } .field { display: flex; flex-direction: column; gap: 0.25rem; } .field-checkbox { display: flex; align-items: center; gap: 0.5rem; }`],
 })
 export class ClassificationFormDialogComponent implements OnChanges {
   @Input() visible = false;
@@ -69,6 +74,7 @@ export class ClassificationFormDialogComponent implements OnChanges {
         this.form = {
           name: this.item.name,
           code: this.item.code,
+          canDecimalStock: this.item.canDecimalStock,
         };
       } else {
         this.form = this.emptyForm();
@@ -81,6 +87,7 @@ export class ClassificationFormDialogComponent implements OnChanges {
     this.submitted = true;
     if (!this.form.name || !this.form.code) return;
 
+    this.form.code = this.form.code.toUpperCase();
     this.saving.set(true);
     const operation = this.isEditMode
       ? this.classificationApi.update(this.item!.id, this.form)
@@ -97,6 +104,6 @@ export class ClassificationFormDialogComponent implements OnChanges {
   }
 
   private emptyForm(): CreateMeasurementUnitClassificationRequest {
-    return { name: '', code: '' };
+    return { name: '', code: '', canDecimalStock: false };
   }
 }

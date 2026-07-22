@@ -64,6 +64,7 @@ type CreateProductRequest struct {
 }
 
 func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (*Product, error) {
+	req.Sku = strings.ToUpper(req.Sku)
 	p := &Product{}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO products (product_id, name, sku, is_active, img, brand_id, category_id, branch_id, base_unit_id, stock, stock_available, stock_blocked)
@@ -178,6 +179,7 @@ func (s *Service) ListProducts(ctx context.Context, filter ...ProductFilter) ([]
 }
 
 func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, req CreateProductRequest) (*Product, error) {
+	req.Sku = strings.ToUpper(req.Sku)
 	var current Product
 	err := s.pool.QueryRow(ctx, `
 		SELECT product_id, name, sku, is_active, img, brand_id, category_id, branch_id, base_unit_id, stock, stock_available, stock_blocked
@@ -398,6 +400,7 @@ func (s *Service) validateProductsExist(ctx context.Context, items []BundleItemR
 }
 
 func (s *Service) CreateBundle(ctx context.Context, req CreateBundleRequest) (*Bundle, error) {
+	req.Code = strings.ToUpper(req.Code)
 	if err := s.validateProductsExist(ctx, req.Items); err != nil {
 		return nil, err
 	}
@@ -656,6 +659,7 @@ func (s *Service) ListBundles(ctx context.Context, filter ...BundleFilter) ([]Bu
 }
 
 func (s *Service) UpdateBundle(ctx context.Context, id uuid.UUID, req CreateBundleRequest) (*Bundle, error) {
+	req.Code = strings.ToUpper(req.Code)
 	if err := s.validateProductsExist(ctx, req.Items); err != nil {
 		return nil, err
 	}
@@ -1108,23 +1112,26 @@ func (s *Service) DeleteConversionFactor(ctx context.Context, id uuid.UUID) erro
 // Measurement Unit Classification
 
 type MeasurementUnitClassification struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
-	Code string    `json:"code"`
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	Code            string    `json:"code"`
+	CanDecimalStock bool      `json:"can_decimal_stock"`
 }
 
 type CreateMeasurementUnitClassificationRequest struct {
-	Name string `json:"name" validate:"required"`
-	Code string `json:"code" validate:"required"`
+	Name            string `json:"name" validate:"required"`
+	Code            string `json:"code" validate:"required"`
+	CanDecimalStock bool   `json:"can_decimal_stock"`
 }
 
 func (s *Service) CreateMeasurementUnitClassification(ctx context.Context, req CreateMeasurementUnitClassificationRequest) (*MeasurementUnitClassification, error) {
+	req.Code = strings.ToUpper(req.Code)
 	muc := &MeasurementUnitClassification{}
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO measurement_unit_classifications (id, name, code)
-		VALUES ($1, $2, $3)
-		RETURNING id, name, code
-	`, uuid.New(), req.Name, req.Code).Scan(&muc.ID, &muc.Name, &muc.Code)
+		INSERT INTO measurement_unit_classifications (id, name, code, can_decimal_stock)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, code, can_decimal_stock
+	`, uuid.New(), req.Name, req.Code, req.CanDecimalStock).Scan(&muc.ID, &muc.Name, &muc.Code, &muc.CanDecimalStock)
 	if err != nil {
 		return nil, fmt.Errorf("create measurement unit classification: %w", err)
 	}
@@ -1134,8 +1141,8 @@ func (s *Service) CreateMeasurementUnitClassification(ctx context.Context, req C
 func (s *Service) GetMeasurementUnitClassificationByID(ctx context.Context, id uuid.UUID) (*MeasurementUnitClassification, error) {
 	muc := &MeasurementUnitClassification{}
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, code FROM measurement_unit_classifications WHERE id = $1
-	`, id).Scan(&muc.ID, &muc.Name, &muc.Code)
+		SELECT id, name, code, can_decimal_stock FROM measurement_unit_classifications WHERE id = $1
+	`, id).Scan(&muc.ID, &muc.Name, &muc.Code, &muc.CanDecimalStock)
 	if err == pgx.ErrNoRows {
 		return nil, ErrNotFound
 	}
@@ -1146,7 +1153,7 @@ func (s *Service) GetMeasurementUnitClassificationByID(ctx context.Context, id u
 }
 
 func (s *Service) ListMeasurementUnitClassifications(ctx context.Context) ([]MeasurementUnitClassification, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, name, code FROM measurement_unit_classifications ORDER BY name`)
+	rows, err := s.pool.Query(ctx, `SELECT id, name, code, can_decimal_stock FROM measurement_unit_classifications ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list measurement unit classifications: %w", err)
 	}
@@ -1155,7 +1162,7 @@ func (s *Service) ListMeasurementUnitClassifications(ctx context.Context) ([]Mea
 	classifications := make([]MeasurementUnitClassification, 0)
 	for rows.Next() {
 		var muc MeasurementUnitClassification
-		if err := rows.Scan(&muc.ID, &muc.Name, &muc.Code); err != nil {
+		if err := rows.Scan(&muc.ID, &muc.Name, &muc.Code, &muc.CanDecimalStock); err != nil {
 			return nil, fmt.Errorf("scan measurement unit classification: %w", err)
 		}
 		classifications = append(classifications, muc)
@@ -1164,12 +1171,13 @@ func (s *Service) ListMeasurementUnitClassifications(ctx context.Context) ([]Mea
 }
 
 func (s *Service) UpdateMeasurementUnitClassification(ctx context.Context, id uuid.UUID, req CreateMeasurementUnitClassificationRequest) (*MeasurementUnitClassification, error) {
+	req.Code = strings.ToUpper(req.Code)
 	muc := &MeasurementUnitClassification{}
 	err := s.pool.QueryRow(ctx, `
-		UPDATE measurement_unit_classifications SET name = $2, code = $3
+		UPDATE measurement_unit_classifications SET name = $2, code = $3, can_decimal_stock = $4
 		WHERE id = $1
-		RETURNING id, name, code
-	`, id, req.Name, req.Code).Scan(&muc.ID, &muc.Name, &muc.Code)
+		RETURNING id, name, code, can_decimal_stock
+	`, id, req.Name, req.Code, req.CanDecimalStock).Scan(&muc.ID, &muc.Name, &muc.Code, &muc.CanDecimalStock)
 	if err != nil {
 		return nil, fmt.Errorf("update measurement unit classification: %w", err)
 	}
@@ -1202,6 +1210,11 @@ type CreateMeasurementUnitRequest struct {
 }
 
 func (s *Service) CreateMeasurementUnit(ctx context.Context, req CreateMeasurementUnitRequest) (*MeasurementUnit, error) {
+	req.Code = strings.ToUpper(req.Code)
+	if req.Symbol != nil {
+		upperSymbol := strings.ToUpper(*req.Symbol)
+		req.Symbol = &upperSymbol
+	}
 	mu := &MeasurementUnit{}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO measurement_units (id, name, code, symbol, classification_id)
@@ -1247,6 +1260,11 @@ func (s *Service) ListMeasurementUnits(ctx context.Context) ([]MeasurementUnit, 
 }
 
 func (s *Service) UpdateMeasurementUnit(ctx context.Context, id uuid.UUID, req CreateMeasurementUnitRequest) (*MeasurementUnit, error) {
+	req.Code = strings.ToUpper(req.Code)
+	if req.Symbol != nil {
+		upperSymbol := strings.ToUpper(*req.Symbol)
+		req.Symbol = &upperSymbol
+	}
 	mu := &MeasurementUnit{}
 	err := s.pool.QueryRow(ctx, `
 		UPDATE measurement_units SET name = $2, code = $3, symbol = $4, classification_id = $5
@@ -1281,6 +1299,7 @@ type CreatePriceCategoryRequest struct {
 }
 
 func (s *Service) CreatePriceCategory(ctx context.Context, req CreatePriceCategoryRequest) (*PriceCategory, error) {
+	req.Code = strings.ToUpper(req.Code)
 	pc := &PriceCategory{}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO price_categories (id, name, code)
@@ -1326,6 +1345,7 @@ func (s *Service) ListPriceCategories(ctx context.Context) ([]PriceCategory, err
 }
 
 func (s *Service) UpdatePriceCategory(ctx context.Context, id uuid.UUID, req CreatePriceCategoryRequest) (*PriceCategory, error) {
+	req.Code = strings.ToUpper(req.Code)
 	pc := &PriceCategory{}
 	err := s.pool.QueryRow(ctx, `
 		UPDATE price_categories SET name = $2, code = $3
@@ -1347,7 +1367,7 @@ func (s *Service) DeletePriceCategory(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("get price category: %w", err)
 	}
-	if code == "retail" {
+	if code == "RETAIL" {
 		return fmt.Errorf("CANNOT_DELETE_RETAIL")
 	}
 

@@ -145,14 +145,14 @@ func (b SyncBundleRequest) validate() error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
+var slugRe = regexp.MustCompile(`[^A-Z0-9]+`)
 
 func slugify(name string) string {
 	t := transform.Chain(norm.NFD, transform.RemoveFunc(func(r rune) bool {
 		return unicode.Is(unicode.Mn, r)
 	}))
 	s, _, _ := transform.String(t, name)
-	s = strings.ToLower(s)
+	s = strings.ToUpper(s)
 	s = slugRe.ReplaceAllString(s, "-")
 	s = strings.Trim(s, "-")
 	if len(s) > 50 {
@@ -160,7 +160,7 @@ func slugify(name string) string {
 		s = strings.TrimRight(s, "-")
 	}
 	if s == "" {
-		return "item"
+		return "ITEM"
 	}
 	return s
 }

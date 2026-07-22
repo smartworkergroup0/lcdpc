@@ -13,11 +13,14 @@ import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { Bundle, BundleItemRequest, CreateBundleRequest } from '../../../core/models/bundle.model';
 import { Product } from '../../../core/models/product.model';
+import { MeasurementUnit } from '../../../core/models/measurement-unit.model';
 import { BundleApiService } from '../../../core/services/bundle-api.service';
 import { ProductApiService } from '../../../core/services/product-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
 import { PriceCategoryApiService } from '../../../core/services/price-category-api.service';
+import { MeasurementUnitApiService } from '../../../core/services/measurement-unit-api.service';
 import { CategoryStore } from '../../../core/stores/category.store';
+import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
 
 interface BundleItemForm extends BundleItemRequest {
 }
@@ -51,6 +54,8 @@ export class BundleFormDialogComponent implements OnChanges {
   private readonly productApi = inject(ProductApiService);
   private readonly branchApi = inject(BranchApiService);
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
+  private readonly unitApi = inject(MeasurementUnitApiService);
+  private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly messageService = inject(MessageService);
   readonly categoryStore = inject(CategoryStore);
 
@@ -58,6 +63,7 @@ export class BundleFormDialogComponent implements OnChanges {
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
   protected readonly products = signal<Product[]>([]);
+  protected readonly allUnits = signal<MeasurementUnit[]>([]);
   protected readonly branches = signal<{ label: string; value: string }[]>([]);
   protected readonly priceCategories = signal<{ id: string; name: string }[]>([]);
   protected readonly bundlePricesForm = signal<BundlePriceForm[]>([]);
@@ -70,7 +76,7 @@ export class BundleFormDialogComponent implements OnChanges {
   protected form = this.emptyForm();
 
   protected readonly combosCategoryId = computed(() => {
-    const cat = this.categoryStore.categories().find((c) => c.code === 'combos');
+    const cat = this.categoryStore.categories().find((c) => c.code === 'COMBOS');
     return cat?.categoryId ?? null;
   });
 
@@ -84,7 +90,9 @@ export class BundleFormDialogComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
+      this.classificationStore.load();
       this.loadProducts();
+      this.loadUnits();
       this.loadBranches();
       this.loadPriceCategories();
       if (this.bundle) {
@@ -132,11 +140,27 @@ export class BundleFormDialogComponent implements OnChanges {
     });
   }
 
+  private loadUnits(): void {
+    this.unitApi.list().subscribe({
+      next: (units) => this.allUnits.set(units),
+    });
+  }
+
+  protected getItemDecimalStock(index: number): boolean {
+    const item = this.form.items[index];
+    if (!item?.product_id) return false;
+    const product = this.products().find((p) => p.productId === item.product_id);
+    if (!product?.baseUnitId) return false;
+    const unit = this.allUnits().find((u) => u.id === product.baseUnitId);
+    if (!unit?.classificationId) return false;
+    return this.classificationStore.canDecimalStock(unit.classificationId);
+  }
+
   private loadPriceCategories(): void {
     this.priceCategoryApi.list().subscribe({
       next: (categories) => {
         this.priceCategories.set(categories.map((c) => ({ id: c.id, name: c.name })));
-        const retail = categories.find((c) => c.code === 'retail');
+        const retail = categories.find((c) => c.code === 'RETAIL');
         this.retailCategoryId = retail?.id ?? null;
 
         if (!this.isEditMode) {
@@ -213,6 +237,7 @@ export class BundleFormDialogComponent implements OnChanges {
 
     this.saving.set(true);
 
+    this.form.code = this.form.code.toUpperCase();
     const req = {
       code: this.form.code,
       name: this.form.name,
