@@ -241,6 +241,18 @@
   }
 }
 
+:host ::ng-deep .stepper .stepper-decimal-qty {
+  min-width: 1.8rem;
+  width: 2rem;
+  text-align: center;
+  font-weight: 800;
+  border: none;
+  background: transparent;
+  padding: 0;
+  outline: none;
+  box-shadow: none;
+}
+
 .summary-grid {
   display: grid;
   gap: 0.5rem;

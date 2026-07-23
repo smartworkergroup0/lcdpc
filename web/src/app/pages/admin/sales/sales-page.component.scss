@@ -277,6 +277,19 @@
   font-size: 0.9rem;
 }
 
+:host ::ng-deep .cart-decimal-qty {
+  min-width: 24px;
+  width: 2.5rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  background: transparent;
+  padding: 0;
+  outline: none;
+  box-shadow: none;
+}
+
 .cart-item-subtotal {
   text-align: right;
   font-weight: 600;

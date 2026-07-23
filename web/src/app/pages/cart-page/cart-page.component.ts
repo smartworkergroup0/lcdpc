@@ -6,6 +6,7 @@ import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputGroupModule } from 'primeng/inputgroup';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
@@ -28,6 +29,7 @@ import { Person } from '../../core/models/person.model';
     ButtonModule,
     DialogModule,
     InputGroupModule,
+    InputNumberModule,
     InputTextModule,
     SelectModule,
     ToggleSwitchModule,
@@ -223,15 +225,27 @@ export class CartPageComponent {
     this.orderNotes.set(value);
   }
 
+  // Botones +/- siempre step de 1. Input p-inputNumber permite 0.1 via teclado.
+  // canDecimalStock: input min=0.01, step=0.1, maxFractionDigits=2.
+  // Botones no consideran canDecimalStock — siempre +1/-1.
   protected increment(id: string): void {
     const item = this.items().find((i) => i.id === id);
-    if (item && (this.systemConfigStore.negativeStock() || item.quantity < item.stockAvailable)) {
+    if (item && item.quantity < item.stockAvailable) {
       this.cartStore.increment(id);
     }
   }
 
   protected decrement(id: string): void {
     this.cartStore.decrement(id);
+  }
+
+  protected onQuantityInputChange(id: string, value: number | null): void {
+    if (value === null || value === undefined) return;
+    const item = this.items().find(i => i.id === id);
+    if (!item) return;
+    const min = item.canDecimalStock ? 0.01 : 1;
+    const max = item.stockAvailable;
+    this.cartStore.updateQuantity(id, Math.max(min, Math.min(value, max)));
   }
 
   isOverStock(item: CartItem): boolean {

@@ -122,10 +122,13 @@ export class LandingPageComponent implements OnInit {
   });
 
   constructor() {
+    this.unitStore.load();
+    this.classificationStore.load();
+
     effect(() => {
       this.cartStore.lastOrderCreatedAt();
       const branchId = this.branchStore.selectedBranchId();
-      if (branchId) {
+      if (branchId && !this.unitStore.loading() && !this.classificationStore.loading()) {
         this.loadProducts(branchId);
       }
     });
@@ -133,8 +136,6 @@ export class LandingPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.categoryStore.load();
-    this.unitStore.load();
-    this.classificationStore.load();
 
     this.branchApi.list().subscribe({
       next: (branches: Branch[]) => {
@@ -308,6 +309,7 @@ export class LandingPageComponent implements OnInit {
         price: product.priceNumeric,
         branchId: product.branchId,
         stockAvailable: product.stockAvailable,
+        canDecimalStock: product.canDecimalStock,
         itemType: product.itemType,
         items: product.items,
       },
@@ -338,6 +340,7 @@ export class LandingPageComponent implements OnInit {
         price: product.priceNumeric,
         branchId: product.branchId,
         stockAvailable: product.stockAvailable,
+        canDecimalStock: product.canDecimalStock,
         itemType: product.itemType,
         items: product.items,
       },

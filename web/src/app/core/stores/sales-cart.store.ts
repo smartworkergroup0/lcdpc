@@ -13,6 +13,7 @@ export interface SalesCartItem {
   quantity: number;
   stockAvailable: number;
   stock: number;
+  canDecimalStock: boolean;
   priceCategoryId: string | null;
   selectedPriceId: string | null;
   priceOptions: CartPriceOption[];
@@ -103,6 +104,16 @@ export class SalesCartStore {
       items.map(i =>
         i.id === id ? { ...i, unitPrice, selectedPriceId, priceCategoryId } : i
       )
+    );
+  }
+
+  updateQuantityItem(id: string, quantity: number): void {
+    if (quantity <= 0) {
+      this.removeItem(id);
+      return;
+    }
+    this._items.update(items =>
+      items.map(i => i.id === id ? { ...i, quantity } : i)
     );
   }
 

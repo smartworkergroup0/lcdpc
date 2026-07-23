@@ -414,6 +414,7 @@ export class SalesPageComponent implements OnInit {
         quantity,
         stockAvailable,
         stock: product.stock,
+        canDecimalStock: this.resolveCanDecimalStock(product.baseUnitId),
         priceCategoryId: price.priceCategoryId ?? null,
         selectedPriceId: price.id,
         priceOptions: options,
@@ -479,6 +480,7 @@ export class SalesPageComponent implements OnInit {
       quantity,
       stockAvailable,
       stock: bundle.stock,
+      canDecimalStock: false,
       priceCategoryId: price.priceCategoryId ?? null,
       selectedPriceId: price.id,
       priceOptions: options,
@@ -507,6 +509,15 @@ export class SalesPageComponent implements OnInit {
 
   canDecrement(item: SalesCartItem): boolean {
     return item.quantity > 1;
+  }
+
+  onCartItemQuantityChange(id: string, value: number | null): void {
+    if (value === null || value === undefined) return;
+    const item = this.salesCart.items().find(i => i.id === id);
+    if (!item) return;
+    const min = item.canDecimalStock ? 0.01 : 1;
+    const max = this.systemConfigStore.negativeStock() ? Infinity : item.stockAvailable;
+    this.salesCart.updateQuantityItem(id, Math.max(min, Math.min(value, max)));
   }
 
   onCartPriceChange(itemId: string, priceId: string): void {

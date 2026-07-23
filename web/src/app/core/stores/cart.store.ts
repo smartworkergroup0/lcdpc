@@ -11,6 +11,7 @@ export interface CartItem {
   branchId: string | null;
   quantity: number;
   stockAvailable: number;
+  canDecimalStock: boolean;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
 }
@@ -117,13 +118,16 @@ export class CartStore {
     });
   }
 
+  // Los botones +/- siempre usan step de 1 unidad. Para productos con canDecimalStock,
+  // el input p-inputNumber permite step de 0.1 via teclado/flechas, pero los botones
+  // suman/restan 1. Ej: 0.5 → click "-" → item eliminado (0.5 - 1 = -0.5 ≤ 0).
   increment(id: string): void {
     this._items.update((items) => {
       const next = items.map((i) => {
         if (i.id !== id) return i;
         if (!this.systemConfigStore.negativeStock()) {
           if (i.stockAvailable <= 0) return i;
-          if (i.quantity >= i.stockAvailable) return i;
+          return { ...i, quantity: Math.min(i.quantity + 1, i.stockAvailable) };
         }
         return { ...i, quantity: i.quantity + 1 };
       });
@@ -134,13 +138,12 @@ export class CartStore {
 
   decrement(id: string): void {
     this._items.update((items) => {
-      const next = items
-        .map((i) => {
-          if (i.id !== id) return i;
-          const newQty = i.quantity - 1;
-          return newQty <= 0 ? null : { ...i, quantity: newQty };
-        })
-        .filter(Boolean) as CartItem[];
+      const next = items.map((i) => {
+        if (i.id !== id) return i;
+        const min = i.canDecimalStock ? 0.01 : 1;
+        const newQty = i.quantity - 1;
+        return { ...i, quantity: Math.max(min, newQty) };
+      });
       saveCart(next);
       return next;
     });

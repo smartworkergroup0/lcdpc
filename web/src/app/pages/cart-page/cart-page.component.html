@@ -57,11 +57,27 @@
                 </div>
               </div>
 
-              <div class="item-actions">
+                <div class="item-actions">
+                <!--
+                  Stepper: botones +/- siempre step de 1 unidad.
+                  Input: para canDecimalStock, step=0.1 via teclado/flechas, min=0.01, max 2 decimales.
+                  Para enteros: step=1, min=1, sin decimales.
+                -->
                 <div class="stepper">
-                  <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small" (onClick)="decrement(item.id)"></p-button>
-                  <span>{{ item.quantity }}</span>
-                  <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small" [disabled]="item.quantity >= item.stockAvailable" (onClick)="increment(item.id)"></p-button>
+                  <p-button icon="pi pi-minus" [text]="true" [rounded]="true" size="small"
+                            [disabled]="!systemConfigStore.negativeStock() && item.quantity <= (item.canDecimalStock ? 0.01 : 1)"
+                            (onClick)="decrement(item.id)"></p-button>
+                  <p-inputNumber [ngModel]="item.quantity" [min]="item.canDecimalStock ? 0.01 : 1"
+                                 [max]="item.stockAvailable"
+                                 [step]="item.canDecimalStock ? 0.1 : 1"
+                                 [maxFractionDigits]="item.canDecimalStock ? 2 : 0" [allowEmpty]="false"
+                                 [style]="{'width': '2rem', 'textAlign': 'center'}"
+                                 inputStyleClass="stepper-decimal-qty"
+                                 (onInput)="onQuantityInputChange(item.id, $event.value)">
+                  </p-inputNumber>
+                  <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small"
+                            [disabled]="item.quantity >= item.stockAvailable"
+                            (onClick)="increment(item.id)"></p-button>
                 </div>
                 <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" size="small" ariaLabel="Eliminar" (onClick)="removeItem(item.id)"></p-button>
               </div>

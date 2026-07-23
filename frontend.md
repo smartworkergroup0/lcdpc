@@ -13,23 +13,18 @@ If a user lacks permission for an action, module, or view, the corresponding but
 
 ## Architectural standards
 
-### Project structure
-- Real frontend root is `web/`, not `api/LCDPC/web/`.
-- Standalone components (no NgModules).
-- Signals for state management (Angular 20+).
-- Package manager: `pnpm` only.
-
 ### Directory layout
 ```
 web/src/app/
   core/
     auth/          — auth store, interceptor, init, guards, hasPermission directive
-    models/        — TypeScript interfaces matching API structs (13 files)
-    services/      — API services (one per domain, 12 files)
-    stores/        — domain stores with signals (e.g. CategoryStore)
+    models/        — TypeScript interfaces matching API structs (~24 files)
+    services/      — API services (one per domain, ~22 files)
+    stores/        — domain stores with signals (CategoryStore, CartStore, etc.)
   pages/           — route-level components
     landing-page/
     search-page/
+    cart-page/     — full-page cart with checkout form
     auth-page/     — login + AuthApiService (defines API_BASE_URL token)
     register-page/ — multi-step OTP registration flow
     admin/
@@ -38,14 +33,18 @@ web/src/app/
       products/    — list + form dialog (with prices & conversions sub-forms)
       bundles/     — list + form dialog (with items sub-form)
       orders/      — list + detail dialog + items dialog + status change dialog
+      orders-matrix/
+      sales/       — POS-like sales page with cart
       staff/       — list + form dialog
-      classifications/ — measurement unit classifications CRUD
+      clients/     — list + form dialog
+      workflows/   — workflow editor
+      external-assistant/ — SmartWorker API integration (leads, orders)
       config/      — section-based config page (?section= query param)
         sections/
-          categories-section
-          price-categories-section
-          measurement-units-section
+          categories-section, price-categories-section, measurement-units-section
+          classifications-section, brands-section, branches-section
           rbac-section (profiles, roles, resources with nested assignment dialogs)
+          administracion-section, sistema-section
   shared/          — reusable UI components (PrimeNG-based)
     header/
     footer/
@@ -55,6 +54,9 @@ web/src/app/
     advanced-search/
     branches/
     cart-dialog/   — cart management dialog with order creation
+    product-detail-dialog/
+    login-dialog/
+    login-form/
   components/      — legacy plain-HTML versions of hero, catalog, branches (no PrimeNG)
 ```
 
@@ -143,6 +145,7 @@ This applies to all form dialog `save()` methods, list page `confirmDelete()` me
 - Routes in `app.routes.ts`:
   - `/` — landing page
   - `/search` — catalog search
+  - `/cart` — cart page with checkout
   - `/login` — auth page
   - `/register` — registration page
   - `/admin` — admin layout (guarded), children:
@@ -150,7 +153,13 @@ This applies to all form dialog `save()` methods, list page `confirmDelete()` me
     - `/admin/products` (requires `product:view`)
     - `/admin/bundles` (requires `bundle:view`)
     - `/admin/orders` (requires `order:view`)
+    - `/admin/orders-matrix` (requires `order:view`)
+    - `/admin/sales` (requires `order:create`)
     - `/admin/staff` (requires `staff:view`)
+    - `/admin/clients` (requires `client:view`)
+    - `/admin/workflows` (requires `workflow:view`)
+    - `/admin/external-assistant` (requires `assistant:view`)
+    - `/admin/config` (requires `system_config:view`)
 - English route names, English UI vocabulary.
 - Auth routes skip store shell (header/footer).
 
@@ -181,7 +190,7 @@ This applies to all form dialog `save()` methods, list page `confirmDelete()` me
 
 ### Config page pattern (`pages/admin/config/`)
 - Section-based admin page navigated via `?section=` query param.
-- Two groups: `rbac` (profiles, roles, resources) and `inventario` (categories, price-categories, measurement-units).
+- Groups: `rbac` (profiles, roles, resources), `inventario` (categories, price-categories, measurement-units, classifications, brands), `sucursal` (branches), `administracion`, `sistema`.
 - Permission-gated visibility per group.
 - Each section is a standalone component in `config/sections/`.
 - Sections that manage entities use a table + form dialog pattern.
@@ -598,6 +607,8 @@ interface CartItem {
   branchId: string | null;
   quantity: number;
   stockAvailable: number;
+  canDecimalStock: boolean;
+  itemType: 'product' | 'bundle';
 }
 ```
 
@@ -619,6 +630,14 @@ interface CartItem {
 | `increment(id)` | +1 to item quantity. Saves. |
 | `decrement(id)` | -1; removes if new qty <= 0. Saves. |
 | `clear()` | Empties cart, removes localStorage key. |
+
+#### Decimal stock behavior (`canDecimalStock`)
+
+- `increment()` and `decrement()` always step by **1 unit** regardless of `canDecimalStock`.
+- The `p-inputNumber` in cart page uses `step="0.1"` for decimal items (via keyboard arrows), but the +/- buttons always step by 1.
+- `onQuantityInputChange()` clamps: `min=0.01` (decimal) / `1` (integer), `max=stockAvailable`.
+- `updateQuantity()` respects the clamped value from the handler.
+- Example: item with `canDecimalStock=true`, quantity=0.5 → click "-" → 0.5 - 1 = -0.5 ≤ 0 → item removed. This is expected behavior.
 
 #### Persistence
 - Key: `lcdpc_cart`
@@ -671,6 +690,30 @@ Complex dialog (separate `.ts` + `.html` + `.scss` files) for cart management an
 4. Calls `orderApi.create(req)`
 5. On success: clears cart, shows success toast, closes dialog, notifies catalog to reload
 6. On error: shows error toast (e.g., `INSUFFICIENT_STOCK`)
+
+### Cart Page (`pages/cart-page/`)
+
+Full-page cart view with checkout form (person search, contact fields, order confirmation).
+
+#### Files
+- `cart-page.component.ts` — component class with quantity, person search, and buy logic
+- `cart-page.component.html` — layout with cart items, stepper controls, and checkout form
+- `cart-page.component.scss` — styles
+
+#### Stepper behavior (quantity input)
+- **+/- buttons**: always step by **1 unit**, regardless of `canDecimalStock`.
+- **p-inputNumber**: for `canDecimalStock=true` items, `step="0.1"` (keyboard arrows), `min=0.01`, `maxFractionDigits=2`. For integers: `step=1`, `min=1`, `maxFractionDigits=0`.
+- **`onQuantityInputChange()`**: clamps value to `[min, stockAvailable]` and calls `cartStore.updateQuantity()`.
+- **`increment()`**: checks stock availability before calling `cartStore.increment()`.
+- **`decrement()`**: delegates to `cartStore.decrement()`.
+
+#### Checkout flow
+1. Toggle between Natural / Jurídico person type (affects allowed document types)
+2. Search person by document (V/E for natural, V/E/J/G/C for legal)
+3. Person found → populate name/phone fields; not found → show fields for manual entry
+4. Fill contact name, WhatsApp phone, order notes
+5. "Confirmar pedido" disabled until: person form valid + no stock issues + cart not empty
+6. Creates order via `OrderApiService.create()` with `branch_id`, `client_user_id`, person data, items
 
 ### Catalog branch filtering
 
