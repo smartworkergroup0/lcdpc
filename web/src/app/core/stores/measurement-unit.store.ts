@@ -42,6 +42,11 @@ export class MeasurementUnitStore {
     });
   }
 
+  getMeasurementUnit(id: string | null | undefined): MeasurementUnit | undefined {
+    if (!id) return undefined;
+    return this._measurementUnits().find((mu) => mu.id === id);
+  }
+
   getMeasurementUnitName(id: string | null): string {
     if (!id) return 'Sin unidad de medida';
     return this.measurementUnitMap().get(id) ?? 'Sin unidad de medida';

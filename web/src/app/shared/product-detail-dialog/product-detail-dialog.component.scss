@@ -159,6 +159,19 @@
   font-weight: 700;
 }
 
+:host ::ng-deep .detail-decimal-qty {
+  width: 2.75rem;
+  height: 2.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  outline: none;
+  box-shadow: none;
+}
+
 @media (max-width: 640px) {
   .detail-top {
     flex-direction: column;

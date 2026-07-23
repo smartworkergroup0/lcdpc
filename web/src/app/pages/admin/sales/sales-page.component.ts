@@ -35,6 +35,8 @@ import { DOCUMENT_TYPE_OPTIONS } from '../../../core/models/document-type.model'
 import { Person } from '../../../core/models/person.model';
 import { ClientFormDialogComponent } from '../orders/client-form-dialog.component';
 import { ProductDetailDialogComponent } from '../../../shared/product-detail-dialog/product-detail-dialog.component';
+import { MeasurementUnitStore } from '../../../core/stores/measurement-unit.store';
+import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
 
 type CatalogItem = (Product & { itemType: 'product'; id: string }) | (Bundle & { itemType: 'bundle'; id: string });
 
@@ -52,6 +54,7 @@ type DetailProductCard = {
   featured?: boolean;
   quantity: number;
   stockAvailable: number;
+  canDecimalStock: boolean;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
   priceOptions: PriceOption[];
@@ -87,6 +90,8 @@ export class SalesPageComponent implements OnInit {
   private readonly clientApi = inject(ClientApiService);
   private readonly orderApi = inject(OrderApiService);
   private readonly branchApi = inject(BranchApiService);
+  private readonly unitStore = inject(MeasurementUnitStore);
+  private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly router = inject(Router);
@@ -151,6 +156,8 @@ export class SalesPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.categoryStore.load();
+    this.unitStore.load();
+    this.classificationStore.load();
 
     this.branchApi.listAdmin().subscribe({
       next: (branches) => {
@@ -513,6 +520,13 @@ export class SalesPageComponent implements OnInit {
     this.salesCart.updateItemPrice(itemId, option.amount, priceId, priceCatId);
   }
 
+  private resolveCanDecimalStock(baseUnitId: string | null | undefined): boolean {
+    if (!baseUnitId) return false;
+    const unit = this.unitStore.getMeasurementUnit(baseUnitId);
+    if (!unit?.classificationId) return false;
+    return this.classificationStore.canDecimalStock(unit.classificationId);
+  }
+
   openDetail(item: CatalogItem): void {
     if (item.itemType === 'product') {
       const p = item as Product;
@@ -530,6 +544,7 @@ export class SalesPageComponent implements OnInit {
             category: this.categoryStore.getCategoryName(p.categoryId),
             quantity: 1,
             stockAvailable: p.stock - p.stockBlocked,
+            canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
             itemType: 'product',
             priceOptions: options,
             selectedPriceId: selected?.id ?? null,
@@ -548,6 +563,7 @@ export class SalesPageComponent implements OnInit {
             category: this.categoryStore.getCategoryName(p.categoryId),
             quantity: 1,
             stockAvailable: p.stock - p.stockBlocked,
+            canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
             itemType: 'product',
             priceOptions: [],
             selectedPriceId: null,
@@ -570,6 +586,7 @@ export class SalesPageComponent implements OnInit {
         category: this.categoryStore.getCategoryName(b.categoryId),
         quantity: 1,
         stockAvailable: b.stock - b.stockBlocked,
+        canDecimalStock: false,
         itemType: 'bundle',
         items: b.items?.map(i => ({ name: i.productId, quantity: i.quantity })),
         priceOptions: options,

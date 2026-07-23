@@ -5,6 +5,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 type PriceOption = { label: string; id: string; amount: number };
 
@@ -20,6 +21,7 @@ type ProductCard = {
   featured?: boolean;
   quantity: number;
   stockAvailable: number;
+  canDecimalStock: boolean;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
   priceOptions?: PriceOption[];
@@ -29,7 +31,7 @@ type ProductCard = {
 @Component({
   selector: 'app-product-detail-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, DialogModule, TagModule, SelectModule],
+  imports: [CommonModule, FormsModule, ButtonModule, DialogModule, TagModule, SelectModule, InputNumberModule],
   templateUrl: './product-detail-dialog.component.html',
   styleUrl: './product-detail-dialog.component.scss',
 })
@@ -56,11 +58,20 @@ export class ProductDetailDialogComponent implements OnChanges {
     if (!this.product) return;
     if (!this.negativeStock && this.product.stockAvailable <= 0) return;
     const max = this.product.stockAvailable;
-    this.quantity = this.negativeStock ? this.quantity + 1 : Math.min(this.quantity + 1, max);
+    const newQty = Math.round((this.quantity + 1) * 100) / 100;
+    this.quantity = this.negativeStock ? newQty : Math.min(newQty, max);
   }
 
   protected decrement(): void {
-    this.quantity = Math.max(1, this.quantity - 1);
+    const min = this.product?.canDecimalStock ? 0.1 : 1;
+    this.quantity = Math.max(min, Math.round((this.quantity - 1) * 100) / 100);
+  }
+
+  protected onQuantityInput(value: number | null): void {
+    if (value === null || value === undefined) return;
+    const min = this.product?.canDecimalStock ? 0.1 : 1;
+    const max = this.negativeStock ? Infinity : (this.product?.stockAvailable ?? Infinity);
+    this.quantity = Math.max(min, Math.min(value, max));
   }
 
   protected onPriceChange(id: string): void {

@@ -214,6 +214,19 @@
   border-radius: 0;
 }
 
+:host ::ng-deep .quantity-control .decimal-qty-input {
+  width: 2.5rem;
+  height: 2rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  outline: none;
+  box-shadow: none;
+}
+
 .quantity-control span {
   display: inline-grid;
   place-items: center;

@@ -12,6 +12,8 @@ import { Branch } from '../../core/models/branch.model';
 import { BranchStore } from '../../core/stores/branch.store';
 import { CartStore } from '../../core/stores/cart.store';
 import { SystemConfigStore } from '../../core/stores/system-config.store';
+import { MeasurementUnitStore } from '../../core/stores/measurement-unit.store';
+import { MeasurementUnitClassificationStore } from '../../core/stores/measurement-unit-classification.store';
 import { BranchesComponent } from '../../shared/branches/branches.component';
 import { CatalogComponent } from '../../shared/catalog/catalog.component';
 import { HeroComponent } from '../../shared/hero/hero.component';
@@ -40,6 +42,7 @@ type ProductCard = {
   quantity: number;
   branchId: string | null;
   stockAvailable: number;
+  canDecimalStock: boolean;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
 };
@@ -69,6 +72,8 @@ export class LandingPageComponent implements OnInit {
   private readonly branchStore = inject(BranchStore);
   private readonly cartStore = inject(CartStore);
   readonly systemConfigStore = inject(SystemConfigStore);
+  private readonly unitStore = inject(MeasurementUnitStore);
+  private readonly classificationStore = inject(MeasurementUnitClassificationStore);
 
   protected readonly activeHeroIndex = signal(0);
   protected readonly search = signal('');
@@ -128,6 +133,8 @@ export class LandingPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.categoryStore.load();
+    this.unitStore.load();
+    this.classificationStore.load();
 
     this.branchApi.list().subscribe({
       next: (branches: Branch[]) => {
@@ -142,6 +149,13 @@ export class LandingPageComponent implements OnInit {
         );
       },
     });
+  }
+
+  private resolveCanDecimalStock(baseUnitId: string | null | undefined): boolean {
+    if (!baseUnitId) return false;
+    const unit = this.unitStore.getMeasurementUnit(baseUnitId);
+    if (!unit?.classificationId) return false;
+    return this.classificationStore.canDecimalStock(unit.classificationId);
   }
 
   private loadProducts(branchId: string): void {
@@ -178,6 +192,7 @@ export class LandingPageComponent implements OnInit {
               quantity: 1,
               branchId: b.branchId,
               stockAvailable: b.stockAvailable,
+              canDecimalStock: false,
               itemType: 'bundle' as const,
               items,
             };
@@ -196,6 +211,7 @@ export class LandingPageComponent implements OnInit {
           quantity: 1,
           branchId: p.branchId,
           stockAvailable: p.stockAvailable,
+          canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
           itemType: 'product' as const,
         }));
 
@@ -249,7 +265,9 @@ export class LandingPageComponent implements OnInit {
         if (p.id !== productId) return p;
         if (!this.systemConfigStore.negativeStock() && p.stockAvailable <= 0) return p;
         const max = p.stockAvailable;
-        const newQty = this.systemConfigStore.negativeStock() ? p.quantity + 1 : Math.min(p.quantity + 1, max);
+        const newQty = this.systemConfigStore.negativeStock()
+          ? Math.round((p.quantity + 1) * 100) / 100
+          : Math.min(Math.round((p.quantity + 1) * 100) / 100, max);
         return { ...p, quantity: newQty };
       })
     );
@@ -259,8 +277,21 @@ export class LandingPageComponent implements OnInit {
     this.products.update((items) =>
       items.map((p) => {
         if (p.id !== productId) return p;
-        const newQty = Math.max(1, p.quantity - 1);
+        const min = p.canDecimalStock ? 0.1 : 1;
+        const newQty = Math.max(min, Math.round((p.quantity - 1) * 100) / 100);
         return { ...p, quantity: newQty };
+      })
+    );
+  }
+
+  protected onQuantityInputChange(event: { productId: string; quantity: number }): void {
+    this.products.update((items) =>
+      items.map((p) => {
+        if (p.id !== event.productId) return p;
+        const min = p.canDecimalStock ? 0.1 : 1;
+        const max = this.systemConfigStore.negativeStock() ? Infinity : p.stockAvailable;
+        const clamped = Math.max(min, Math.min(event.quantity, max));
+        return { ...p, quantity: Math.round(clamped * 100) / 100 };
       })
     );
   }

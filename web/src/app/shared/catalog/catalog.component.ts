@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 type Category = {
   id: string;
@@ -21,6 +23,7 @@ type ProductCard = {
   featured?: boolean;
   quantity: number;
   stockAvailable: number;
+  canDecimalStock: boolean;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
 };
@@ -28,7 +31,7 @@ type ProductCard = {
 @Component({
   selector: 'app-catalog',
   standalone: true,
-  imports: [CommonModule, ButtonModule, CardModule, TagModule],
+  imports: [CommonModule, FormsModule, ButtonModule, CardModule, TagModule, InputNumberModule],
   templateUrl: './catalog.component.html',
   styleUrl: './catalog.component.scss'
 })
@@ -41,6 +44,7 @@ export class CatalogComponent {
   @Output() categorySelect = new EventEmitter<string>();
   @Output() increment = new EventEmitter<string>();
   @Output() decrement = new EventEmitter<string>();
+  @Output() quantityChange = new EventEmitter<{ productId: string; quantity: number }>();
   @Output() addToCart = new EventEmitter<string>();
   @Output() productClick = new EventEmitter<string>();
 
