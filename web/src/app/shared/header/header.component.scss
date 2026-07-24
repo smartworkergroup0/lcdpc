@@ -13,6 +13,25 @@
   width: calc(100% - 80px);
 }
 
+.mobile-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.85rem;
+  height: 2.85rem;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid transparent;
+  color: var(--text-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  .pi {
+    font-size: 1.2rem;
+  }
+}
+
 .topbar {
   position: fixed;
   top: 0;
@@ -352,5 +371,29 @@
 
   .brand-name {
     font-size: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  :host.admin-mode .topbar {
+    left: 0;
+    width: 100%;
+  }
+
+  :host.admin-mode.sidebar-collapsed .topbar {
+    left: 0;
+    width: 100%;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .brand-lockup {
+    margin-right: auto;
+  }
+
+  .topbar-actions {
+    gap: 0.35rem;
   }
 }

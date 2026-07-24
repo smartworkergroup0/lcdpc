@@ -1,18 +1,22 @@
-<div class="admin-shell" [class.sidebar-collapsed]="collapsed()">
+<div class="admin-shell" [class.sidebar-collapsed]="collapsed()" [class.mobile-open]="mobileOpen()">
+  <div class="mobile-overlay" (click)="closeMobileSidebar()"></div>
+
   <app-header
     [branches]="branches()"
     [selectedBranchId]="selectedBranchId()"
     [sidebarCollapsed]="collapsed()"
+    [showMobileMenuButton]="true"
     (branchChange)="onBranchChange($event)"
+    (mobileMenuToggle)="toggleMobileSidebar()"
   ></app-header>
 
   <aside class="admin-sidebar">
     <div class="sidebar-header">
-      @if (!collapsed()) {
+      @if (!collapsed() || mobileOpen()) {
         <a routerLink="/admin/dashboard" class="sidebar-brand">LCDPC Admin</a>
       }
-      <button class="sidebar-toggle" (click)="toggleSidebar()" [attr.aria-label]="collapsed() ? 'Expandir sidebar' : 'Colapsar sidebar'">
-        <span class="pi" [ngClass]="collapsed() ? 'pi-chevron-right' : 'pi-chevron-left'"></span>
+      <button class="sidebar-toggle" (click)="toggleSidebar()" aria-label="Colapsar sidebar">
+        <span class="pi" [ngClass]="mobileOpen() ? 'pi-chevron-left' : (collapsed() ? 'pi-chevron-right' : 'pi-chevron-left')"></span>
       </button>
     </div>
 

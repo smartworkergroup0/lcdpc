@@ -31,6 +31,7 @@ export class AdminLayoutComponent {
   private readonly branchStore = inject(BranchStore);
 
   protected readonly collapsed = signal(true);
+  protected readonly mobileOpen = signal(false);
   protected readonly almacenExpanded = signal(false);
   protected readonly operacionesExpanded = signal(false);
   protected readonly configExpanded = signal(false);
@@ -101,13 +102,16 @@ export class AdminLayoutComponent {
 
   protected toggleSidebar(): void {
     this.collapsed.update((v) => !v);
-    if (this.collapsed()) {
-      this.almacenExpanded.set(false);
-      this.operacionesExpanded.set(false);
-      this.configExpanded.set(false);
-      this.peopleExpanded.set(false);
-      this.assistantExpanded.set(false);
-    }
+    this.collapseAll();
+    this.mobileOpen.set(false);
+  }
+
+  protected toggleMobileSidebar(): void {
+    this.mobileOpen.update((v) => !v);
+  }
+
+  protected closeMobileSidebar(): void {
+    this.mobileOpen.set(false);
   }
 
   protected toggleAlmacen(): void {

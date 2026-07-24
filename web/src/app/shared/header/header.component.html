@@ -1,5 +1,11 @@
 <header class="topbar">
   <div class="topbar-inner">
+    @if (showMobileMenuButton) {
+      <button class="mobile-menu-toggle" (click)="mobileMenuToggle.emit()" aria-label="Abrir menú">
+        <span class="pi pi-bars"></span>
+      </button>
+    }
+
     <a class="brand-lockup" routerLink="/" aria-label="Ir al inicio">
       @if (systemConfigStore.logoUrl()) {
         <img

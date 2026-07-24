@@ -49,8 +49,10 @@ export class HeaderComponent {
   @Input() branches: HeaderBranch[] = [];
   @Input() selectedBranchId = '';
   @Input() sidebarCollapsed = false;
+  @Input() showMobileMenuButton = false;
 
   @Output() branchChange = new EventEmitter<string>();
+  @Output() mobileMenuToggle = new EventEmitter<void>();
 
   protected readonly user = this.authStore.currentUser;
   protected readonly isAuthenticated = this.authStore.isAuthenticated;
