@@ -14,20 +14,18 @@
       <span class="pi pi-bars"></span>
       <span>Catálogo</span>
     </button>
-    <button class="mobile-nav-item" type="button">
+    <button class="mobile-nav-item" type="button" (click)="openBranchDialog()">
       <span class="pi pi-map-marker"></span>
       <span>Ubicación</span>
     </button>
     <button class="mobile-nav-item" type="button" (click)="goToCart()">
-      <span class="pi pi-shopping-basket"></span>
+      <span class="pi pi-shopping-cart"></span>
       <span>Carrito</span>
       <span class="mobile-badge">{{ cartStore.totalItems() }}</span>
     </button>
-    <button class="mobile-nav-item" type="button">
-      <span class="pi pi-user"></span>
-      <span>Perfil</span>
-    </button>
   </nav>
+
+  <app-branch-selector-dialog #branchDialog></app-branch-selector-dialog>
 
   <app-footer></app-footer>
 } @else if (!isAdminRoute()) {

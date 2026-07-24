@@ -44,6 +44,7 @@ export class HeaderComponent {
 	readonly systemConfigStore = inject(SystemConfigStore);
 
 	@ViewChild('cartOverlay') cartOverlay!: Popover;
+	@ViewChild('userMenuPopover') userMenuPopover!: Popover;
 
   @Input() branches: HeaderBranch[] = [];
   @Input() selectedBranchId = '';
@@ -93,6 +94,10 @@ export class HeaderComponent {
 
   protected toggleCartOverlay(event: Event): void {
     this.cartOverlay.toggle(event);
+  }
+
+  protected toggleUserMenu(event: Event): void {
+    this.userMenuPopover.toggle(event);
   }
 
   protected goToCart(): void {

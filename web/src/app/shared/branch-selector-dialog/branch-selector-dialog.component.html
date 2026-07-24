@@ -1,0 +1,22 @@
+<p-dialog
+  header="Cambiar de sede"
+  [visible]="visible()"
+  (visibleChange)="visible.set($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(400px, 95vw)' }"
+>
+  <div class="branch-selector">
+    <p-select
+      [options]="branchStore.branches()"
+      [(ngModel)]="selectedBranchId"
+      optionLabel="name"
+      optionValue="id"
+      placeholder="Selecciona una sede"
+      appendTo="body"
+      (onChange)="onBranchChange($event.value)"
+      [style]="{ width: '100%' }"
+    ></p-select>
+  </div>
+</p-dialog>

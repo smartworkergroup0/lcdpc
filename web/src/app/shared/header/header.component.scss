@@ -294,6 +294,43 @@
   justify-content: center;
 }
 
+.user-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--text-strong);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+
+  &:hover {
+    background: rgba(247, 147, 26, 0.12);
+    color: var(--accent);
+  }
+
+  i {
+    font-size: 1rem;
+    color: var(--text-soft);
+  }
+
+  &:hover i {
+    color: var(--accent);
+  }
+}
+
 @media (max-width: 1180px) {
   .desktop-nav {
     display: none;

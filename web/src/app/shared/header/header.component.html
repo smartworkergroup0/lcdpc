@@ -19,7 +19,7 @@
     </a>
 
     <div class="topbar-actions">
-      @if (isAdmin()) {
+      @if (isAdmin() && !isAdminRoute()) {
         <p-button
           label="Administrar"
           icon="pi pi-cog"
@@ -121,16 +121,16 @@
             styleClass="account-button"
             [rounded]="true"
             ariaLabel="Cuenta"
+            (onClick)="toggleUserMenu($event)"
           ></p-button>
-          <p-button
-            icon="pi pi-sign-out"
-            styleClass="logout-button"
-            [rounded]="true"
-            [text]="true"
-            severity="secondary"
-            ariaLabel="Cerrar sesión"
-            (onClick)="logout()"
-          ></p-button>
+          <p-popover #userMenuPopover [style]="{ width: '12rem', padding: '0.5rem' }" [dismissable]="true" appendTo="body">
+            <div class="user-menu-content">
+              <button class="user-menu-item" (click)="logout()">
+                <i class="pi pi-sign-out"></i>
+                <span>Cerrar Sesión</span>
+              </button>
+            </div>
+          </p-popover>
         </div>
 		} @else {
 			<p-button
