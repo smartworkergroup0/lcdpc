@@ -66,7 +66,7 @@
             <div class="product-meta">
               <span class="product-sku">{{ getItemSku(item) }}</span>
               <span class="product-stock" [class.out-of-stock]="getStockAvailable(item) <= 0">
-                Stock: {{ getStockAvailable(item) }} {{ getUnitSymbol(item) }}
+                Stock: {{ getStockAvailable(item) | number:'1.0-3' }} {{ getUnitSymbol(item) }}
               </span>
             </div>
           </div>
@@ -145,7 +145,7 @@
                       (onClick)="salesCart.decrementItem(item.id)" />
             <p-inputNumber [ngModel]="item.quantity" [min]="item.canDecimalStock ? 0.01 : 1"
                            [step]="item.canDecimalStock ? 0.1 : 1"
-                           [maxFractionDigits]="item.canDecimalStock ? 2 : 0" [allowEmpty]="false"
+                           [maxFractionDigits]="item.canDecimalStock ? 3 : 0" [allowEmpty]="false"
                            [style]="{'width': '2.5rem', 'textAlign': 'center'}"
                            inputStyleClass="cart-decimal-qty"
                            (onInput)="onCartItemQuantityChange(item.id, $event.value)">

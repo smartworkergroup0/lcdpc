@@ -85,7 +85,7 @@
                          [step]="canInputDecimal() ? 0.1 : 1"
                          [max]="negativeStock ? undefined : effectiveStock()"
                          [maxFractionDigits]="canInputDecimal() ? 3 : 0" [allowEmpty]="false"
-                         [style]="{'width': '2.75rem', 'textAlign': 'center'}"
+                         [style]="{'width': '4.5rem', 'textAlign': 'center'}"
                          inputStyleClass="detail-decimal-qty"
                          (onInput)="onQuantityInput($event.value)">
           </p-inputNumber>
