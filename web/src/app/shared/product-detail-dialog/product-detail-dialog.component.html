@@ -45,13 +45,22 @@
             <span class="detail-price">{{ product.price || 'Sin precio' }}</span>
           }
 
-          @if (negativeStock || product.stockAvailable > 0) {
-            <span class="detail-stock">{{ product.stockAvailable }} {{ product.unitSymbol }} disponibles</span>
+          @if (negativeStock || effectiveStock() > 0) {
+            <span class="detail-stock">{{ effectiveStock() | number:'1.0-2' }} {{ effectiveSymbol() }} disponibles</span>
           } @else {
             <span class="detail-stock out-of-stock">Sin stock</span>
           }
         </div>
       </div>
+
+      @if (unitOptions().length > 1) {
+        <div class="detail-section">
+          <h3 class="detail-section-title">Unidad</h3>
+          <p-select [options]="unitOptions()" [ngModel]="selectedUnitIndex()"
+                    (onChange)="onUnitChange($event.value)" appendTo="body"
+                    styleClass="unit-select" />
+        </div>
+      }
 
       @if (product.featured && product.items && product.items.length > 0) {
         <div class="detail-section">
@@ -71,11 +80,11 @@
 
       <div class="detail-actions">
         <div class="quantity-control">
-          <p-button icon="pi pi-minus" [text]="true" [disabled]="quantity <= 1" (onClick)="decrement()" />
-          <p-inputNumber [ngModel]="quantity" [min]="product.canDecimalStock ? 0.01 : 1"
-                         [step]="product.canDecimalStock ? 0.1 : 1"
-                         [max]="negativeStock ? undefined : product.stockAvailable"
-                         [maxFractionDigits]="product.canDecimalStock ? 2 : 0" [allowEmpty]="false"
+          <p-button icon="pi pi-minus" [text]="true" [disabled]="quantity <= (canInputDecimal() ? 0.1 : 1)" (onClick)="decrement()" />
+          <p-inputNumber [ngModel]="quantity" [min]="canInputDecimal() ? 0.01 : 1"
+                         [step]="canInputDecimal() ? 0.1 : 1"
+                         [max]="negativeStock ? undefined : effectiveStock()"
+                         [maxFractionDigits]="canInputDecimal() ? 3 : 0" [allowEmpty]="false"
                          [style]="{'width': '2.75rem', 'textAlign': 'center'}"
                          inputStyleClass="detail-decimal-qty"
                          (onInput)="onQuantityInput($event.value)">
@@ -83,15 +92,21 @@
           <p-button
             icon="pi pi-plus"
             [text]="true"
-            [disabled]="!negativeStock && (product.stockAvailable === 0 || quantity >= product.stockAvailable)"
+            [disabled]="!negativeStock && (effectiveStock() === 0 || quantity >= effectiveStock())"
             (onClick)="increment()"
           />
         </div>
+        @if (convertedQuantity !== null) {
+          <span class="conversion-hint">Equivale a {{ convertedQuantity }} {{ product.unitSymbol }}</span>
+        }
         <div class="detail-actions-right">
+          @if (validationMessage()) {
+            <span class="validation-error">{{ validationMessage() }}</span>
+          }
           <p-button
             label="Agregar al carrito"
             icon="pi pi-shopping-cart"
-            [disabled]="!negativeStock && product.stockAvailable === 0"
+            [disabled]="!negativeStock && effectiveStock() === 0"
             (onClick)="add()"
           />
         </div>

@@ -26,8 +26,11 @@ import { PriceCategoryApiService } from '../../../core/services/price-category-a
 import { ClientApiService } from '../../../core/services/client-api.service';
 import { OrderApiService } from '../../../core/services/order-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
+import { ConversionFactorApiService } from '../../../core/services/conversion-factor-api.service';
+import { ConversionUnitOption } from '../../../shared/product-detail-dialog/product-detail-dialog.component';
 import { Product } from '../../../core/models/product.model';
 import { Bundle } from '../../../core/models/bundle.model';
+import { ConversionFactor } from '../../../core/models/conversion-factor.model';
 import { PriceCategory } from '../../../core/models/price-category.model';
 import { ProductBranchPrice } from '../../../core/models/price.model';
 import { CreateOrderRequest } from '../../../core/models/order.model';
@@ -60,6 +63,7 @@ type DetailProductCard = {
   items?: { name: string; quantity: number }[];
   priceOptions: PriceOption[];
   selectedPriceId: string | null;
+  conversionUnits: ConversionUnitOption[];
 };
 
 @Component({
@@ -91,6 +95,7 @@ export class SalesPageComponent implements OnInit {
   private readonly clientApi = inject(ClientApiService);
   private readonly orderApi = inject(OrderApiService);
   private readonly branchApi = inject(BranchApiService);
+  private readonly conversionApi = inject(ConversionFactorApiService);
   private readonly unitStore = inject(MeasurementUnitStore);
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly messageService = inject(MessageService);
@@ -551,8 +556,11 @@ export class SalesPageComponent implements OnInit {
   openDetail(item: CatalogItem): void {
     if (item.itemType === 'product') {
       const p = item as Product;
-      this.priceApi.listByProductId(p.productId).subscribe({
-        next: (prices) => {
+      forkJoin({
+        prices: this.priceApi.listByProductId(p.productId),
+        factors: this.conversionApi.listByProductId(p.productId),
+      }).subscribe({
+        next: ({ prices, factors }) => {
           const options = this.buildPriceOptions(prices);
           const selected = options.length > 0 ? options[0] : null;
           const card: DetailProductCard = {
@@ -570,6 +578,7 @@ export class SalesPageComponent implements OnInit {
             itemType: 'product',
             priceOptions: options,
             selectedPriceId: selected?.id ?? null,
+            conversionUnits: this.buildConversionUnits(p.baseUnitId, factors),
           };
           this.detailProduct.set(card);
           this.detailVisible.set(true);
@@ -590,6 +599,7 @@ export class SalesPageComponent implements OnInit {
             itemType: 'product',
             priceOptions: [],
             selectedPriceId: null,
+            conversionUnits: [],
           };
           this.detailProduct.set(card);
           this.detailVisible.set(true);
@@ -615,10 +625,64 @@ export class SalesPageComponent implements OnInit {
         items: b.items?.map(i => ({ name: i.productId, quantity: i.quantity })),
         priceOptions: options,
         selectedPriceId: selected?.id ?? null,
+        conversionUnits: [],
       };
       this.detailProduct.set(card);
       this.detailVisible.set(true);
     }
+  }
+
+  private buildConversionUnits(baseUnitId: string | null | undefined, factors: ConversionFactor[]): ConversionUnitOption[] {
+    if (!baseUnitId) return [];
+
+    const baseUnit = this.unitStore.getMeasurementUnit(baseUnitId);
+    if (!baseUnit) return [];
+
+    const units: ConversionUnitOption[] = [{
+      unitId: baseUnit.id,
+      unitName: baseUnit.name,
+      unitSymbol: baseUnit.symbol,
+      effectiveAmount: 1,
+    }];
+
+    if (factors.length === 0) return units;
+
+    const forwardAdj = new Map<string, { to: string; amount: number }[]>();
+    for (const f of factors) {
+      const existing = forwardAdj.get(f.fromUnitId) ?? [];
+      existing.push({ to: f.toUnitId, amount: f.amount });
+      forwardAdj.set(f.fromUnitId, existing);
+    }
+
+    const seen = new Set<string>([baseUnitId]);
+    const queue: { unitId: string; multiplier: number }[] = [
+      { unitId: baseUnitId, multiplier: 1 },
+    ];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+
+      if (current.unitId !== baseUnitId) {
+        const toUnit = this.unitStore.getMeasurementUnit(current.unitId);
+        if (toUnit) {
+          units.push({
+            unitId: toUnit.id,
+            unitName: toUnit.name,
+            unitSymbol: toUnit.symbol,
+            effectiveAmount: current.multiplier,
+          });
+        }
+      }
+
+      const neighbors = forwardAdj.get(current.unitId) ?? [];
+      for (const n of neighbors) {
+        if (seen.has(n.to)) continue;
+        seen.add(n.to);
+        queue.push({ unitId: n.to, multiplier: current.multiplier * n.amount });
+      }
+    }
+
+    return units;
   }
 
   private buildPriceOptions(prices: ProductBranchPrice[]): PriceOption[] {
