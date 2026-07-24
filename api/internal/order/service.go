@@ -95,7 +95,7 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByU
 	for _, item := range req.Items {
 		subtotal := item.Quantity * item.UnitPrice
 		priceTotal += subtotal
-		totalItems += int(item.Quantity)
+		totalItems++
 
 		var productID, bundleID *uuid.UUID
 		if item.ItemType == "product" {
@@ -509,7 +509,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderReque
 		for _, item := range req.Items {
 			subtotal := item.Quantity * item.UnitPrice
 			priceTotal += subtotal
-			totalItems += int(item.Quantity)
+			totalItems++
 
 			var productID, bundleID *uuid.UUID
 			if item.ItemType == "product" {

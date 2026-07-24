@@ -132,7 +132,7 @@ export class OrderItemsDialogComponent implements OnChanges {
   }
 
   protected get productTotalItems(): number {
-    return this.visibleProductItems.reduce((sum, item) => sum + item.quantity, 0);
+    return this.visibleProductItems.length;
   }
 
   protected get bundleTotal(): number {
@@ -140,7 +140,7 @@ export class OrderItemsDialogComponent implements OnChanges {
   }
 
   protected get bundleTotalItems(): number {
-    return this.visibleBundleItems.reduce((sum, item) => sum + item.quantity, 0);
+    return this.visibleBundleItems.length;
   }
 
   protected get hasStockIssues(): boolean {
