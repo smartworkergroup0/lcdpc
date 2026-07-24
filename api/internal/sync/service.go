@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lcdpc/lcdpc-go/internal/pricing"
+	"github.com/lcdpc/lcdpc-go/internal/shared"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 )
@@ -507,6 +508,12 @@ func (s *Service) SyncProducts(ctx context.Context, products []SyncProductReques
 		stock := 0.0
 		if p.Stock != nil {
 			stock = *p.Stock
+			if err := shared.ValidateDecimalPrecision(stock, shared.MaxStockDecimals); err != nil {
+				tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+sp)
+				result.Errors++
+				result.Details = append(result.Details, SyncError{Identifier: p.identifier(), Message: err.Error()})
+				continue
+			}
 		}
 
 		stockAvail := stock
@@ -718,6 +725,12 @@ func (s *Service) SyncBundles(ctx context.Context, bundles []SyncBundleRequest) 
 		newStock := 0.0
 		if b.Stock != nil {
 			newStock = *b.Stock
+			if err := shared.ValidateDecimalPrecision(newStock, shared.MaxStockDecimals); err != nil {
+				tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+sp)
+				result.Errors++
+				result.Details = append(result.Details, SyncError{Identifier: b.identifier(), Message: err.Error()})
+				continue
+			}
 		}
 		err = tx.QueryRow(ctx, `
 			INSERT INTO bundles (bundle_id, code, name, status, branch_id, category_id, stock, stock_available, stock_blocked, blocks_product_stock)
@@ -749,6 +762,13 @@ func (s *Service) SyncBundles(ctx context.Context, bundles []SyncBundleRequest) 
 		newItems := make([]pricing.ChainItem, 0)
 		itemsFailed := false
 		for _, item := range b.Items {
+			if err := shared.ValidateDecimalPrecision(item.Quantity, shared.MaxStockDecimals); err != nil {
+				tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+sp)
+				result.Errors++
+				result.Details = append(result.Details, SyncError{Identifier: b.identifier(), Message: err.Error()})
+				itemsFailed = true
+				break
+			}
 			productID, err := s.resolveProductID(ctx, tx, item.ProductCode, branchID)
 			if err != nil {
 				tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+sp)

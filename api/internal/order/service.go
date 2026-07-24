@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lcdpc/lcdpc-go/internal/shared"
 	"github.com/lcdpc/lcdpc-go/internal/workflow"
 )
 
@@ -58,6 +59,9 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByU
 			if err := s.validateBundlePrice(ctx, item.BundleID, item.UnitPrice); err != nil {
 				return nil, err
 			}
+		}
+		if err := shared.ValidateDecimalPrecision(item.Quantity, shared.MaxStockDecimals); err != nil {
+			return nil, err
 		}
 	}
 
@@ -467,6 +471,9 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderReque
 				if err := s.validateBundlePrice(ctx, item.BundleID, item.UnitPrice); err != nil {
 					return nil, err
 				}
+			}
+			if err := shared.ValidateDecimalPrecision(item.Quantity, shared.MaxStockDecimals); err != nil {
+				return nil, err
 			}
 		}
 	}

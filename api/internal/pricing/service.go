@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lcdpc/lcdpc-go/internal/shared"
 )
 
 var ErrNotFound = errors.New("NOT_FOUND")
@@ -65,6 +66,11 @@ type CreateProductRequest struct {
 
 func (s *Service) CreateProduct(ctx context.Context, req CreateProductRequest) (*Product, error) {
 	req.Sku = strings.ToUpper(req.Sku)
+	if req.Stock != nil {
+		if err := shared.ValidateDecimalPrecision(*req.Stock, shared.MaxStockDecimals); err != nil {
+			return nil, err
+		}
+	}
 	p := &Product{}
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO products (product_id, name, sku, is_active, img, brand_id, category_id, branch_id, base_unit_id, stock, stock_available, stock_blocked)
@@ -180,6 +186,11 @@ func (s *Service) ListProducts(ctx context.Context, filter ...ProductFilter) ([]
 
 func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, req CreateProductRequest) (*Product, error) {
 	req.Sku = strings.ToUpper(req.Sku)
+	if req.Stock != nil {
+		if err := shared.ValidateDecimalPrecision(*req.Stock, shared.MaxStockDecimals); err != nil {
+			return nil, err
+		}
+	}
 	var current Product
 	err := s.pool.QueryRow(ctx, `
 		SELECT product_id, name, sku, is_active, img, brand_id, category_id, branch_id, base_unit_id, stock, stock_available, stock_blocked
@@ -403,6 +414,16 @@ func (s *Service) CreateBundle(ctx context.Context, req CreateBundleRequest) (*B
 	req.Code = strings.ToUpper(req.Code)
 	if err := s.validateProductsExist(ctx, req.Items); err != nil {
 		return nil, err
+	}
+	if req.Stock != nil {
+		if err := shared.ValidateDecimalPrecision(*req.Stock, shared.MaxStockDecimals); err != nil {
+			return nil, err
+		}
+	}
+	for _, item := range req.Items {
+		if err := shared.ValidateDecimalPrecision(item.Quantity, shared.MaxStockDecimals); err != nil {
+			return nil, err
+		}
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -662,6 +683,16 @@ func (s *Service) UpdateBundle(ctx context.Context, id uuid.UUID, req CreateBund
 	req.Code = strings.ToUpper(req.Code)
 	if err := s.validateProductsExist(ctx, req.Items); err != nil {
 		return nil, err
+	}
+	if req.Stock != nil {
+		if err := shared.ValidateDecimalPrecision(*req.Stock, shared.MaxStockDecimals); err != nil {
+			return nil, err
+		}
+	}
+	for _, item := range req.Items {
+		if err := shared.ValidateDecimalPrecision(item.Quantity, shared.MaxStockDecimals); err != nil {
+			return nil, err
+		}
 	}
 
 	tx, err := s.pool.Begin(ctx)
