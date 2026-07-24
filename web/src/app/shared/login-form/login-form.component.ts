@@ -120,8 +120,8 @@ export class LoginFormComponent {
   @Output() loginSuccess = new EventEmitter<void>();
   @Output() loginError = new EventEmitter<string>();
 
-  protected readonly username = signal('admin@lcdpc.local');
-  protected readonly password = signal('SuperPerro123!');
+  protected readonly username = signal('');
+  protected readonly password = signal('');
   protected readonly isSubmitting = signal(false);
   protected readonly canSubmit = computed(() => this.username().trim().length > 0 && this.password().trim().length > 0);
 

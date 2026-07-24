@@ -26,8 +26,8 @@
               <div class="product-tags">
                 <p-tag
                   styleClass="product-tag"
-                  [value]="product.featured ? 'PROMO ESPECIAL' : product.category"
-                  [severity]="product.featured ? 'warn' : 'info'"
+                  [value]="product.featured ? 'COMBO' : product.category"
+                  [severity]="product.featured ? 'success' : 'info'"
                 ></p-tag>
                 @if (product.badge) {
                   <p-tag styleClass="product-badge" [value]="product.badge" severity="success"></p-tag>
