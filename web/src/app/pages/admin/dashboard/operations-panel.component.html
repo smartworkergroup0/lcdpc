@@ -1,0 +1,117 @@
+<section class="operations-panel">
+  <div class="page-header">
+    <h1>Operaciones</h1>
+    @if (canViewAllBranches()) {
+      <div class="branch-filter">
+        <p-select
+          [options]="branchOptions()"
+          [(ngModel)]="branchFilter"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Todas las sucursales"
+          [showClear]="true"
+          (onChange)="onBranchChange()"
+          styleClass="branch-select"
+        />
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="summary-cards">
+      @for (i of [1,2,3]; track i) {
+        <div class="summary-card skeleton">
+          <div class="skeleton-number"></div>
+          <div class="skeleton-label"></div>
+        </div>
+      }
+    </div>
+    <div class="dashboard-grid">
+      @for (i of [1,2,3,4]; track i) {
+        <div class="widget skeleton">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-chart"></div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="summary-cards">
+      <div class="summary-card card-created">
+        <div class="card-value">{{ todayActivity()?.ordersCreatedToday ?? 0 }}</div>
+        <div class="card-label">Ordenadas hoy</div>
+      </div>
+      <div class="summary-card card-completed">
+        <div class="card-value">{{ todayActivity()?.ordersCompletedToday ?? 0 }}</div>
+        <div class="card-label">Completadas hoy</div>
+      </div>
+      <div class="summary-card card-pending">
+        <div class="card-value">{{ todayActivity()?.pendingOrders ?? 0 }}</div>
+        <div class="card-label">En espera</div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Ordenes por Estado -->
+      <div class="widget widget-wide">
+        <h3>Ordenes por Estado</h3>
+        <div class="chart-container">
+          @if (ordersAttention().length > 0) {
+            <p-chart type="doughnut" [data]="doughnutChartData()" [options]="doughnutOptions" />
+          } @else {
+            <div class="empty-chart">Sin ordenes</div>
+          }
+        </div>
+      </div>
+
+      <!-- Pedidos que necesitan atencion -->
+      <div class="widget widget-wide">
+        <h3>Pedidos que necesitan atencion</h3>
+        <div class="attention-list">
+          @if (ordersAttention().length > 0) {
+            @for (item of ordersAttention(); track item.status) {
+              <div class="attention-item">
+                <p-tag [value]="getStatusLabel(item.status)" [severity]="getStatusSeverity(item.status)" />
+                <span class="attention-count">{{ item.count }} ordenes</span>
+              </div>
+            }
+          } @else {
+            <div class="empty-chart">No hay pedidos pendientes</div>
+          }
+        </div>
+      </div>
+
+      <!-- Ordenes recientes -->
+      <div class="widget widget-full">
+        <h3>Ordenes recientes</h3>
+        @if (recentOrders().length > 0) {
+          <p-table [value]="recentOrders()" [scrollable]="true" scrollHeight="300px" [style]="{width: '100%'}">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Orden</th>
+                <th>Estado</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Cliente</th>
+                <th>Fecha</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-order>
+              <tr>
+                <td>{{ order.displayId }}</td>
+                <td>
+                  <p-tag [value]="getStatusLabel(order.status)" [severity]="getStatusSeverity(order.status)" />
+                </td>
+                <td>{{ order.totalItems }}</td>
+                <td>{{ formatCurrency(order.priceTotal) }}</td>
+                <td>{{ order.customerName || '-' }}</td>
+                <td>{{ order.createdAt }}</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        } @else {
+          <div class="empty-chart">No hay ordenes recientes</div>
+        }
+      </div>
+    </div>
+  }
+</section>

@@ -344,7 +344,7 @@ export class OrderItemsDialogComponent implements OnChanges {
     if (!product?.baseUnitId) return 0;
     const unit = this.allUnits().find((u) => u.id === product.baseUnitId);
     if (!unit?.classificationId) return 0;
-    return this.classificationStore.canDecimalStock(unit.classificationId) ? 2 : 0;
+    return this.classificationStore.canDecimalStock(unit.classificationId) ? 3 : 0;
   }
 
   protected onPriceOptionSelect(item: EditableOrderItem, id: string): void {

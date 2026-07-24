@@ -69,7 +69,7 @@
                     optionLabel="name" optionValue="productId"
                     placeholder="Producto" />
           <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1"
-                         [maxFractionDigits]="getItemDecimalStock(i) ? 2 : 0"
+                         [maxFractionDigits]="getItemDecimalStock(i) ? 3 : 0"
                          placeholder="Cant." />
           <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
                     (onClick)="removeItem(i)"></p-button>

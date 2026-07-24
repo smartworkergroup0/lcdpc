@@ -62,7 +62,7 @@
                 <p-inputNumber [ngModel]="product.quantity" [min]="product.canDecimalStock ? 0.01 : 1"
                                [step]="product.canDecimalStock ? 0.1 : 1"
                                [max]="negativeStock ? undefined : product.stockAvailable"
-                               [maxFractionDigits]="product.canDecimalStock ? 2 : 0" [allowEmpty]="false"
+                               [maxFractionDigits]="product.canDecimalStock ? 3 : 0" [allowEmpty]="false"
                                [style]="{'width': '2.5rem', 'textAlign': 'center'}"
                                inputStyleClass="decimal-qty-input"
                                (onInput)="quantityChange.emit({ productId: product.id, quantity: $event.value ?? 1 })">

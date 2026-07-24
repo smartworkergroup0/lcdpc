@@ -661,17 +661,30 @@ func NewServer(
 		})
 	})
 
-	// Dashboard
+	// Dashboard - Admin Panel
 	r.Route("/api/v1/dashboard", func(r chi.Router) {
 		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
 		r.Use(middleware.RequireAuth())
+		r.Use(middleware.RequirePermission(rbacStore, "dashboard:admin-panel:view"))
 
 		r.Get("/summary", dashboardH.Summary)
-		r.Get("/orders-by-status", dashboardH.OrdersByStatus)
+		r.Get("/today-activity", dashboardH.TodayActivity)
 		r.Get("/sales-trend", dashboardH.SalesTrend)
 		r.Get("/top-products", dashboardH.TopProducts)
 		r.Get("/top-bundles", dashboardH.TopBundles)
 		r.Get("/stock-health", dashboardH.StockHealth)
+	})
+
+	// Dashboard - Operations Panel
+	r.Route("/api/v1/dashboard/operations", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+		r.Use(middleware.RequirePermission(rbacStore, "dashboard:operation-panel:view"))
+
+		r.Get("/orders-by-status", dashboardH.OrdersByStatus)
+		r.Get("/today-activity", dashboardH.TodayActivity)
+		r.Get("/orders-attention", dashboardH.OrdersNeedingAttention)
+		r.Get("/recent-orders", dashboardH.RecentOrders)
 	})
 
 	// Service Accounts (regular user auth)

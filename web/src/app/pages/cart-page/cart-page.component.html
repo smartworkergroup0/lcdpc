@@ -70,7 +70,7 @@
                   <p-inputNumber [ngModel]="item.quantity" [min]="item.canDecimalStock ? 0.01 : 1"
                                  [max]="item.stockAvailable"
                                  [step]="item.canDecimalStock ? 0.1 : 1"
-                                 [maxFractionDigits]="item.canDecimalStock ? 2 : 0" [allowEmpty]="false"
+                                 [maxFractionDigits]="item.canDecimalStock ? 3 : 0" [allowEmpty]="false"
                                  [style]="{'width': '2rem', 'textAlign': 'center'}"
                                  inputStyleClass="stepper-decimal-qty"
                                  (onInput)="onQuantityInputChange(item.id, $event.value)">

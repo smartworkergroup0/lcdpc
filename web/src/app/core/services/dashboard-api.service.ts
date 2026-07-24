@@ -185,4 +185,90 @@ export class DashboardApiService {
         }))
       );
   }
+
+  // Operations panel methods
+  getOrdersByStatusOperations(branchId?: string): Observable<OrdersByStatusItem[]> {
+    const params: Record<string, string> = {};
+    if (branchId) params['branch_id'] = branchId;
+    return this.http
+      .get<JsendEnvelope<OrdersByStatusGoData[]>>(`${this.baseUrl}/api/v1/dashboard/operations/orders-by-status`, {
+        params,
+      })
+      .pipe(
+        map((res) =>
+          (res.data ?? []).map((d) => ({
+            status: d.status,
+            count: d.count,
+            totalRevenue: d.total_revenue,
+          }))
+        )
+      );
+  }
+
+  getTodayActivityOperations(branchId?: string): Observable<{ ordersCreatedToday: number; ordersCompletedToday: number; pendingOrders: number; revenueToday: number }> {
+    const params: Record<string, string> = {};
+    if (branchId) params['branch_id'] = branchId;
+    return this.http
+      .get<JsendEnvelope<{ orders_created_today: number; orders_completed_today: number; pending_orders: number; revenue_today: number }>>(`${this.baseUrl}/api/v1/dashboard/operations/today-activity`, {
+        params,
+      })
+      .pipe(
+        map((res) => ({
+          ordersCreatedToday: res.data?.orders_created_today ?? 0,
+          ordersCompletedToday: res.data?.orders_completed_today ?? 0,
+          pendingOrders: res.data?.pending_orders ?? 0,
+          revenueToday: res.data?.revenue_today ?? 0,
+        }))
+      );
+  }
+
+  getTodayActivityAdmin(branchId?: string): Observable<{ ordersCreatedToday: number; ordersCompletedToday: number; pendingOrders: number; revenueToday: number }> {
+    const params: Record<string, string> = {};
+    if (branchId) params['branch_id'] = branchId;
+    return this.http
+      .get<JsendEnvelope<{ orders_created_today: number; orders_completed_today: number; pending_orders: number; revenue_today: number }>>(`${this.baseUrl}/api/v1/dashboard/today-activity`, {
+        params,
+      })
+      .pipe(
+        map((res) => ({
+          ordersCreatedToday: res.data?.orders_created_today ?? 0,
+          ordersCompletedToday: res.data?.orders_completed_today ?? 0,
+          pendingOrders: res.data?.pending_orders ?? 0,
+          revenueToday: res.data?.revenue_today ?? 0,
+        }))
+      );
+  }
+
+  getOrdersAttention(branchId?: string): Observable<{ status: string; count: number }[]> {
+    const params: Record<string, string> = {};
+    if (branchId) params['branch_id'] = branchId;
+    return this.http
+      .get<JsendEnvelope<{ status: string; count: number }[]>>(`${this.baseUrl}/api/v1/dashboard/operations/orders-attention`, {
+        params,
+      })
+      .pipe(
+        map((res) => res.data ?? [])
+      );
+  }
+
+  getRecentOrders(branchId?: string): Observable<{ displayId: string; status: string; priceTotal: number; totalItems: number; createdAt: string; customerName: string }[]> {
+    const params: Record<string, string> = {};
+    if (branchId) params['branch_id'] = branchId;
+    return this.http
+      .get<JsendEnvelope<{ display_id: string; status: string; price_total: number; total_items: number; created_at: string; customer_name: string }[]>>(`${this.baseUrl}/api/v1/dashboard/operations/recent-orders`, {
+        params,
+      })
+      .pipe(
+        map((res) =>
+          (res.data ?? []).map((d) => ({
+            displayId: d.display_id,
+            status: d.status,
+            priceTotal: d.price_total,
+            totalItems: d.total_items,
+            createdAt: d.created_at,
+            customerName: d.customer_name,
+          }))
+        )
+      );
+  }
 }

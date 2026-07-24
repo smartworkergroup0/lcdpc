@@ -123,3 +123,33 @@ func (h *Handler) StockHealth(w http.ResponseWriter, r *http.Request) {
 	}
 	response.Success(w, health)
 }
+
+func (h *Handler) TodayActivity(w http.ResponseWriter, r *http.Request) {
+	branchID := h.branchID(r)
+	data, err := h.svc.TodayActivity(r.Context(), branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	response.Success(w, data)
+}
+
+func (h *Handler) OrdersNeedingAttention(w http.ResponseWriter, r *http.Request) {
+	branchID := h.branchID(r)
+	items, err := h.svc.OrdersNeedingAttention(r.Context(), branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	response.Success(w, items)
+}
+
+func (h *Handler) RecentOrders(w http.ResponseWriter, r *http.Request) {
+	branchID := h.branchID(r)
+	items, err := h.svc.RecentOrders(r.Context(), branchID, 10)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	response.Success(w, items)
+}

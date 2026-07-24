@@ -49,7 +49,7 @@
     <div class="field">
       <p-floatlabel>
         <p-inputNumber id="stock" [(ngModel)]="form.stock" [min]="0" [useGrouping]="false"
-                       [maxFractionDigits]="canDecimalStockForStock() ? 2 : 0"
+                       [maxFractionDigits]="canDecimalStockForStock() ? 3 : 0"
                        style="width: 100%" placeholder=" " />
         <label for="stock">Stock</label>
       </p-floatlabel>

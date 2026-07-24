@@ -162,7 +162,7 @@ export class OrderFormDialogComponent implements OnChanges {
     if (!product?.baseUnitId) return 0;
     const unit = this.allUnits().find((u) => u.id === product.baseUnitId);
     if (!unit?.classificationId) return 0;
-    return this.classificationStore.canDecimalStock(unit.classificationId) ? 2 : 0;
+    return this.classificationStore.canDecimalStock(unit.classificationId) ? 3 : 0;
   }
 
   ngOnChanges(changes: SimpleChanges): void {

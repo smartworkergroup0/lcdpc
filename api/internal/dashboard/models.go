@@ -42,3 +42,26 @@ type LowStockItem struct {
 	BranchID       string  `json:"branch_id"`
 	BaseUnitID     *string `json:"base_unit_id"`
 }
+
+// Operations panel models
+
+type TodayActivity struct {
+	OrdersCreatedToday    int     `json:"orders_created_today"`
+	OrdersCompletedToday int     `json:"orders_completed_today"`
+	PendingOrders        int     `json:"pending_orders"`
+	RevenueToday          float64 `json:"revenue_today"`
+}
+
+type AttentionStatusItem struct {
+	Status string `json:"status"`
+	Count  int    `json:"count"`
+}
+
+type RecentOrderItem struct {
+	DisplayID      string  `json:"display_id"`
+	Status        string  `json:"status"`
+	PriceTotal    float64 `json:"price_total"`
+	TotalItems    int     `json:"total_items"`
+	CreatedAt     string  `json:"created_at"`
+	CustomerName  string  `json:"customer_name"`
+}

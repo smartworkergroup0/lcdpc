@@ -10,21 +10,17 @@ import { BranchApiService } from '../../../core/services/branch-api.service';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { MeasurementUnitStore } from '../../../core/stores/measurement-unit.store';
 import {
-  OrdersByStatusItem,
   SalesTrendItem,
   TopItem,
   StockHealth,
   SummaryData,
 } from '../../../core/models/dashboard.model';
-import {
-  ORDER_STATUS_LABELS,
-  ORDER_STATUS_SEVERITY,
-} from '../../../core/models/order.model';
+import { OperationsPanelComponent } from './operations-panel.component';
 
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChartModule, SelectModule, TooltipModule],
+  imports: [CommonModule, FormsModule, ChartModule, SelectModule, TooltipModule, OperationsPanelComponent],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
 })
@@ -37,13 +33,14 @@ export class DashboardPageComponent implements OnInit {
   protected readonly branchFilter = signal<string | null>(null);
   protected readonly branchOptions = signal<{ label: string; value: string }[]>([]);
   protected readonly loading = signal(true);
+  protected readonly activeTab = signal<'admin' | 'operations'>('admin');
 
-  protected readonly ordersByStatus = signal<OrdersByStatusItem[]>([]);
   protected readonly salesTrend = signal<SalesTrendItem[]>([]);
   protected readonly topProducts = signal<TopItem[]>([]);
   protected readonly topBundles = signal<TopItem[]>([]);
   protected readonly stockHealth = signal<StockHealth | null>(null);
   protected readonly summary = signal<SummaryData | null>(null);
+  protected readonly todayActivity = signal<{ ordersCreatedToday: number; ordersCompletedToday: number; pendingOrders: number; revenueToday: number } | null>(null);
 
   protected readonly canViewAllBranches = computed(() =>
     this.authStore.hasPermission('view:branch:all')
@@ -51,24 +48,12 @@ export class DashboardPageComponent implements OnInit {
   protected readonly userBranchId = computed(() =>
     this.authStore.currentUser()?.branchId ?? null
   );
-
-  protected readonly ordersByStatusChartData = computed(() => {
-    const data = this.ordersByStatus();
-    const labels = data.map((d) => ORDER_STATUS_LABELS[d.status] ?? d.status);
-    const values = data.map((d) => d.count);
-    const bgColors = data.map((d) => {
-      const sev = ORDER_STATUS_SEVERITY[d.status] ?? 'info';
-      const map: Record<string, string> = {
-        warn: '#f59e0b',
-        info: '#3b82f6',
-        success: '#22c55e',
-        danger: '#ef4444',
-        secondary: '#9ca3af',
-      };
-      return map[sev] ?? '#6b7280';
-    });
-    return { labels, datasets: [{ data: values, backgroundColor: bgColors }] };
-  });
+  protected readonly canViewAdminPanel = computed(() =>
+    this.authStore.hasPermission('dashboard:admin-panel:view')
+  );
+  protected readonly canViewOperationsPanel = computed(() =>
+    this.authStore.hasPermission('dashboard:operation-panel:view')
+  );
 
   protected readonly salesTrendChartData = computed(() => {
     const data = this.salesTrend();
@@ -173,19 +158,6 @@ export class DashboardPageComponent implements OnInit {
     },
   };
 
-  protected readonly doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'right' as const },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => ` ${ctx.label}: ${ctx.parsed} ordenes`,
-        },
-      },
-    },
-  };
-
   protected readonly barOptions = {
     indexAxis: 'y' as const,
     responsive: true,
@@ -208,6 +180,9 @@ export class DashboardPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.unitStore.load();
+    if (!this.canViewAdminPanel() && this.canViewOperationsPanel()) {
+      this.activeTab.set('operations');
+    }
     this.loadBranches();
   }
 
@@ -242,7 +217,7 @@ export class DashboardPageComponent implements OnInit {
 
     forkJoin({
       summary: this.dashboardApi.getSummary(branchId).pipe(catchError(() => of(null))),
-      ordersByStatus: this.dashboardApi.getOrdersByStatus(branchId).pipe(catchError(() => of([]))),
+      todayActivity: this.dashboardApi.getTodayActivityAdmin(branchId).pipe(catchError(() => of(null))),
       salesTrend: this.dashboardApi.getSalesTrend(30, branchId).pipe(catchError(() => of([]))),
       topProducts: this.dashboardApi.getTopProducts(30, 10, branchId).pipe(catchError(() => of([]))),
       topBundles: this.dashboardApi.getTopBundles(30, 10, branchId).pipe(catchError(() => of([]))),
@@ -250,7 +225,7 @@ export class DashboardPageComponent implements OnInit {
     }).subscribe({
       next: (data) => {
         this.summary.set(data.summary);
-        this.ordersByStatus.set(data.ordersByStatus);
+        this.todayActivity.set(data.todayActivity);
         this.salesTrend.set(data.salesTrend);
         this.topProducts.set(data.topProducts);
         this.topBundles.set(data.topBundles);

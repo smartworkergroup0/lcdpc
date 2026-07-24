@@ -276,3 +276,136 @@ func (s *Service) StockHealth(ctx context.Context, branchID string) (*StockHealt
 
 	return &health, nil
 }
+
+func (s *Service) TodayActivity(ctx context.Context, branchID string) (*TodayActivity, error) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	createdQuery := `
+		SELECT COUNT(*)::int
+		FROM orders
+		WHERE deleted_at IS NULL AND created_at_utc >= $1
+	`
+	completedQuery := `
+		SELECT COUNT(*)::int, COALESCE(SUM(price_total), 0)
+		FROM orders
+		WHERE deleted_at IS NULL AND status = 'COMPLETED' AND created_at_utc >= $1
+	`
+	pendingQuery := `
+		SELECT COUNT(*)::int
+		FROM orders
+		WHERE deleted_at IS NULL AND status = 'PENDING_REVIEW'
+	`
+	args := []any{today}
+	if branchID != "" {
+		createdQuery += " AND branch_id = $2"
+		completedQuery += " AND branch_id = $2"
+		pendingQuery += " AND branch_id = $1"
+		args = append(args, branchID)
+	}
+
+	var created int
+	if err := s.pool.QueryRow(ctx, createdQuery, args...).Scan(&created); err != nil {
+		return nil, fmt.Errorf("today activity: %w", err)
+	}
+
+	var completed int
+	var revenue float64
+	if err := s.pool.QueryRow(ctx, completedQuery, args...).Scan(&completed, &revenue); err != nil {
+		return nil, fmt.Errorf("today activity: %w", err)
+	}
+
+	pendingArgs := []any{}
+	if branchID != "" {
+		pendingArgs = append(pendingArgs, branchID)
+	} else {
+		pendingArgs = append(pendingArgs, today)
+	}
+	var pending int
+	if err := s.pool.QueryRow(ctx, pendingQuery, pendingArgs...).Scan(&pending); err != nil {
+		return nil, fmt.Errorf("today activity: %w", err)
+	}
+
+	return &TodayActivity{
+		OrdersCreatedToday:    created,
+		OrdersCompletedToday: completed,
+		PendingOrders:       pending,
+		RevenueToday:        revenue,
+	}, nil
+}
+
+func (s *Service) OrdersNeedingAttention(ctx context.Context, branchID string) ([]AttentionStatusItem, error) {
+	query := `
+		SELECT status, COUNT(*)::int
+		FROM orders
+		WHERE deleted_at IS NULL
+		  AND status NOT IN ('REJECTED_BY_VALIDATION', 'DELIVERY_FAILED', 'COMPLETED', 'CANCELLED_BY_CUSTOMER')
+	`
+	args := []any{}
+	if branchID != "" {
+		query += " AND branch_id = $1"
+		args = append(args, branchID)
+	}
+	query += " GROUP BY status ORDER BY COUNT(*) DESC"
+
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("orders needing attention: %w", err)
+	}
+	defer rows.Close()
+
+	var items []AttentionStatusItem
+	for rows.Next() {
+		var item AttentionStatusItem
+		if err := rows.Scan(&item.Status, &item.Count); err != nil {
+			return nil, fmt.Errorf("scan attention item: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *Service) RecentOrders(ctx context.Context, branchID string, limit int) ([]RecentOrderItem, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	query := `
+		SELECT
+			o.display_id,
+			o.status,
+			COALESCE(o.price_total, 0),
+			o.total_items,
+			TO_CHAR(o.created_at_utc, 'YYYY-MM-DD HH24:MI') AS created_at,
+			COALESCE(p.name, '') AS customer_name
+		FROM orders o
+		LEFT JOIN persons p ON o.person_id = p.id
+		WHERE o.deleted_at IS NULL
+		  AND o.created_at_utc >= $1
+	`
+	args := []any{today}
+	paramIdx := 2
+	if branchID != "" {
+		query += fmt.Sprintf(" AND o.branch_id = $%d", paramIdx)
+		args = append(args, branchID)
+		paramIdx++
+	}
+	query += fmt.Sprintf(" ORDER BY o.created_at_utc DESC LIMIT $%d", paramIdx)
+	args = append(args, limit)
+
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("recent orders: %w", err)
+	}
+	defer rows.Close()
+
+	var items []RecentOrderItem
+	for rows.Next() {
+		var item RecentOrderItem
+		if err := rows.Scan(&item.DisplayID, &item.Status, &item.PriceTotal, &item.TotalItems, &item.CreatedAt, &item.CustomerName); err != nil {
+			return nil, fmt.Errorf("scan recent order: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}

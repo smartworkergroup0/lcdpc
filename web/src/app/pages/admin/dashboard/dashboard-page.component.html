@@ -1,144 +1,157 @@
 <section class="dashboard-page">
-  <div class="page-header">
-    <h1>Dashboard</h1>
-    @if (canViewAllBranches()) {
-      <div class="branch-filter">
-        <p-select
-          [options]="branchOptions()"
-          [(ngModel)]="branchFilter"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Todas las sucursales"
-          [showClear]="true"
-          (onChange)="onBranchChange()"
-          styleClass="branch-select"
-        />
-      </div>
+  <div class="dashboard-tabs">
+    @if (canViewAdminPanel()) {
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === 'admin'"
+        (click)="activeTab.set('admin')"
+      >
+        Administracion
+      </button>
+    }
+    @if (canViewOperationsPanel()) {
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === 'operations'"
+        (click)="activeTab.set('operations')"
+      >
+        Operaciones
+      </button>
     }
   </div>
 
-  @if (loading()) {
-    <div class="summary-cards">
-      @for (i of [1,2,3,4]; track i) {
-        <div class="summary-card skeleton">
-          <div class="skeleton-number"></div>
-          <div class="skeleton-label"></div>
+  @if (activeTab() === 'admin') {
+    <div class="page-header">
+      <h1>Administracion</h1>
+      @if (canViewAllBranches()) {
+        <div class="branch-filter">
+          <p-select
+            [options]="branchOptions()"
+            [(ngModel)]="branchFilter"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Todas las sucursales"
+            [showClear]="true"
+            (onChange)="onBranchChange()"
+            styleClass="branch-select"
+          />
         </div>
       }
     </div>
-    <div class="dashboard-grid">
-      @for (i of [1,2,3,4,5,6]; track i) {
-        <div class="widget skeleton">
-          <div class="skeleton-title"></div>
-          <div class="skeleton-chart"></div>
-        </div>
-      }
-    </div>
-  } @else {
-    <div class="summary-cards">
-      <div class="summary-card card-products">
-        <div class="card-value">{{ summary()?.totalProducts ?? 0 }}</div>
-        <div class="card-label">Productos</div>
-      </div>
-      <div class="summary-card card-bundles">
-        <div class="card-value">{{ summary()?.totalBundles ?? 0 }}</div>
-        <div class="card-label">Combos</div>
-      </div>
-      <div class="summary-card card-orders">
-        <div class="card-value">{{ summary()?.totalOrders ?? 0 }}</div>
-        <div class="card-label">Ordenes</div>
-      </div>
-      <div class="summary-card card-pending">
-        <div class="card-value">{{ summary()?.pendingOrders ?? 0 }}</div>
-        <div class="card-label">En espera</div>
-      </div>
-    </div>
-    <div class="dashboard-grid">
-      <!-- Tendencia de Ventas (full width) -->
-      <div class="widget widget-full">
-        <h3>Tendencia de Ventas (30 dias)</h3>
-        <div class="chart-container chart-tall">
-          @if (salesTrend().length > 0) {
-            <p-chart type="line" [data]="salesTrendChartData()" [options]="lineOptions" />
-          } @else {
-            <div class="empty-chart">Sin datos de ventas</div>
-          }
-        </div>
-      </div>
 
-      <!-- Ordenes por Estado -->
-      <div class="widget">
-        <h3>Ordenes por Estado</h3>
-        <div class="chart-container">
-          @if (ordersByStatus().length > 0) {
-            <p-chart type="doughnut" [data]="ordersByStatusChartData()" [options]="doughnutOptions" />
-          } @else {
-            <div class="empty-chart">Sin ordenes</div>
-          }
-        </div>
-      </div>
-
-      <!-- Top Productos -->
-      <div class="widget">
-        <h3>Top Productos</h3>
-        <div class="chart-container">
-          @if (topProducts().length > 0) {
-            <p-chart type="bar" [data]="topProductsChartData()" [options]="barOptions" />
-          } @else {
-            <div class="empty-chart">Sin datos</div>
-          }
-        </div>
-      </div>
-
-      <!-- Top Combos -->
-      <div class="widget">
-        <h3>Top Combos</h3>
-        <div class="chart-container">
-          @if (topBundles().length > 0) {
-            <p-chart type="bar" [data]="topBundlesChartData()" [options]="barOptions" />
-          } @else {
-            <div class="empty-chart">Sin datos</div>
-          }
-        </div>
-      </div>
-
-      <!-- Salud del Inventario -->
-      <div class="widget">
-        <h3>Salud del Inventario</h3>
-        <div class="chart-container">
-          @if (stockHealth() && (stockHealth()!.outOfStock + stockHealth()!.lowStock + stockHealth()!.healthy) > 0) {
-            <p-chart type="polarArea" [data]="stockHealthChartData()" [options]="polarOptions" />
-          } @else {
-            <div class="empty-chart">Sin datos</div>
-          }
-        </div>
-      </div>
-
-      <!-- Alertas de Stock Bajo -->
-      <div class="widget widget-list">
-        <h3>Alertas de Stock Bajo</h3>
-        @if (stockHealth() && stockHealth()!.items.length > 0) {
-          <div class="low-stock-list">
-            @for (item of stockHealth()!.items; track item.productId) {
-              <div class="low-stock-item">
-                <div class="item-info">
-                  <span class="item-name">{{ item.name }}</span>
-                  @if (item.sku) {
-                    <span class="item-sku">{{ item.sku }}</span>
-                  }
-                </div>
-                <div class="item-stock">
-                  <span class="stock-badge" [class.critical]="item.stockAvailable <= 2" [class.warning]="item.stockAvailable > 2">
-                    {{ item.stockAvailable }}/{{ item.stock }} {{ getUnitSymbol(item.baseUnitId) }}
-                  </span>
-                </div>
-              </div>
-            }
+    @if (loading()) {
+      <div class="summary-cards">
+        @for (i of [1,2,3,4]; track i) {
+          <div class="summary-card skeleton">
+            <div class="skeleton-number"></div>
+            <div class="skeleton-label"></div>
           </div>
-        } @else {
-          <div class="empty-chart">Todos los productos tienen stock suficiente</div>
         }
       </div>
-    </div>
+      <div class="dashboard-grid">
+        @for (i of [1,2,3,4,5]; track i) {
+          <div class="widget skeleton">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-chart"></div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="summary-cards">
+        <div class="summary-card card-products">
+          <div class="card-value">{{ summary()?.totalProducts ?? 0 }}</div>
+          <div class="card-label">Productos</div>
+        </div>
+        <div class="summary-card card-bundles">
+          <div class="card-value">{{ summary()?.totalBundles ?? 0 }}</div>
+          <div class="card-label">Combos</div>
+        </div>
+        <div class="summary-card card-orders">
+          <div class="card-value">{{ summary()?.totalOrders ?? 0 }}</div>
+          <div class="card-label">Ordenes</div>
+        </div>
+        <div class="summary-card card-revenue">
+          <div class="card-value">{{ formatCurrency(todayActivity()?.revenueToday ?? 0) }}</div>
+          <div class="card-label">Revenue hoy</div>
+        </div>
+      </div>
+      <div class="dashboard-grid">
+        <!-- Tendencia de Ventas (full width) -->
+        <div class="widget widget-full">
+          <h3>Tendencia de Ventas (30 dias)</h3>
+          <div class="chart-container chart-tall">
+            @if (salesTrend().length > 0) {
+              <p-chart type="line" [data]="salesTrendChartData()" [options]="lineOptions" />
+            } @else {
+              <div class="empty-chart">Sin datos de ventas</div>
+            }
+          </div>
+        </div>
+
+        <!-- Top Productos -->
+        <div class="widget">
+          <h3>Top Productos</h3>
+          <div class="chart-container">
+            @if (topProducts().length > 0) {
+              <p-chart type="bar" [data]="topProductsChartData()" [options]="barOptions" />
+            } @else {
+              <div class="empty-chart">Sin datos</div>
+            }
+          </div>
+        </div>
+
+        <!-- Top Combos -->
+        <div class="widget">
+          <h3>Top Combos</h3>
+          <div class="chart-container">
+            @if (topBundles().length > 0) {
+              <p-chart type="bar" [data]="topBundlesChartData()" [options]="barOptions" />
+            } @else {
+              <div class="empty-chart">Sin datos</div>
+            }
+          </div>
+        </div>
+
+        <!-- Salud del Inventario -->
+        <div class="widget">
+          <h3>Salud del Inventario</h3>
+          <div class="chart-container">
+            @if (stockHealth() && (stockHealth()!.outOfStock + stockHealth()!.lowStock + stockHealth()!.healthy) > 0) {
+              <p-chart type="polarArea" [data]="stockHealthChartData()" [options]="polarOptions" />
+            } @else {
+              <div class="empty-chart">Sin datos</div>
+            }
+          </div>
+        </div>
+
+        <!-- Alertas de Stock Bajo -->
+        <div class="widget widget-list">
+          <h3>Alertas de Stock Bajo</h3>
+          @if (stockHealth() && stockHealth()!.items.length > 0) {
+            <div class="low-stock-list">
+              @for (item of stockHealth()!.items; track item.productId) {
+                <div class="low-stock-item">
+                  <div class="item-info">
+                    <span class="item-name">{{ item.name }}</span>
+                    @if (item.sku) {
+                      <span class="item-sku">{{ item.sku }}</span>
+                    }
+                  </div>
+                  <div class="item-stock">
+                    <span class="stock-badge" [class.critical]="item.stockAvailable <= 2" [class.warning]="item.stockAvailable > 2">
+                      {{ item.stockAvailable }}/{{ item.stock }} {{ getUnitSymbol(item.baseUnitId) }}
+                    </span>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="empty-chart">Todos los productos tienen stock suficiente</div>
+          }
+        </div>
+      </div>
+    }
+  } @else if (activeTab() === 'operations') {
+    <app-operations-panel />
   }
 </section>
