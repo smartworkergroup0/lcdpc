@@ -55,6 +55,7 @@ type DetailProductCard = {
   quantity: number;
   stockAvailable: number;
   canDecimalStock: boolean;
+  unitSymbol: string;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
   priceOptions: PriceOption[];
@@ -361,6 +362,13 @@ export class SalesPageComponent implements OnInit {
     return item.stock - item.stockBlocked;
   }
 
+  getUnitSymbol(item: CatalogItem): string {
+    if (item.itemType === 'product') {
+      return this.unitStore.getMeasurementUnitSymbol((item as Product).baseUnitId);
+    }
+    return '';
+  }
+
   getItemSku(item: CatalogItem): string {
     if (item.itemType === 'product') {
       return (item as Product).sku;
@@ -415,6 +423,7 @@ export class SalesPageComponent implements OnInit {
         stockAvailable,
         stock: product.stock,
         canDecimalStock: this.resolveCanDecimalStock(product.baseUnitId),
+        unitSymbol: this.unitStore.getMeasurementUnitSymbol(product.baseUnitId),
         priceCategoryId: price.priceCategoryId ?? null,
         selectedPriceId: price.id,
         priceOptions: options,
@@ -481,6 +490,7 @@ export class SalesPageComponent implements OnInit {
       stockAvailable,
       stock: bundle.stock,
       canDecimalStock: false,
+      unitSymbol: '',
       priceCategoryId: price.priceCategoryId ?? null,
       selectedPriceId: price.id,
       priceOptions: options,
@@ -556,6 +566,7 @@ export class SalesPageComponent implements OnInit {
             quantity: 1,
             stockAvailable: p.stock - p.stockBlocked,
             canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
+            unitSymbol: this.unitStore.getMeasurementUnitSymbol(p.baseUnitId),
             itemType: 'product',
             priceOptions: options,
             selectedPriceId: selected?.id ?? null,
@@ -575,6 +586,7 @@ export class SalesPageComponent implements OnInit {
             quantity: 1,
             stockAvailable: p.stock - p.stockBlocked,
             canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
+            unitSymbol: this.unitStore.getMeasurementUnitSymbol(p.baseUnitId),
             itemType: 'product',
             priceOptions: [],
             selectedPriceId: null,
@@ -598,6 +610,7 @@ export class SalesPageComponent implements OnInit {
         quantity: 1,
         stockAvailable: b.stock - b.stockBlocked,
         canDecimalStock: false,
+        unitSymbol: '',
         itemType: 'bundle',
         items: b.items?.map(i => ({ name: i.productId, quantity: i.quantity })),
         priceOptions: options,

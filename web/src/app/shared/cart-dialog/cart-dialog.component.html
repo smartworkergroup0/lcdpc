@@ -43,7 +43,7 @@
               </ul>
             }
             <span class="cart-item-stock" [class.stock-warning]="isOverStock(item)">
-              Stock disponible: {{ item.stockAvailable }}
+              Stock disponible: {{ item.stockAvailable }} {{ item.unitSymbol }}
             </span>
           </div>
           <div class="cart-item-quantity">

@@ -238,16 +238,17 @@ func (s *Service) StockHealth(ctx context.Context, branchID string) (*StockHealt
 
 	lowQuery := `
 		SELECT
-			product_id::text,
-			COALESCE(name, ''),
-			COALESCE(sku, ''),
-			stock_available,
-			stock,
-			COALESCE(branch_id::text, '')
-		FROM products
-		WHERE is_active = true
-		  AND stock_available > 0
-		  AND stock_available <= 5
+			p.product_id::text,
+			COALESCE(p.name, ''),
+			COALESCE(p.sku, ''),
+			p.stock_available,
+			p.stock,
+			COALESCE(p.branch_id::text, ''),
+			p.base_unit_id::text
+		FROM products p
+		WHERE p.is_active = true
+		  AND p.stock_available > 0
+		  AND p.stock_available <= 5
 	`
 	lowArgs := []any{}
 	if branchID != "" {
@@ -264,7 +265,7 @@ func (s *Service) StockHealth(ctx context.Context, branchID string) (*StockHealt
 
 	for rows.Next() {
 		var item LowStockItem
-		if err := rows.Scan(&item.ProductID, &item.Name, &item.SKU, &item.StockAvailable, &item.Stock, &item.BranchID); err != nil {
+		if err := rows.Scan(&item.ProductID, &item.Name, &item.SKU, &item.StockAvailable, &item.Stock, &item.BranchID, &item.BaseUnitID); err != nil {
 			return nil, fmt.Errorf("scan low stock item: %w", err)
 		}
 		health.Items = append(health.Items, item)

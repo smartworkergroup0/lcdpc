@@ -34,10 +34,11 @@ type SummaryData struct {
 }
 
 type LowStockItem struct {
-	ProductID     string  `json:"product_id"`
-	Name          string  `json:"name"`
-	SKU           string  `json:"sku"`
-	StockAvailable int    `json:"stock_available"`
-	Stock         int     `json:"stock"`
-	BranchID      string  `json:"branch_id"`
+	ProductID      string  `json:"product_id"`
+	Name           string  `json:"name"`
+	SKU            string  `json:"sku"`
+	StockAvailable int     `json:"stock_available"`
+	Stock          int     `json:"stock"`
+	BranchID       string  `json:"branch_id"`
+	BaseUnitID     *string `json:"base_unit_id"`
 }

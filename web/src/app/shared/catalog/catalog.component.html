@@ -72,7 +72,7 @@
                           (onClick)="increment.emit(product.id)"></p-button>
               </div>
               @if (negativeStock || product.stockAvailable > 0) {
-                <span class="stock-info">{{ product.stockAvailable }} disponibles</span>
+                <span class="stock-info">{{ product.stockAvailable }} {{ product.unitSymbol }} disponibles</span>
               } @else {
                 <span class="stock-info out-of-stock">Sin stock</span>
               }

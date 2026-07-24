@@ -12,6 +12,7 @@ import { TagModule } from 'primeng/tag';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
 import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
+import { MeasurementUnitStore } from '../../../core/stores/measurement-unit.store';
 import { MeasurementUnitApiService } from '../../../core/services/measurement-unit-api.service';
 import { AppUser } from '../../../core/models/user.model';
 import { Person } from '../../../core/models/person.model';
@@ -64,6 +65,7 @@ export class OrderFormDialogComponent implements OnChanges {
   private readonly authStore = inject(AuthStore);
   private readonly systemConfigStore = inject(SystemConfigStore);
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
+  private readonly unitStore = inject(MeasurementUnitStore);
   private readonly unitApi = inject(MeasurementUnitApiService);
   private readonly userApi = inject(UserApiService);
   private readonly personApi = inject(PersonApiService);
@@ -149,7 +151,8 @@ export class OrderFormDialogComponent implements OnChanges {
     const product = this.products().find((p) => p.productId === item.product_id);
     if (!product) return '';
     const available = product.stock - product.stockBlocked;
-    return `Disponible: ${available} | Bloqueado: ${product.stockBlocked} | Total: ${product.stock}`;
+    const sym = this.unitStore.getMeasurementUnitSymbol(product.baseUnitId);
+    return `Disponible: ${available} ${sym} | Bloqueado: ${product.stockBlocked} ${sym} | Total: ${product.stock} ${sym}`;
   }
 
   protected getItemMaxFractionDigits(index: number): number {
@@ -177,6 +180,7 @@ export class OrderFormDialogComponent implements OnChanges {
       this.submitted = false;
 
       this.classificationStore.load();
+      this.unitStore.load();
       this.unitApi.list().subscribe({
         next: (units) => this.allUnits.set(units),
       });

@@ -129,7 +129,7 @@
                 </div>
                 <div class="item-stock">
                   <span class="stock-badge" [class.critical]="item.stockAvailable <= 2" [class.warning]="item.stockAvailable > 2">
-                    {{ item.stockAvailable }}/{{ item.stock }}
+                    {{ item.stockAvailable }}/{{ item.stock }} {{ getUnitSymbol(item.baseUnitId) }}
                   </span>
                 </div>
               </div>

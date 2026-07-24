@@ -24,6 +24,7 @@ export interface LowStockItem {
   stockAvailable: number;
   stock: number;
   branchId: string;
+  baseUnitId: string | null;
 }
 
 export interface SummaryData {

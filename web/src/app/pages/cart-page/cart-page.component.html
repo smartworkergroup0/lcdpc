@@ -52,7 +52,7 @@
                   </ul>
                 }
                 <div class="item-meta">
-                  <span [class.stock-warning]="isOverStock(item)">Stock disponible: {{ item.stockAvailable }}</span>
+                  <span [class.stock-warning]="isOverStock(item)">Stock disponible: {{ item.stockAvailable }} {{ item.unitSymbol }}</span>
                   <span>{{ item.itemType === 'bundle' ? 'Combo' : 'Producto' }}</span>
                 </div>
               </div>

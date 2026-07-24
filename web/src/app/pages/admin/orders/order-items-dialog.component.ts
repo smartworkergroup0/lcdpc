@@ -19,6 +19,7 @@ import { PriceCategoryApiService } from '../../../core/services/price-category-a
 import { MeasurementUnitApiService } from '../../../core/services/measurement-unit-api.service';
 import { SystemConfigStore } from '../../../core/stores/system-config.store';
 import { MeasurementUnitClassificationStore } from '../../../core/stores/measurement-unit-classification.store';
+import { MeasurementUnitStore } from '../../../core/stores/measurement-unit.store';
 import { Product } from '../../../core/models/product.model';
 import { Bundle } from '../../../core/models/bundle.model';
 import { MeasurementUnit } from '../../../core/models/measurement-unit.model';
@@ -81,6 +82,7 @@ export class OrderItemsDialogComponent implements OnChanges {
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
   private readonly unitApi = inject(MeasurementUnitApiService);
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
+  private readonly unitStore = inject(MeasurementUnitStore);
   private readonly systemConfigStore = inject(SystemConfigStore);
   private readonly messageService = inject(MessageService);
 
@@ -164,6 +166,7 @@ export class OrderItemsDialogComponent implements OnChanges {
       this.items = [];
 
       this.classificationStore.load();
+      this.unitStore.load();
       this.unitApi.list().subscribe({
         next: (units) => this.allUnits.set(units),
       });
@@ -375,13 +378,14 @@ export class OrderItemsDialogComponent implements OnChanges {
     if (!product) return '';
     const additional = item.quantity - item.originalQuantity;
     const available = product.stock - product.stockBlocked;
+    const sym = this.unitStore.getMeasurementUnitSymbol(product.baseUnitId);
     if (additional > 0) {
-      return `Disponible: ${available} (se tomara ${additional} adicionales)`;
+      return `Disponible: ${available} ${sym} (se tomara ${additional} adicionales)`;
     }
     if (additional < 0) {
-      return `Disponible: ${available} (libera ${-additional})`;
+      return `Disponible: ${available} ${sym} (libera ${-additional})`;
     }
-    return `Disponible: ${available}`;
+    return `Disponible: ${available} ${sym}`;
   }
 
   protected getItemName(item: EditableOrderItem): string {

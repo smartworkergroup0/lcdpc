@@ -2,6 +2,7 @@ import { Injectable, computed, signal, inject } from '@angular/core';
 import { SystemConfigStore } from './system-config.store';
 
 const CART_KEY = 'lcdpc_cart';
+const CART_TTL_MS = 12 * 60 * 60 * 1000;
 
 export interface CartItem {
   id: string;
@@ -12,7 +13,9 @@ export interface CartItem {
   quantity: number;
   stockAvailable: number;
   canDecimalStock: boolean;
+  unitSymbol: string;
   itemType: 'product' | 'bundle';
+  expiresAt?: number;
   items?: { name: string; quantity: number }[];
 }
 
@@ -21,11 +24,19 @@ function loadCart(): CartItem[] {
     const raw = localStorage.getItem(CART_KEY);
     if (!raw) return [];
     const items = JSON.parse(raw) as CartItem[];
-    return items
-      .map((item) => ({
-        ...item,
-        itemType: item.itemType ?? 'product',
-      }));
+    const now = Date.now();
+    const hasExpired = items.some(
+      (item) => item.expiresAt == null || item.expiresAt <= now,
+    );
+    if (hasExpired) {
+      localStorage.removeItem(CART_KEY);
+      return [];
+    }
+    return items.map((item) => ({
+      ...item,
+      itemType: item.itemType ?? 'product',
+      unitSymbol: item.unitSymbol ?? '',
+    }));
   } catch {
     return [];
   }
@@ -60,13 +71,20 @@ export class CartStore {
     return stockAvailable > 0 ? Math.min(quantity, stockAvailable) : 0;
   }
 
+  private refreshExpiry(items: CartItem[]): CartItem[] {
+    const now = Date.now();
+    return items.map((item) => ({ ...item, expiresAt: now + CART_TTL_MS }));
+  }
+
   addItem(item: Omit<CartItem, 'quantity'>, quantity: number = 1): void {
     this._items.update((items) => {
       if (items.length > 0 && item.branchId !== null) {
         const currentBranchId = items[0].branchId ?? null;
         if (currentBranchId !== null && currentBranchId !== item.branchId) {
           const capped = this.capQty(quantity, item.stockAvailable);
-          const next = [...(capped > 0 ? [{ ...item, quantity: capped } as CartItem] : [])];
+          const next = this.refreshExpiry(
+            capped > 0 ? [{ ...item, quantity: capped } as CartItem] : [],
+          );
           saveCart(next);
           return next;
         }
@@ -89,8 +107,9 @@ export class CartStore {
         if (capped <= 0) return items;
         next = [...items, { ...item, quantity: capped }];
       }
-      saveCart(next);
-      return next;
+      const refreshed = this.refreshExpiry(next);
+      saveCart(refreshed);
+      return refreshed;
     });
   }
 
@@ -113,8 +132,9 @@ export class CartStore {
         const capped = this.capQty(quantity, i.stockAvailable);
         return { ...i, quantity: capped };
       });
-      saveCart(next);
-      return next;
+      const refreshed = this.refreshExpiry(next);
+      saveCart(refreshed);
+      return refreshed;
     });
   }
 
@@ -131,8 +151,9 @@ export class CartStore {
         }
         return { ...i, quantity: i.quantity + 1 };
       });
-      saveCart(next);
-      return next;
+      const refreshed = this.refreshExpiry(next);
+      saveCart(refreshed);
+      return refreshed;
     });
   }
 
@@ -144,8 +165,9 @@ export class CartStore {
         const newQty = i.quantity - 1;
         return { ...i, quantity: Math.max(min, newQty) };
       });
-      saveCart(next);
-      return next;
+      const refreshed = this.refreshExpiry(next);
+      saveCart(refreshed);
+      return refreshed;
     });
   }
 

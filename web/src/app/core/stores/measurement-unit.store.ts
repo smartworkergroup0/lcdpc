@@ -21,6 +21,10 @@ export class MeasurementUnitStore {
     () => new Map(this._measurementUnits().map((mu) => [mu.id, mu.name]))
   );
 
+  readonly measurementUnitSymbolMap = computed(
+    () => new Map(this._measurementUnits().map((mu) => [mu.id, mu.symbol ?? '']))
+  );
+
   readonly measurementUnitOptions = computed(() =>
     this._measurementUnits().map((mu) => ({
       label: mu.symbol ? `${mu.name} (${mu.symbol})` : mu.name,
@@ -50,6 +54,11 @@ export class MeasurementUnitStore {
   getMeasurementUnitName(id: string | null): string {
     if (!id) return 'Sin unidad de medida';
     return this.measurementUnitMap().get(id) ?? 'Sin unidad de medida';
+  }
+
+  getMeasurementUnitSymbol(id: string | null | undefined): string {
+    if (!id) return '';
+    return this.measurementUnitSymbolMap().get(id) ?? '';
   }
 
   refresh(): void {

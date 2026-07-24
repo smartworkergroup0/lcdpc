@@ -8,6 +8,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { DashboardApiService } from '../../../core/services/dashboard-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { MeasurementUnitStore } from '../../../core/stores/measurement-unit.store';
 import {
   OrdersByStatusItem,
   SalesTrendItem,
@@ -31,6 +32,7 @@ export class DashboardPageComponent implements OnInit {
   private readonly dashboardApi = inject(DashboardApiService);
   private readonly branchApi = inject(BranchApiService);
   private readonly authStore = inject(AuthStore);
+  private readonly unitStore = inject(MeasurementUnitStore);
 
   protected readonly branchFilter = signal<string | null>(null);
   protected readonly branchOptions = signal<{ label: string; value: string }[]>([]);
@@ -205,6 +207,7 @@ export class DashboardPageComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.unitStore.load();
     this.loadBranches();
   }
 
@@ -223,6 +226,10 @@ export class DashboardPageComponent implements OnInit {
         this.loadAll();
       },
     });
+  }
+
+  protected getUnitSymbol(baseUnitId: string | null | undefined): string {
+    return this.unitStore.getMeasurementUnitSymbol(baseUnitId);
   }
 
   protected loadAll(): void {

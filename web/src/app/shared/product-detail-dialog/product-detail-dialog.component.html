@@ -46,7 +46,7 @@
           }
 
           @if (negativeStock || product.stockAvailable > 0) {
-            <span class="detail-stock">{{ product.stockAvailable }} disponibles</span>
+            <span class="detail-stock">{{ product.stockAvailable }} {{ product.unitSymbol }} disponibles</span>
           } @else {
             <span class="detail-stock out-of-stock">Sin stock</span>
           }

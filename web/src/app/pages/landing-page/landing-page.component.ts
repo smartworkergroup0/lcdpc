@@ -43,6 +43,7 @@ type ProductCard = {
   branchId: string | null;
   stockAvailable: number;
   canDecimalStock: boolean;
+  unitSymbol: string;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
 };
@@ -194,6 +195,7 @@ export class LandingPageComponent implements OnInit {
               branchId: b.branchId,
               stockAvailable: b.stockAvailable,
               canDecimalStock: false,
+              unitSymbol: '',
               itemType: 'bundle' as const,
               items,
             };
@@ -213,6 +215,7 @@ export class LandingPageComponent implements OnInit {
           branchId: p.branchId,
           stockAvailable: p.stockAvailable,
           canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
+          unitSymbol: this.unitStore.getMeasurementUnitSymbol(p.baseUnitId),
           itemType: 'product' as const,
         }));
 
@@ -310,6 +313,7 @@ export class LandingPageComponent implements OnInit {
         branchId: product.branchId,
         stockAvailable: product.stockAvailable,
         canDecimalStock: product.canDecimalStock,
+        unitSymbol: product.unitSymbol,
         itemType: product.itemType,
         items: product.items,
       },
@@ -341,6 +345,7 @@ export class LandingPageComponent implements OnInit {
         branchId: product.branchId,
         stockAvailable: product.stockAvailable,
         canDecimalStock: product.canDecimalStock,
+        unitSymbol: product.unitSymbol,
         itemType: product.itemType,
         items: product.items,
       },

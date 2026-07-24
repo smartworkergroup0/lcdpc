@@ -33,6 +33,7 @@ type CatalogClassification struct {
 type CatalogInventory struct {
 	StockAvailable  float64 `json:"stock_available"`
 	StockMeasuredIn string  `json:"stock_measured_in"`
+	UnitSymbol      string  `json:"unit_symbol"`
 }
 
 type CatalogPurchasingOption struct {
@@ -59,6 +60,7 @@ type catalogProductRow struct {
 	BrandName      string
 	CategoryName   string
 	UnitName       string
+	UnitSymbol     string
 	BaseUnitID     *uuid.UUID
 }
 
@@ -91,6 +93,7 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 		       COALESCE(b.name, '') AS brand_name,
 		       COALESCE(c.name, '') AS category_name,
 		       COALESCE(mu.name, 'Unidad') AS unit_name,
+		       COALESCE(mu.symbol, '') AS unit_symbol,
 		       p.base_unit_id
 		FROM products p
 		LEFT JOIN brands b ON b.id = p.brand_id
@@ -147,7 +150,7 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 	for rows.Next() {
 		var r catalogProductRow
 		if err := rows.Scan(&r.ProductID, &r.SKU, &r.Name, &r.Img, &r.StockAvailable,
-			&r.BrandName, &r.CategoryName, &r.UnitName, &r.BaseUnitID); err != nil {
+			&r.BrandName, &r.CategoryName, &r.UnitName, &r.UnitSymbol, &r.BaseUnitID); err != nil {
 			return nil, fmt.Errorf("scan catalog product: %w", err)
 		}
 		productRows = append(productRows, r)
@@ -192,6 +195,7 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 			Inventory: CatalogInventory{
 				StockAvailable:  r.StockAvailable,
 				StockMeasuredIn: r.UnitName,
+				UnitSymbol:      r.UnitSymbol,
 			},
 		}
 

@@ -14,6 +14,7 @@ export interface SalesCartItem {
   stockAvailable: number;
   stock: number;
   canDecimalStock: boolean;
+  unitSymbol: string;
   priceCategoryId: string | null;
   selectedPriceId: string | null;
   priceOptions: CartPriceOption[];

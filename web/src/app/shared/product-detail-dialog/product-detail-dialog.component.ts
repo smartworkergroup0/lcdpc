@@ -22,6 +22,7 @@ type ProductCard = {
   quantity: number;
   stockAvailable: number;
   canDecimalStock: boolean;
+  unitSymbol: string;
   itemType: 'product' | 'bundle';
   items?: { name: string; quantity: number }[];
   priceOptions?: PriceOption[];

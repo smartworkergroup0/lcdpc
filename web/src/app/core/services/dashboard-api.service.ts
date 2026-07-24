@@ -42,6 +42,7 @@ interface LowStockItemGoData {
   stock_available: number;
   stock: number;
   branch_id: string;
+  base_unit_id: string | null;
 }
 
 interface StockHealthGoData {
@@ -179,6 +180,7 @@ export class DashboardApiService {
             stockAvailable: d.stock_available,
             stock: d.stock,
             branchId: d.branch_id,
+            baseUnitId: d.base_unit_id,
           })),
         }))
       );
