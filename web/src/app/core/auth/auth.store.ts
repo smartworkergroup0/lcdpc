@@ -60,11 +60,12 @@ export class AuthStore {
     }
   }
 
-  me(): Observable<void> {
+  me(loginContext = false): Observable<void> {
     return this.authApi.me().pipe(
-      map((data: MeGoData) => this.applyMeResponse(data)),
-      catchError(() => {
-        this.clear();
+      map((data: MeGoData) => this.applyMeResponse(data, loginContext)),
+      catchError((err) => {
+        this.clear(loginContext);
+        if (loginContext) return throwError(() => err);
         return of(undefined);
       })
     );
@@ -75,9 +76,9 @@ export class AuthStore {
       tap((result) => {
         this.setExpiresAt(Date.now() + result.expiresIn * 1000);
       }),
-      switchMap(() => this.me()),
+      switchMap(() => this.me(true)),
       catchError((err) => {
-        this.clear();
+        this.clear(false);
         return throwError(() => err);
       })
     );
@@ -117,13 +118,15 @@ export class AuthStore {
     );
   }
 
-  clear(): void {
+  clear(navigate = true): void {
     this.currentUser.set(null);
     this.permissions.set([]);
     this.expiresAt.set(null);
     localStorage.removeItem(EXPIRES_AT_KEY);
     this.clearExpirationTimer();
-    this.router.navigate(['/']);
+    if (navigate) {
+      this.router.navigate(['/']);
+    }
   }
 
   hasPermission(resourceCode: string): boolean {
@@ -141,9 +144,10 @@ export class AuthStore {
     return exp - Date.now() < 60_000;
   }
 
-  private applyMeResponse(data: MeGoData): void {
+  private applyMeResponse(data: MeGoData, loginContext = false): void {
     if (!data.authenticated || !data.user) {
-      this.clear();
+      this.clear(loginContext);
+      if (loginContext) throw new Error('Sesión no autenticada');
       return;
     }
 

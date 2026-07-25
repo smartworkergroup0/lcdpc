@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Observable, of, Subject, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { BundleApiService } from '../../core/services/bundle-api.service';
 import { PriceApiService } from '../../core/services/price-api.service';
@@ -14,6 +14,9 @@ import { CartStore } from '../../core/stores/cart.store';
 import { SystemConfigStore } from '../../core/stores/system-config.store';
 import { MeasurementUnitStore } from '../../core/stores/measurement-unit.store';
 import { MeasurementUnitClassificationStore } from '../../core/stores/measurement-unit-classification.store';
+import { Product } from '../../core/models/product.model';
+import { Bundle } from '../../core/models/bundle.model';
+import { PriceCategory } from '../../core/models/price-category.model';
 import { BranchesComponent } from '../../shared/branches/branches.component';
 import { CatalogComponent } from '../../shared/catalog/catalog.component';
 import { HeroComponent } from '../../shared/hero/hero.component';
@@ -62,7 +65,7 @@ type BranchCard = {
   imports: [CommonModule, HeroComponent, CatalogComponent, BranchesComponent, ProductDetailDialogComponent],
   templateUrl: './landing-page.component.html'
 })
-export class LandingPageComponent implements OnInit {
+export class LandingPageComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly productApi = inject(ProductApiService);
   private readonly bundleApi = inject(BundleApiService);
@@ -76,10 +79,24 @@ export class LandingPageComponent implements OnInit {
   private readonly unitStore = inject(MeasurementUnitStore);
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
 
+  private readonly PAGE_SIZE = 20;
+  protected readonly searchSubject = new Subject<string>();
+  private readonly scrollHandler = this.onWindowScroll.bind(this);
+  private loadGeneration = 0;
+
   protected readonly activeHeroIndex = signal(0);
   protected readonly search = signal('');
   protected readonly selectedCategoryId = signal('all');
-  protected readonly products = signal<ProductCard[]>([]);
+  protected readonly allProducts = signal<Product[]>([]);
+  protected readonly allBundles = signal<Bundle[]>([]);
+  protected readonly productsOffset = signal(0);
+  protected readonly bundlesOffset = signal(0);
+  protected readonly productsTotalCount = signal(Infinity);
+  protected readonly bundlesTotalCount = signal(Infinity);
+  protected readonly loading = signal(false);
+  protected readonly loadingMore = signal(false);
+  protected readonly productRetailPrices = signal<Map<string, number>>(new Map());
+  protected readonly priceCategories = signal<PriceCategory[]>([]);
   protected readonly branches = signal<BranchCard[]>([]);
   protected readonly selectedProduct = signal<ProductCard | null>(null);
   protected readonly detailDialogVisible = signal(false);
@@ -106,37 +123,92 @@ export class LandingPageComponent implements OnInit {
   ];
 
   protected readonly filteredProducts = computed(() => {
-    const term = this.search().trim().toLowerCase();
-    const category = this.selectedCategoryId();
-
-    return this.products().filter((product) => {
-      const matchesCategory = category === 'all' || product.categoryId === category;
-      const matchesTerm =
-        term.length === 0 ||
-        [product.name, product.description, product.category, product.badge ?? '', (product.items ?? []).map((i) => i.name).join(' ')]
-          .join(' ')
-          .toLowerCase()
-          .includes(term);
-
-      return matchesCategory && matchesTerm;
+    const prices = this.productRetailPrices();
+    const productCards: ProductCard[] = this.allProducts().map((p) => {
+      const retailPrice = prices.get(p.productId) ?? 0;
+      return {
+        id: p.productId,
+        name: p.name,
+        price: `$${retailPrice.toFixed(2)}`,
+        priceNumeric: retailPrice,
+        description: '',
+        imageUrl: this.productApi.resolveImageUrl(p.img) ?? NOT_FOUND_IMAGE,
+        alt: p.name,
+        categoryId: p.categoryId ?? '',
+        category: this.categoryStore.getCategoryName(p.categoryId),
+        quantity: 1,
+        branchId: p.branchId,
+        stockAvailable: p.stockAvailable,
+        canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
+        unitSymbol: this.unitStore.getMeasurementUnitSymbol(p.baseUnitId),
+        itemType: 'product' as const,
+      };
     });
+
+    const bundleCards: ProductCard[] = this.allBundles().map((b) => {
+      const retailCategory = this.priceCategories().find((c) => c.code === 'RETAIL');
+      const retailPrice = b.prices.find((p) => p.priceCategoryId === retailCategory?.id);
+      const productMap = new Map(this.allProducts().map((p) => [p.productId, p.name]));
+      const items = (b.items ?? []).map((bi) => ({
+        name: productMap.get(bi.productId) ?? `Producto #${bi.productId}`,
+        quantity: bi.quantity,
+      }));
+      return {
+        id: b.bundleId,
+        name: b.name,
+        price: retailPrice ? `$${retailPrice.amount.toFixed(2)}` : '$0.00',
+        priceNumeric: retailPrice?.amount ?? 0,
+        description: `Código: ${b.code}`,
+        imageUrl: this.bundleApi.resolveImageUrl(b.img) ?? NOT_FOUND_IMAGE,
+        alt: b.name,
+        categoryId: b.categoryId ?? '',
+        category: this.categoryStore.getCategoryName(b.categoryId),
+        featured: true,
+        quantity: 1,
+        branchId: b.branchId,
+        stockAvailable: b.stockAvailable,
+        canDecimalStock: false,
+        unitSymbol: '',
+        itemType: 'bundle' as const,
+        items,
+      };
+    });
+
+    return [...bundleCards, ...productCards];
   });
+
+  protected readonly hasMoreProducts = computed(() => this.productsOffset() < this.productsTotalCount());
+  protected readonly hasMoreBundles = computed(() => this.bundlesOffset() < this.bundlesTotalCount());
+  protected readonly hasMoreItems = computed(() => this.hasMoreProducts() || this.hasMoreBundles());
 
   constructor() {
     this.unitStore.load();
     this.classificationStore.load();
 
+    this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+    ).subscribe((query) => {
+      this.search.set(query);
+      this.resetAndReload();
+    });
+
     effect(() => {
       this.cartStore.lastOrderCreatedAt();
       const branchId = this.branchStore.selectedBranchId();
       if (branchId && !this.unitStore.loading() && !this.classificationStore.loading()) {
-        this.loadProducts(branchId);
+        this.loadBatch();
       }
     });
   }
 
   ngOnInit(): void {
     this.categoryStore.load();
+    window.addEventListener('scroll', this.scrollHandler);
+
+    this.priceCategoryApi.list().subscribe({
+      next: (categories) => this.priceCategories.set(categories),
+    });
 
     this.branchApi.list().subscribe({
       next: (branches: Branch[]) => {
@@ -153,6 +225,11 @@ export class LandingPageComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    window.removeEventListener('scroll', this.scrollHandler);
+    this.searchSubject.complete();
+  }
+
   private resolveCanDecimalStock(baseUnitId: string | null | undefined): boolean {
     if (!baseUnitId) return false;
     const unit = this.unitStore.getMeasurementUnit(baseUnitId);
@@ -160,148 +237,143 @@ export class LandingPageComponent implements OnInit {
     return this.classificationStore.canDecimalStock(unit.classificationId);
   }
 
-  private loadProducts(branchId: string): void {
+  private loadBatch(): void {
+    if (this.loadingMore() || this.loading()) return;
+    if (!this.hasMoreItems()) return;
+
+    const branchId = this.branchStore.selectedBranchId();
+    if (!branchId) return;
+
+    const isFirstLoad = this.allProducts().length === 0 && this.allBundles().length === 0;
+    if (isFirstLoad) {
+      this.loading.set(true);
+    } else {
+      this.loadingMore.set(true);
+    }
+
+    const baseParams: Record<string, any> = {
+      limit: this.PAGE_SIZE,
+      branch_id: branchId,
+      is_active: true,
+    };
+    const categoryId = this.selectedCategoryId();
+    if (categoryId && categoryId !== 'all') baseParams['category_id'] = categoryId;
+    const searchQuery = this.search();
+    if (searchQuery) baseParams['name'] = searchQuery;
+
+    const calls: { products?: Observable<any>; bundles?: Observable<any> } = {};
+    if (this.hasMoreProducts()) {
+      calls.products = this.productApi.list({ ...baseParams, offset: this.productsOffset() });
+    }
+    if (this.hasMoreBundles()) {
+      calls.bundles = this.bundleApi.list({ ...baseParams, offset: this.bundlesOffset(), status: 'Active' });
+    }
+
+    if (!calls.products && !calls.bundles) {
+      this.loading.set(false);
+      this.loadingMore.set(false);
+      return;
+    }
+
+    const gen = ++this.loadGeneration;
+
     forkJoin({
-      products: this.productApi.list({ branch_id: branchId, is_active: true }),
-      bundles: this.bundleApi.list({ branch_id: branchId }),
-      priceCategories: this.priceCategoryApi.list(),
+      products: calls.products ?? of(null),
+      bundles: calls.bundles ?? of(null),
     }).subscribe({
-      next: ({ products, bundles, priceCategories }) => {
-          const retailCategory = priceCategories.find((c) => c.code === 'RETAIL');
-          const retailCategoryId = retailCategory?.id ?? null;
+      next: (res) => {
+        if (gen !== this.loadGeneration) return;
 
-          const productMap = new Map(products.items.map((p) => [p.productId, p.name]));
+        const newProducts: Product[] = res.products?.items ?? [];
+        const newBundles: Bundle[] = res.bundles?.items ?? [];
 
-          const bundleCards: ProductCard[] = bundles.items
-          .filter((b) => b.status === 'Active')
-          .map((b) => {
-            const retailPrice = b.prices.find((p) => p.priceCategoryId === retailCategoryId);
-            const items = (b.items ?? []).map((bi) => ({
-              name: productMap.get(bi.productId) ?? `Producto #${bi.productId}`,
-              quantity: bi.quantity,
-            }));
-            return {
-              id: b.bundleId,
-              name: b.name,
-              price: retailPrice ? `$${retailPrice.amount.toFixed(2)}` : '$0.00',
-              priceNumeric: retailPrice?.amount ?? 0,
-              description: `Código: ${b.code}`,
-              imageUrl: this.bundleApi.resolveImageUrl(b.img) ?? NOT_FOUND_IMAGE,
-              alt: b.name,
-              categoryId: b.categoryId ?? '',
-              category: this.categoryStore.getCategoryName(b.categoryId),
-              featured: true,
-              quantity: 1,
-              branchId: b.branchId,
-              stockAvailable: b.stockAvailable,
-              canDecimalStock: false,
-              unitSymbol: '',
-              itemType: 'bundle' as const,
-              items,
-            };
-          });
-
-        const productCards: ProductCard[] = products.items.map((p) => ({
-          id: p.productId,
-          name: p.name,
-          price: '$0.00',
-          priceNumeric: 0,
-          description: '',
-          imageUrl: this.productApi.resolveImageUrl(p.img) ?? NOT_FOUND_IMAGE,
-          alt: p.name,
-          categoryId: p.categoryId ?? '',
-          category: this.categoryStore.getCategoryName(p.categoryId),
-          quantity: 1,
-          branchId: p.branchId,
-          stockAvailable: p.stockAvailable,
-          canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
-          unitSymbol: this.unitStore.getMeasurementUnitSymbol(p.baseUnitId),
-          itemType: 'product' as const,
-        }));
-
-        if (productCards.length === 0 || !retailCategoryId) {
-          const all = [...bundleCards, ...productCards];
-          this.syncCartStock(all);
-          this.products.set(all);
-          return;
+        if (res.products) {
+          this.allProducts.update((items) => [...items, ...newProducts]);
+          this.productsOffset.update((v) => v + newProducts.length);
+          this.productsTotalCount.set(res.products.totalCount);
+        }
+        if (res.bundles) {
+          this.allBundles.update((items) => [...items, ...newBundles]);
+          this.bundlesOffset.update((v) => v + newBundles.length);
+          this.bundlesTotalCount.set(res.bundles.totalCount);
         }
 
-        const priceCalls = productCards.map((p) =>
-          this.priceApi.listByProductId(p.id)
-        );
+        this.loading.set(false);
+        this.loadingMore.set(false);
 
-        forkJoin(priceCalls).subscribe({
-          next: (pricesPerProduct) => {
-            pricesPerProduct.forEach((prices, i) => {
-              const retail = prices.find((pr) => pr.priceCategoryId === retailCategoryId);
-              if (retail) {
-                productCards[i].priceNumeric = retail.amount;
-                productCards[i].price = `$${retail.amount.toFixed(2)}`;
-              }
-            });
-            this.products.set([...bundleCards, ...productCards]);
-            this.syncCartStock([...bundleCards, ...productCards]);
-          },
-          error: () => {
-            this.products.set([...bundleCards, ...productCards]);
-            this.syncCartStock([...bundleCards, ...productCards]);
-          },
-        });
+        this.loadPricesForNewProducts(newProducts, gen);
+        this.syncCartStock();
       },
       error: () => {
-        this.products.set([]);
-      }
+        if (gen !== this.loadGeneration) return;
+        this.loading.set(false);
+        this.loadingMore.set(false);
+      },
     });
   }
 
-  private syncCartStock(cards: ProductCard[]): void {
+  private loadPricesForNewProducts(newProducts: Product[], gen: number): void {
+    const retailCategory = this.priceCategories().find((c) => c.code === 'RETAIL');
+    const retailCategoryId = retailCategory?.id ?? null;
+
+    if (newProducts.length === 0 || !retailCategoryId) return;
+
+    const priceCalls = newProducts.map((p) => this.priceApi.listByProductId(p.productId));
+
+    forkJoin(priceCalls).subscribe({
+      next: (pricesPerProduct) => {
+        if (gen !== this.loadGeneration) return;
+        const newPrices = new Map(this.productRetailPrices());
+        pricesPerProduct.forEach((prices, i) => {
+          const retail = prices.find((pr) => pr.priceCategoryId === retailCategoryId);
+          if (retail) {
+            newPrices.set(newProducts[i].productId, retail.amount);
+          }
+        });
+        this.productRetailPrices.set(newPrices);
+        this.syncCartStock();
+      },
+    });
+  }
+
+  private resetAndReload(): void {
+    this.allProducts.set([]);
+    this.allBundles.set([]);
+    this.productsOffset.set(0);
+    this.bundlesOffset.set(0);
+    this.productsTotalCount.set(Infinity);
+    this.bundlesTotalCount.set(Infinity);
+    this.productRetailPrices.set(new Map());
+    this.loadBatch();
+  }
+
+  private onWindowScroll(): void {
+    const threshold = 200;
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - threshold) {
+      this.loadBatch();
+    }
+  }
+
+  private syncCartStock(): void {
+    const cards = this.filteredProducts();
     const stockMap = new Map(cards.map((c) => [c.id, c.stockAvailable]));
     this.cartStore.syncStock(stockMap);
   }
 
   protected selectCategory(categoryId: string): void {
     this.selectedCategoryId.set(categoryId);
+    this.resetAndReload();
   }
 
-  protected incrementQuantity(productId: string): void {
-    this.products.update((items) =>
-      items.map((p) => {
-        if (p.id !== productId) return p;
-        if (!this.systemConfigStore.negativeStock() && p.stockAvailable <= 0) return p;
-        const max = p.stockAvailable;
-        const newQty = this.systemConfigStore.negativeStock()
-          ? Math.round((p.quantity + 1) * 100) / 100
-          : Math.min(Math.round((p.quantity + 1) * 100) / 100, max);
-        return { ...p, quantity: newQty };
-      })
-    );
-  }
+  protected incrementQuantity(_productId: string): void {}
 
-  protected decrementQuantity(productId: string): void {
-    this.products.update((items) =>
-      items.map((p) => {
-        if (p.id !== productId) return p;
-        const min = p.canDecimalStock ? 0.1 : 1;
-        const newQty = Math.max(min, Math.round((p.quantity - 1) * 100) / 100);
-        return { ...p, quantity: newQty };
-      })
-    );
-  }
+  protected decrementQuantity(_productId: string): void {}
 
-  protected onQuantityInputChange(event: { productId: string; quantity: number }): void {
-    this.products.update((items) =>
-      items.map((p) => {
-        if (p.id !== event.productId) return p;
-        const min = p.canDecimalStock ? 0.1 : 1;
-        const max = this.systemConfigStore.negativeStock() ? Infinity : p.stockAvailable;
-        const clamped = Math.max(min, Math.min(event.quantity, max));
-        return { ...p, quantity: Math.round(clamped * 100) / 100 };
-      })
-    );
-  }
+  protected onQuantityInputChange(_event: { productId: string; quantity: number }): void {}
 
   protected addToCart(productId: string): void {
-    const product = this.products().find((p) => p.id === productId);
+    const cards = this.filteredProducts();
+    const product = cards.find((p) => p.id === productId);
     if (!product) return;
 
     this.cartStore.addItem(
@@ -319,21 +391,19 @@ export class LandingPageComponent implements OnInit {
       },
       product.quantity
     );
-
-    this.products.update((items) =>
-      items.map((p) => (p.id === productId ? { ...p, quantity: 1 } : p))
-    );
   }
 
   protected openDetail(productId: string): void {
-    const product = this.products().find((p) => p.id === productId);
+    const cards = this.filteredProducts();
+    const product = cards.find((p) => p.id === productId);
     if (!product) return;
     this.selectedProduct.set(product);
     this.detailDialogVisible.set(true);
   }
 
   protected onDetailAddToCart(event: { id: string; quantity: number }): void {
-    const product = this.products().find((p) => p.id === event.id);
+    const cards = this.filteredProducts();
+    const product = cards.find((p) => p.id === event.id);
     if (!product) return;
 
     this.cartStore.addItem(
@@ -350,10 +420,6 @@ export class LandingPageComponent implements OnInit {
         items: product.items,
       },
       event.quantity
-    );
-
-    this.products.update((items) =>
-      items.map((p) => (p.id === event.id ? { ...p, quantity: 1 } : p))
     );
   }
 
