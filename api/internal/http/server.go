@@ -109,17 +109,18 @@ func NewServer(
 	r.Get("/api/health", healthH.Health)
 
 	// Discovery
-	r.Get("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		discovery := map[string]interface{}{
 			"issuer":                           cfg.OAuth2Issuer,
 			"authorization_endpoint":           cfg.OAuth2Issuer + "/oauth2/authorize",
 			"token_endpoint":                   cfg.OAuth2Issuer + "/oauth2/token",
+			"refresh_endpoint":                 cfg.OAuth2Issuer + "/oauth2/refresh",
 			"introspection_endpoint":           cfg.OAuth2Issuer + "/oauth2/introspect",
 			"revocation_endpoint":              cfg.OAuth2Issuer + "/oauth2/revoke",
-			"response_types_supported":         []string{"code"},
-			"grant_types_supported":            []string{"authorization_code", "refresh_token", "client_credentials"},
+			"response_types_supported":        []string{"code"},
+			"grant_types_supported":            []string{"authorization_code", "refresh_token", "password"},
 			"code_challenge_methods_supported": []string{"S256"},
-			"subject_types_supported":          []string{"public"},
+			"subject_types_supported":         []string{"public"},
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(discovery)
@@ -129,6 +130,7 @@ func NewServer(
 	r.Route("/oauth2", func(r chi.Router) {
 		r.Get("/authorize", oauth2H.Authorize)
 		r.Post("/token", oauth2H.Token)
+		r.Post("/refresh", oauth2H.Refresh)
 		r.Post("/introspect", oauth2H.Introspect)
 		r.Post("/revoke", oauth2H.Revoke)
 	})

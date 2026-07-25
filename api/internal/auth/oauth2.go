@@ -50,8 +50,9 @@ func NewOAuth2Service(pool *pgxpool.Pool, keySvc *KeyService, saKey []byte, cfg 
 	}
 }
 
-// ClientCredentialsGrant (RFC 6749 §4.4)
-func (s *OAuth2Service) ClientCredentialsGrant(ctx context.Context, clientID, clientSecret string) (*TokenResponse, *TokenErrorResponse) {
+// SALogin authenticates a service account with username and password, returning a PASETO access token
+// along with a refresh token for subsequent token renewals.
+func (s *OAuth2Service) SALogin(ctx context.Context, username, password string) (*TokenResponse, *TokenErrorResponse) {
 	if s.saKey == nil {
 		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Service account authentication is not configured."}
 	}
@@ -68,17 +69,17 @@ func (s *OAuth2Service) ClientCredentialsGrant(ctx context.Context, clientID, cl
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, username, password_hash, profile_id, token_expiry_hours, is_active
 		FROM service_accounts WHERE username = $1 AND deleted_at_utc IS NULL
-	`, clientID).Scan(&sa.ID, &sa.Username, &sa.PasswordHash, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive)
+	`, username).Scan(&sa.ID, &sa.Username, &sa.PasswordHash, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive)
 	if err != nil {
-		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid client credentials."}
+		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid credentials."}
 	}
 
 	if !sa.IsActive {
 		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Service account is inactive."}
 	}
 
-	if !VerifyPassword(clientSecret, sa.PasswordHash) {
-		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid client credentials."}
+	if !VerifyPassword(password, sa.PasswordHash) {
+		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid credentials."}
 	}
 
 	now := time.Now().UTC()
@@ -89,7 +90,7 @@ func (s *OAuth2Service) ClientCredentialsGrant(ctx context.Context, clientID, cl
 		Aud:       s.tokenCfg.Audience,
 		Sub:       sa.ID.String(),
 		ProfileID: sa.ProfileID.String(),
-		ClientID:  clientID,
+		ClientID:  username,
 		Email:     sa.Username,
 		Iat:       now.Unix(),
 		Exp:       expires.Unix(),
@@ -97,6 +98,85 @@ func (s *OAuth2Service) ClientCredentialsGrant(ctx context.Context, clientID, cl
 	}
 
 	token, err := paseto.NewV2().Encrypt(s.saKey, claims, nil)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Failed to generate access token."}
+	}
+
+	refreshToken, err := GenerateOpaqueToken()
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Failed to generate refresh token."}
+	}
+	refreshTokenHash := HashToken(refreshToken)
+	familyID := uuid.New()
+
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO sa_refresh_tokens (token_hash, service_account_id, family_id, previous_token_hash, expires_at_utc, created_at_utc)
+		VALUES ($1, $2, $3, NULL, $4, $5)
+	`, refreshTokenHash, sa.ID, familyID, now.Add(time.Duration(s.refreshTokenTTLDays)*24*time.Hour), now)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Failed to store refresh token."}
+	}
+
+	return &TokenResponse{
+		AccessToken:  token,
+		TokenType:    "Bearer",
+		ExpiresIn:    sa.TokenExpiryHours * 3600,
+		RefreshToken: refreshToken,
+		Scope:        "",
+	}, nil
+}
+
+// SARefresh renews a service account access token using the current PASETO access token.
+// Validates the PASETO signature and checks SA is still active before issuing a new token.
+func (s *OAuth2Service) SARefresh(ctx context.Context, accessToken string) (*TokenResponse, *TokenErrorResponse) {
+	if s.saKey == nil {
+		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Service account authentication is not configured."}
+	}
+
+	claims, err := ValidatePasetoToken(accessToken, s.saKey, s.tokenCfg.Issuer, s.tokenCfg.Audience)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "invalid_grant", ErrorDescription: "Invalid or expired access token."}
+	}
+
+	saID, err := uuid.Parse(claims.Sub)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "invalid_grant", ErrorDescription: "Invalid token claims."}
+	}
+
+	var sa struct {
+		ID               uuid.UUID
+		Username         string
+		ProfileID        uuid.UUID
+		TokenExpiryHours int
+		IsActive         bool
+	}
+	err = s.pool.QueryRow(ctx, `
+		SELECT id, username, profile_id, token_expiry_hours, is_active
+		FROM service_accounts WHERE id = $1 AND deleted_at_utc IS NULL
+	`, saID).Scan(&sa.ID, &sa.Username, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive)
+	if err != nil {
+		return nil, &TokenErrorResponse{Error: "invalid_grant", ErrorDescription: "Service account not found."}
+	}
+	if !sa.IsActive {
+		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Service account is inactive."}
+	}
+
+	now := time.Now().UTC()
+	expires := now.Add(time.Duration(sa.TokenExpiryHours) * time.Hour)
+
+	newClaims := TokenClaims{
+		Iss:       s.tokenCfg.Issuer,
+		Aud:       s.tokenCfg.Audience,
+		Sub:       sa.ID.String(),
+		ProfileID: sa.ProfileID.String(),
+		ClientID:  sa.Username,
+		Email:     sa.Username,
+		Iat:       now.Unix(),
+		Exp:       expires.Unix(),
+		Jti:       uuid.New().String(),
+	}
+
+	token, err := paseto.NewV2().Encrypt(s.saKey, newClaims, nil)
 	if err != nil {
 		return nil, &TokenErrorResponse{Error: "server_error", ErrorDescription: "Failed to generate access token."}
 	}

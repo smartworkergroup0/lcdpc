@@ -73,8 +73,8 @@ func (h *OAuth2Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 func (h *OAuth2Handler) Token(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 
 	if err := response.Decode(r, &req); err != nil {
@@ -83,25 +83,56 @@ func (h *OAuth2Handler) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.ClientID == "" {
-		slog.Warn("oauth2 token: missing client_id")
-		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "client_id is required"})
+	if req.Username == "" {
+		slog.Warn("oauth2 token: missing username")
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "username is required"})
 		return
 	}
-	if req.ClientSecret == "" {
-		slog.Warn("oauth2 token: missing client_secret", "client_id", req.ClientID)
-		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "client_secret is required"})
+	if req.Password == "" {
+		slog.Warn("oauth2 token: missing password", "username", req.Username)
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "password is required"})
 		return
 	}
 
-	result, errResp := h.oauth2Svc.ClientCredentialsGrant(r.Context(), req.ClientID, req.ClientSecret)
+	result, errResp := h.oauth2Svc.SALogin(r.Context(), req.Username, req.Password)
 	if errResp != nil {
-		slog.Warn("oauth2 token: authentication failed", "client_id", req.ClientID, "error", errResp.Error, "description", errResp.ErrorDescription)
+		slog.Warn("oauth2 token: authentication failed", "username", req.Username, "error", errResp.Error, "description", errResp.ErrorDescription)
 		response.Fail(w, http.StatusUnauthorized, errResp)
 		return
 	}
 
-	slog.Info("oauth2 token: authentication successful", "client_id", req.ClientID)
+	slog.Info("oauth2 token: authentication successful", "username", req.Username)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	response.Success(w, result)
+}
+
+func (h *OAuth2Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	if err := response.Decode(r, &req); err != nil {
+		slog.Warn("oauth2 refresh: invalid JSON body", "error", err)
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "invalid JSON body"})
+		return
+	}
+
+	if req.AccessToken == "" {
+		slog.Warn("oauth2 refresh: missing access_token")
+		response.Fail(w, http.StatusBadRequest, map[string]string{"error": "invalid_request", "error_description": "access_token is required"})
+		return
+	}
+
+	result, errResp := h.oauth2Svc.SARefresh(r.Context(), req.AccessToken)
+	if errResp != nil {
+		slog.Warn("oauth2 refresh: failed", "error", errResp.Error, "description", errResp.ErrorDescription)
+		response.Fail(w, http.StatusUnauthorized, errResp)
+		return
+	}
+
+	slog.Info("oauth2 refresh: successful")
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
