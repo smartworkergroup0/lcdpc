@@ -81,7 +81,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
   private readonly PAGE_SIZE = 20;
   protected readonly searchSubject = new Subject<string>();
-  private readonly scrollHandler = this.onWindowScroll.bind(this);
   private loadGeneration = 0;
 
   protected readonly activeHeroIndex = signal(0);
@@ -197,14 +196,17 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       this.cartStore.lastOrderCreatedAt();
       const branchId = this.branchStore.selectedBranchId();
       if (branchId && !this.unitStore.loading() && !this.classificationStore.loading()) {
-        this.loadBatch();
+        if (this.allProducts().length > 0 || this.allBundles().length > 0) {
+          this.resetAndReload();
+        } else {
+          this.loadBatch();
+        }
       }
     });
   }
 
   ngOnInit(): void {
     this.categoryStore.load();
-    window.addEventListener('scroll', this.scrollHandler);
 
     this.priceCategoryApi.list().subscribe({
       next: (categories) => this.priceCategories.set(categories),
@@ -226,7 +228,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    window.removeEventListener('scroll', this.scrollHandler);
     this.searchSubject.complete();
   }
 
@@ -237,7 +238,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     return this.classificationStore.canDecimalStock(unit.classificationId);
   }
 
-  private loadBatch(): void {
+  protected loadBatch(): void {
     if (this.loadingMore() || this.loading()) return;
     if (!this.hasMoreItems()) return;
 
@@ -345,13 +346,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     this.bundlesTotalCount.set(Infinity);
     this.productRetailPrices.set(new Map());
     this.loadBatch();
-  }
-
-  private onWindowScroll(): void {
-    const threshold = 200;
-    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - threshold) {
-      this.loadBatch();
-    }
   }
 
   private syncCartStock(): void {

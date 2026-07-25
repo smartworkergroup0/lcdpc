@@ -14,12 +14,14 @@
   [negativeStock]="systemConfigStore.negativeStock()"
   [loading]="loading()"
   [loadingMore]="loadingMore()"
+  [hasMore]="hasMoreItems()"
   (categorySelect)="selectCategory($event)"
   (increment)="incrementQuantity($event)"
   (decrement)="decrementQuantity($event)"
   (quantityChange)="onQuantityInputChange($event)"
   (addToCart)="addToCart($event)"
   (productClick)="openDetail($event)"
+  (loadMore)="loadBatch()"
 ></app-catalog>
 
 <app-branches [branches]="branches()"></app-branches>

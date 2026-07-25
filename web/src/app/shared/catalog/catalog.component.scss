@@ -50,6 +50,8 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+  max-height: 85rem;
+  overflow-y: auto;
 }
 
 .product-card {

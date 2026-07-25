@@ -15,7 +15,7 @@
     </div>
   </div>
 
-  <div class="product-grid">
+  <div class="product-grid" #productGrid (scroll)="onGridScroll()">
     @if (loading) {
       <div class="empty-catalog">
         <i class="pi pi-spin pi-spinner"></i>

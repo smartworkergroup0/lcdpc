@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -37,12 +37,15 @@ type ProductCard = {
   styleUrl: './catalog.component.scss'
 })
 export class CatalogComponent {
+  @ViewChild('productGrid') productGrid!: ElementRef<HTMLDivElement>;
+
   @Input() categories: Category[] = [];
   @Input() selectedCategoryId = '';
   @Input() products: ProductCard[] = [];
   @Input() negativeStock = false;
   @Input() loading = false;
   @Input() loadingMore = false;
+  @Input() hasMore = false;
 
   @Output() categorySelect = new EventEmitter<string>();
   @Output() increment = new EventEmitter<string>();
@@ -50,6 +53,16 @@ export class CatalogComponent {
   @Output() quantityChange = new EventEmitter<{ productId: string; quantity: number }>();
   @Output() addToCart = new EventEmitter<string>();
   @Output() productClick = new EventEmitter<string>();
+  @Output() loadMore = new EventEmitter<void>();
+
+  onGridScroll(): void {
+    const el = this.productGrid?.nativeElement;
+    if (!el) return;
+    const threshold = 200;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - threshold) {
+      this.loadMore.emit();
+    }
+  }
 
   onImageError(event: Event): void {
     (event.target as HTMLImageElement).src = '/not-found.png';

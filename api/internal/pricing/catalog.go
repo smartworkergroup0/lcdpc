@@ -3,6 +3,7 @@ package pricing
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/google/uuid"
 )
@@ -57,6 +58,7 @@ type catalogProductRow struct {
 	Name           string
 	Img            *string
 	StockAvailable float64
+	BranchCode     string
 	BrandName      string
 	CategoryName   string
 	UnitName       string
@@ -70,6 +72,7 @@ type catalogBundleRow struct {
 	Name           string
 	Img            *string
 	StockAvailable float64
+	BranchCode     string
 	CategoryName   string
 }
 
@@ -90,12 +93,14 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 	countQuery := `SELECT COUNT(*) FROM products WHERE is_active = true`
 	dataQuery := `
 		SELECT p.product_id, p.sku, p.name, p.img, p.stock_available,
+		       COALESCE(br.code, '') AS branch_code,
 		       COALESCE(b.name, '') AS brand_name,
 		       COALESCE(c.name, '') AS category_name,
 		       COALESCE(mu.name, 'Unidad') AS unit_name,
 		       COALESCE(mu.symbol, '') AS unit_symbol,
 		       p.base_unit_id
 		FROM products p
+		LEFT JOIN branches br ON br.id = p.branch_id
 		LEFT JOIN brands b ON b.id = p.brand_id
 		LEFT JOIN categories c ON c.category_id = p.category_id
 		LEFT JOIN measurement_units mu ON mu.id = p.base_unit_id
@@ -150,7 +155,7 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 	for rows.Next() {
 		var r catalogProductRow
 		if err := rows.Scan(&r.ProductID, &r.SKU, &r.Name, &r.Img, &r.StockAvailable,
-			&r.BrandName, &r.CategoryName, &r.UnitName, &r.UnitSymbol, &r.BaseUnitID); err != nil {
+			&r.BranchCode, &r.BrandName, &r.CategoryName, &r.UnitName, &r.UnitSymbol, &r.BaseUnitID); err != nil {
 			return nil, fmt.Errorf("scan catalog product: %w", err)
 		}
 		productRows = append(productRows, r)
@@ -187,7 +192,7 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 		item := CatalogItem{
 			SKU:  r.SKU,
 			Name: r.Name,
-			URL:  buildURL(domain, r.Img),
+			URL:  buildProductURL(domain, r.BranchCode, r.SKU),
 			Classification: CatalogClassification{
 				Line:     r.BrandName,
 				Category: r.CategoryName,
@@ -234,8 +239,10 @@ func (s *Service) ListCatalogBundles(ctx context.Context, filter BundleFilter, d
 	countQuery := `SELECT COUNT(*) FROM bundles WHERE status = 'Active'`
 	dataQuery := `
 		SELECT bu.bundle_id, bu.code, bu.name, bu.img, bu.stock_available,
+		       COALESCE(br.code, '') AS branch_code,
 		       COALESCE(c.name, '') AS category_name
 		FROM bundles bu
+		LEFT JOIN branches br ON br.id = bu.branch_id
 		LEFT JOIN categories c ON c.category_id = bu.category_id
 		WHERE bu.status = 'Active'`
 
@@ -287,7 +294,7 @@ func (s *Service) ListCatalogBundles(ctx context.Context, filter BundleFilter, d
 	var bundleRows []catalogBundleRow
 	for rows.Next() {
 		var r catalogBundleRow
-		if err := rows.Scan(&r.BundleID, &r.Code, &r.Name, &r.Img, &r.StockAvailable, &r.CategoryName); err != nil {
+		if err := rows.Scan(&r.BundleID, &r.Code, &r.Name, &r.Img, &r.StockAvailable, &r.BranchCode, &r.CategoryName); err != nil {
 			return nil, fmt.Errorf("scan catalog bundle: %w", err)
 		}
 		bundleRows = append(bundleRows, r)
@@ -322,7 +329,7 @@ func (s *Service) ListCatalogBundles(ctx context.Context, filter BundleFilter, d
 		item := CatalogItem{
 			SKU:  r.Code,
 			Name: r.Name,
-			URL:  buildURL(domain, r.Img),
+			URL:  buildBundleURL(domain, r.BranchCode, r.Code),
 			Classification: CatalogClassification{
 				Line:     "N/A",
 				Category: r.CategoryName,
@@ -448,9 +455,30 @@ func (s *Service) loadBundleItems(ctx context.Context, bundleIDs []uuid.UUID) (m
 	return m, nil
 }
 
-func buildURL(domain string, img *string) string {
-	if img == nil || *img == "" {
+func buildProductURL(domain, branchCode, sku string) string {
+	params := url.Values{}
+	if branchCode != "" {
+		params.Set("branch", branchCode)
+	}
+	if sku != "" {
+		params.Set("product", sku)
+	}
+	if len(params) == 0 {
 		return domain
 	}
-	return domain + *img
+	return domain + "?" + params.Encode()
+}
+
+func buildBundleURL(domain, branchCode, code string) string {
+	params := url.Values{}
+	if branchCode != "" {
+		params.Set("branch", branchCode)
+	}
+	if code != "" {
+		params.Set("bundle", code)
+	}
+	if len(params) == 0 {
+		return domain
+	}
+	return domain + "?" + params.Encode()
 }
