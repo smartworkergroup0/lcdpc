@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
@@ -40,7 +40,7 @@ import { Person } from '../../core/models/person.model';
   templateUrl: './cart-page.component.html',
   styleUrl: './cart-page.component.scss',
 })
-export class CartPageComponent {
+export class CartPageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly cartStore = inject(CartStore);
   protected readonly systemConfigStore = inject(SystemConfigStore);
@@ -49,6 +49,10 @@ export class CartPageComponent {
   private readonly router = inject(Router);
   private readonly messageService = inject(MessageService);
 
+  ngOnInit(): void {
+    window.scrollTo(0, 0);
+  }
+
   protected readonly items = this.cartStore.items;
   protected readonly totalPrice = this.cartStore.totalPrice;
   protected readonly totalQuantity = this.cartStore.totalQuantity;
@@ -56,6 +60,7 @@ export class CartPageComponent {
   protected readonly contactName = signal('');
   protected readonly phone = signal('');
   protected readonly orderNotes = signal('');
+  protected readonly fullAddress = signal('');
   protected readonly isLegalPerson = signal(false);
   protected readonly documentType = signal('V');
   protected readonly documentNumber = signal('');
@@ -74,6 +79,7 @@ export class CartPageComponent {
       ? DOCUMENT_TYPE_OPTIONS
       : DOCUMENT_TYPE_OPTIONS.filter((opt) => opt.value === 'V' || opt.value === 'E')
   );
+  protected readonly isExistingPerson = computed(() => this.person() !== null);
   protected readonly personFieldsVisible = computed(() => this.personLoaded());
   protected readonly showClearSearchButton = computed(() => this.personLoaded());
   protected readonly canSearchPerson = computed(() => this.documentNumber().trim().length > 0 && !this.searchingPerson());
@@ -89,17 +95,6 @@ export class CartPageComponent {
     const items = this.items();
     if (items.length === 0) return null;
     return items[0].branchId;
-  });
-
-  protected readonly summaryLines = computed(() => {
-    const lines = [
-      this.contactName().trim() ? `Persona: ${this.contactName().trim()}` : '',
-      this.documentNumber().trim() ? `Documento: ${this.documentType()}${this.documentNumber().trim()}` : '',
-      this.phone().trim() ? `WhatsApp: ${this.phone().trim()}` : '',
-      this.orderNotes().trim() ? `Notas: ${this.orderNotes().trim()}` : '',
-    ].filter(Boolean);
-
-    return lines.join('\n');
   });
 
   protected onImageError(event: Event): void {
@@ -125,6 +120,7 @@ export class CartPageComponent {
     this.person.set(null);
     this.contactName.set('');
     this.phone.set('');
+    this.fullAddress.set('');
   }
 
   protected onDocumentTypeChange(value: string): void {
@@ -134,6 +130,7 @@ export class CartPageComponent {
     this.person.set(null);
     this.contactName.set('');
     this.phone.set('');
+    this.fullAddress.set('');
   }
 
   protected clearPersonSearch(): void {
@@ -144,6 +141,7 @@ export class CartPageComponent {
     this.person.set(null);
     this.contactName.set('');
     this.phone.set('');
+    this.fullAddress.set('');
     this.searchingPerson.set(false);
   }
 
@@ -154,6 +152,7 @@ export class CartPageComponent {
     this.person.set(null);
     this.contactName.set('');
     this.phone.set('');
+    this.fullAddress.set('');
   }
 
   protected allowOnlyDigits(event: KeyboardEvent): void {
@@ -174,6 +173,7 @@ export class CartPageComponent {
     this.person.set(null);
     this.contactName.set('');
     this.phone.set('');
+    this.fullAddress.set('');
   }
 
   protected searchPerson(): void {
@@ -197,7 +197,7 @@ export class CartPageComponent {
         this.person.set(null);
         this.contactName.set('');
         this.phone.set('');
-        this.orderNotes.set('');
+        this.fullAddress.set('');
         this.searchingPerson.set(false);
         this.personLoaded.set(true);
         if (typeof err === 'object' && err !== null && 'status' in err && (err as { status?: number }).status === 404) {
@@ -223,6 +223,10 @@ export class CartPageComponent {
 
   protected onOrderNotesInput(value: string): void {
     this.orderNotes.set(value);
+  }
+
+  protected onAddressInput(value: string): void {
+    this.fullAddress.set(value);
   }
 
   // Botones +/- siempre step de 1. Input p-inputNumber permite 0.1 via teclado.
@@ -283,10 +287,12 @@ export class CartPageComponent {
     this.orderApi.create({
       branch_id: branchId,
       ...(currentUser ? { client_user_id: currentUser.id } : {}),
+      ...(this.person() ? { person_id: this.person()!.id } : {}),
       person_name: personPayload.name,
       person_identity_document: personPayload.identityDocument,
       person_whatsapp_phone: personPayload.whatsappPhone,
-      notes: this.summaryLines(),
+      person_full_address: personPayload.fullAddress,
+      notes: this.orderNotes(),
       items: this.items().map((item) => ({
         item_type: item.itemType,
         ...(item.itemType === 'bundle' ? { bundle_id: item.id } : { product_id: item.id }),
@@ -297,6 +303,8 @@ export class CartPageComponent {
       next: () => {
         this.cartStore.clear();
         this.cartStore.notifyOrderCreated();
+        this.clearPersonSearch();
+        this.orderNotes.set('');
         this.buying.set(false);
         this.messageService.add({
           severity: 'success',
@@ -324,6 +332,7 @@ export class CartPageComponent {
     this.person.set(person);
     this.contactName.set(person.name);
     this.phone.set(person.whatsappPhone);
+    this.fullAddress.set(person.fullAddress);
     this.documentType.set(person.identityDocument.substring(0, 1) || 'V');
     this.documentNumber.set(person.identityDocument.substring(1));
     this.isLegalPerson.set(!(person.identityDocument.substring(0, 1) === 'V' || person.identityDocument.substring(0, 1) === 'E'));
@@ -342,6 +351,7 @@ export class CartPageComponent {
       name: this.contactName().trim(),
       identityDocument: `${this.documentType()}${this.documentNumber().trim()}`,
       whatsappPhone: this.phone().trim(),
+      fullAddress: this.fullAddress().trim(),
     };
   }
 
@@ -350,6 +360,7 @@ export class CartPageComponent {
     if (this.documentNumber().trim().length === 0) return false;
     if (this.contactName().trim().length === 0) return false;
     if (this.phone().trim().length === 0) return false;
+    if (this.fullAddress().trim().length === 0) return false;
     return true;
   }
 }

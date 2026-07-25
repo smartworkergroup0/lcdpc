@@ -128,6 +128,7 @@
               [ngModel]="isLegalPerson()"
               (ngModelChange)="onPersonTypeChange($event)"
               name="personType"
+              [disabled]="isExistingPerson()"
             ></p-toggleswitch>
             <span [class.active]="isLegalPerson()">Jurídico</span>
           </div>
@@ -146,6 +147,7 @@
                 optionLabel="label"
                 optionValue="value"
                 appendTo="body"
+                [disabled]="isExistingPerson()"
               ></p-select>
               <input
                 id="documentNumber"
@@ -159,6 +161,7 @@
                 (paste)="sanitizeDigitsPaste($event)"
                 name="documentNumber"
                 placeholder="Número de documento"
+                [disabled]="isExistingPerson()"
               />
             </p-inputgroup>
 
@@ -195,17 +198,22 @@
         <form class="checkout-form">
           <div class="checkout-form-header">
             <p class="form-kicker">Datos de contacto</p>
-            <p class="checkout-note compact">Completá o ajustá estos datos antes de confirmar.</p>
+            <p class="checkout-note compact">{{ isExistingPerson() ? 'Datos de la persona registrada (solo lectura). Ajustá dirección y notas.' : 'Completá o ajustá estos datos antes de confirmar.' }}</p>
           </div>
 
           <label class="form-field">
             <span>Nombre completo</span>
-            <input pInputText [ngModel]="contactName()" (ngModelChange)="onNameInput($event)" name="contactName" placeholder="Ej. Juan Pérez" />
+            <input pInputText [ngModel]="contactName()" (ngModelChange)="onNameInput($event)" name="contactName" placeholder="Ej. Juan Pérez" [disabled]="isExistingPerson()" />
           </label>
 
           <label class="form-field">
             <span>Número de WhatsApp</span>
-            <input pInputText [ngModel]="phone()" (ngModelChange)="onPhoneInput($event)" name="phone" placeholder="+58 412 1234567" />
+            <input pInputText [ngModel]="phone()" (ngModelChange)="onPhoneInput($event)" name="phone" placeholder="+58 412 1234567" [disabled]="isExistingPerson()" />
+          </label>
+
+          <label class="form-field">
+            <span>Dirección *</span>
+            <input pInputText [ngModel]="fullAddress()" (ngModelChange)="onAddressInput($event)" name="fullAddress" placeholder="Ej. Av. Principal, Caracas" />
           </label>
 
           <label class="form-field">

@@ -986,10 +986,7 @@ func (s *Service) resolveOrderIdentity(ctx context.Context, req CreateOrderReque
 		if parseErr != nil {
 			return uuid.Nil, nil, fmt.Errorf("invalid person_id")
 		}
-		if actorUserID == nil {
-			return uuid.Nil, nil, fmt.Errorf("PERSON_ID_REQUIRES_AUTH")
-		}
-		if !req.IsAdmin {
+		if actorUserID != nil && !req.IsAdmin {
 			ownerOK, ownerErr := s.userOwnsPerson(ctx, *actorUserID, parsed)
 			if ownerErr != nil {
 				return uuid.Nil, nil, ownerErr
@@ -1004,10 +1001,7 @@ func (s *Service) resolveOrderIdentity(ctx context.Context, req CreateOrderReque
 	if resolvedPersonID == uuid.Nil {
 		if resolvedClientUserID != nil {
 			personID, resolveErr := s.resolvePersonIDForUser(ctx, *resolvedClientUserID)
-			if resolveErr != nil {
-				return uuid.Nil, nil, resolveErr
-			}
-			if personID != uuid.Nil {
+			if resolveErr == nil && personID != uuid.Nil {
 				resolvedPersonID = personID
 			}
 		}
@@ -1099,12 +1093,12 @@ func (s *Service) createGuestPerson(ctx context.Context, req CreateOrderRequest)
 	if req.PersonName == nil || req.PersonIdentityDocument == nil || req.PersonWhatsAppPhone == nil || req.PersonFullAddress == nil {
 		return uuid.Nil, fmt.Errorf("PERSON_REQUIRED_FOR_ORDER")
 	}
-	var exists bool
-	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM persons WHERE identity_document = $1)`, strings.ToUpper(strings.TrimSpace(*req.PersonIdentityDocument))).Scan(&exists); err != nil {
+	doc := strings.ToUpper(strings.TrimSpace(*req.PersonIdentityDocument))
+	var existingID uuid.UUID
+	if err := s.pool.QueryRow(ctx, `SELECT id FROM persons WHERE identity_document = $1`, doc).Scan(&existingID); err == nil {
+		return existingID, nil
+	} else if err != pgx.ErrNoRows {
 		return uuid.Nil, fmt.Errorf("lookup person: %w", err)
-	}
-	if exists {
-		return uuid.Nil, fmt.Errorf("PERSON_EXISTS")
 	}
 	return s.createPersonFromOrderRequest(ctx, req)
 }
