@@ -50,7 +50,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  max-height: calc(100vh - 350px);
+  max-height: calc(100vh - 250px);
   overflow-y: auto;
 }
 
