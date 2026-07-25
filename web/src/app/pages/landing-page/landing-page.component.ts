@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, of, Subject, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
 import { ProductApiService } from '../../core/services/product-api.service';
@@ -78,10 +78,10 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   readonly systemConfigStore = inject(SystemConfigStore);
   private readonly unitStore = inject(MeasurementUnitStore);
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly PAGE_SIZE = 20;
   protected readonly searchSubject = new Subject<string>();
-  private loadGeneration = 0;
 
   protected readonly activeHeroIndex = signal(0);
   protected readonly search = signal('');
@@ -181,9 +181,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   protected readonly hasMoreItems = computed(() => this.hasMoreProducts() || this.hasMoreBundles());
 
   constructor() {
-    this.unitStore.load();
-    this.classificationStore.load();
-
     this.searchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged(),
@@ -191,22 +188,12 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       this.search.set(query);
       this.resetAndReload();
     });
-
-    effect(() => {
-      this.cartStore.lastOrderCreatedAt();
-      const branchId = this.branchStore.selectedBranchId();
-      if (branchId && !this.unitStore.loading() && !this.classificationStore.loading()) {
-        if (this.allProducts().length > 0 || this.allBundles().length > 0) {
-          this.resetAndReload();
-        } else {
-          this.loadBatch();
-        }
-      }
-    });
   }
 
   ngOnInit(): void {
     this.categoryStore.load();
+    this.unitStore.load();
+    this.classificationStore.load();
 
     this.priceCategoryApi.list().subscribe({
       next: (categories) => this.priceCategories.set(categories),
@@ -225,10 +212,30 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         );
       },
     });
+
+    this.waitForBranchAndLoad();
   }
 
   ngOnDestroy(): void {
     this.searchSubject.complete();
+  }
+
+  private waitForBranchAndLoad(): void {
+    const branchId = this.branchStore.selectedBranchId();
+    if (branchId) {
+      this.loadBatch();
+      return;
+    }
+
+    const branchCheck = setInterval(() => {
+      const id = this.branchStore.selectedBranchId();
+      if (id) {
+        clearInterval(branchCheck);
+        this.loadBatch();
+      }
+    }, 50);
+
+    this.destroyRef.onDestroy(() => clearInterval(branchCheck));
   }
 
   private resolveCanDecimalStock(baseUnitId: string | null | undefined): boolean {
@@ -276,15 +283,11 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const gen = ++this.loadGeneration;
-
     forkJoin({
       products: calls.products ?? of(null),
       bundles: calls.bundles ?? of(null),
     }).subscribe({
       next: (res) => {
-        if (gen !== this.loadGeneration) return;
-
         const newProducts: Product[] = res.products?.items ?? [];
         const newBundles: Bundle[] = res.bundles?.items ?? [];
 
@@ -302,18 +305,16 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.loadingMore.set(false);
 
-        this.loadPricesForNewProducts(newProducts, gen);
-        this.syncCartStock();
+        this.loadPricesForNewProducts(newProducts);
       },
       error: () => {
-        if (gen !== this.loadGeneration) return;
         this.loading.set(false);
         this.loadingMore.set(false);
       },
     });
   }
 
-  private loadPricesForNewProducts(newProducts: Product[], gen: number): void {
+  private loadPricesForNewProducts(newProducts: Product[]): void {
     const retailCategory = this.priceCategories().find((c) => c.code === 'RETAIL');
     const retailCategoryId = retailCategory?.id ?? null;
 
@@ -323,7 +324,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
     forkJoin(priceCalls).subscribe({
       next: (pricesPerProduct) => {
-        if (gen !== this.loadGeneration) return;
         const newPrices = new Map(this.productRetailPrices());
         pricesPerProduct.forEach((prices, i) => {
           const retail = prices.find((pr) => pr.priceCategoryId === retailCategoryId);
@@ -332,12 +332,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
           }
         });
         this.productRetailPrices.set(newPrices);
-        this.syncCartStock();
       },
     });
   }
 
   private resetAndReload(): void {
+    this.loading.set(false);
+    this.loadingMore.set(false);
     this.allProducts.set([]);
     this.allBundles.set([]);
     this.productsOffset.set(0);
@@ -346,12 +347,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     this.bundlesTotalCount.set(Infinity);
     this.productRetailPrices.set(new Map());
     this.loadBatch();
-  }
-
-  private syncCartStock(): void {
-    const cards = this.filteredProducts();
-    const stockMap = new Map(cards.map((c) => [c.id, c.stockAvailable]));
-    this.cartStore.syncStock(stockMap);
   }
 
   protected selectCategory(categoryId: string): void {
