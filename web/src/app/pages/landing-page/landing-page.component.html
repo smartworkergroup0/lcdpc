@@ -3,7 +3,7 @@
   [activeHeroIndex]="activeHeroIndex()"
   [search]="search()"
   (slideSelect)="activeHeroIndex.set($event)"
-  (searchChange)="searchSubject.next($event)"
+  (searchChange)="search.set($event)"
   (searchSubmit)="goToAdvancedSearch($event)"
 ></app-hero>
 

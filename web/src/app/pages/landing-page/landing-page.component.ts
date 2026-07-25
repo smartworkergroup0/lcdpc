@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, of, Subject, debounceTime, distinctUntilChanged, forkJoin } from 'rxjs';
+import { Observable, of, Subject, forkJoin } from 'rxjs';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { BundleApiService } from '../../core/services/bundle-api.service';
 import { PriceApiService } from '../../core/services/price-api.service';
@@ -183,12 +183,8 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   protected readonly hasMoreItems = computed(() => this.hasMoreProducts() || this.hasMoreBundles());
 
   constructor() {
-    this.searchSubject.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
-    ).subscribe((query) => {
+    this.searchSubject.subscribe((query) => {
       this.search.set(query);
-      this.resetAndReload();
     });
 
     const branchPoll = setInterval(() => {
@@ -432,8 +428,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   }
 
   protected goToAdvancedSearch(query: string): void {
-    this.router.navigate(['/search'], {
-      queryParams: query ? { q: query } : {}
-    });
+    this.search.set(query);
+    this.resetAndReload();
   }
 }
