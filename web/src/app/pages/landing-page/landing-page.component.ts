@@ -82,6 +82,8 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
   private readonly PAGE_SIZE = 20;
   protected readonly searchSubject = new Subject<string>();
+  private initialLoadDone = false;
+  private lastBranchId = '';
 
   protected readonly activeHeroIndex = signal(0);
   protected readonly search = signal('');
@@ -188,6 +190,19 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       this.search.set(query);
       this.resetAndReload();
     });
+
+    const branchPoll = setInterval(() => {
+      const id = this.branchStore.selectedBranchId();
+      if (id && id !== this.lastBranchId) {
+        const wasInitial = !this.initialLoadDone;
+        this.lastBranchId = id;
+        if (!wasInitial) {
+          this.resetAndReload();
+        }
+      }
+    }, 1000);
+
+    this.destroyRef.onDestroy(() => clearInterval(branchPoll));
   }
 
   ngOnInit(): void {
@@ -223,6 +238,8 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   private waitForBranchAndLoad(): void {
     const branchId = this.branchStore.selectedBranchId();
     if (branchId) {
+      this.initialLoadDone = true;
+      this.lastBranchId = branchId;
       this.loadBatch();
       return;
     }
@@ -231,6 +248,8 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       const id = this.branchStore.selectedBranchId();
       if (id) {
         clearInterval(branchCheck);
+        this.initialLoadDone = true;
+        this.lastBranchId = id;
         this.loadBatch();
       }
     }, 50);
