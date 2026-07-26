@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, DestroyRef, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, OnInit, OnDestroy, runInInjectionContext, signal, Injector } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, of, Subject, forkJoin, map } from 'rxjs';
 import { MessageService } from 'primeng/api';
@@ -9,8 +9,6 @@ import { BundleApiService } from '../../core/services/bundle-api.service';
 import { PriceApiService } from '../../core/services/price-api.service';
 import { PriceCategoryApiService } from '../../core/services/price-category-api.service';
 import { CategoryStore } from '../../core/stores/category.store';
-import { BranchApiService } from '../../core/services/branch-api.service';
-import { Branch } from '../../core/models/branch.model';
 import { BranchStore } from '../../core/stores/branch.store';
 import { CartStore } from '../../core/stores/cart.store';
 import { SystemConfigStore } from '../../core/stores/system-config.store';
@@ -75,7 +73,6 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   private readonly priceApi = inject(PriceApiService);
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
   readonly categoryStore = inject(CategoryStore);
-  private readonly branchApi = inject(BranchApiService);
   private readonly branchStore = inject(BranchStore);
   private readonly cartStore = inject(CartStore);
   readonly systemConfigStore = inject(SystemConfigStore);
@@ -83,11 +80,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly messageService = inject(MessageService);
+  private readonly injector = inject(Injector);
 
   private readonly PAGE_SIZE = 20;
   protected readonly searchSubject = new Subject<string>();
   private initialLoadDone = false;
   private lastBranchId = '';
+  private branchSelectionAttempted = false;
 
   protected readonly activeHeroIndex = signal(0);
   protected readonly search = signal('');
@@ -230,23 +229,34 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       next: (categories) => this.priceCategories.set(categories),
     });
 
-    this.branchApi.list().subscribe({
-      next: (branches: Branch[]) => {
-        this.branches.set(
-          branches.map((b) => ({
-            id: b.id,
-            name: b.storeName,
-            address: b.address,
-            phone: b.contactPhone,
-            icon: 'storefront'
-          }))
-        );
+    this.branchStore.load();
 
-        if (branchCode) {
-          this.branchStore.selectBranchByCode(branchCode);
-        }
-      },
-    });
+    if (branchCode) {
+      runInInjectionContext(this.injector, () => {
+        effect(() => {
+          const storeBranches = this.branchStore.branches();
+          if (storeBranches.length > 0 && !this.branchSelectionAttempted) {
+            this.branchStore.selectBranchByCode(branchCode);
+            this.branchSelectionAttempted = true;
+            this.branches.set(storeBranches.map((b) => ({
+              id: b.id, name: b.name, address: b.address, phone: b.phone, icon: 'storefront',
+            })));
+          }
+        });
+      });
+    } else {
+      runInInjectionContext(this.injector, () => {
+        effect(() => {
+          const storeBranches = this.branchStore.branches();
+          if (storeBranches.length > 0 && !this.branchSelectionAttempted) {
+            this.branchSelectionAttempted = true;
+            this.branches.set(storeBranches.map((b) => ({
+              id: b.id, name: b.name, address: b.address, phone: b.phone, icon: 'storefront',
+            })));
+          }
+        });
+      });
+    }
 
     this.waitForBranchAndLoad();
   }
@@ -256,17 +266,9 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   }
 
   private waitForBranchAndLoad(): void {
-    const branchId = this.branchStore.selectedBranchId();
-    if (branchId) {
-      this.initialLoadDone = true;
-      this.lastBranchId = branchId;
-      this.loadBatch();
-      return;
-    }
-
     const branchCheck = setInterval(() => {
       const id = this.branchStore.selectedBranchId();
-      if (id) {
+      if (id && this.branchSelectionAttempted) {
         clearInterval(branchCheck);
         this.initialLoadDone = true;
         this.lastBranchId = id;

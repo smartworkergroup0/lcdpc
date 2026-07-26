@@ -9,8 +9,14 @@ export function initializeAuth(): () => Promise<void> {
     const store = inject(AuthStore);
     return new Promise<void>((resolve) => {
       const stored = localStorage.getItem(EXPIRES_AT_KEY);
-      if (stored && parseInt(stored, 10) <= Date.now()) {
-        store.clear();
+      if (!stored) {
+        store.isLoaded.set(true);
+        resolve();
+        return;
+      }
+
+      if (parseInt(stored, 10) <= Date.now()) {
+        store.clear(false);
         store.isLoaded.set(true);
         resolve();
         return;

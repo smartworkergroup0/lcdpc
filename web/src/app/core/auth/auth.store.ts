@@ -91,6 +91,10 @@ export class AuthStore {
       return this.refreshResult;
     }
 
+    if (!localStorage.getItem(EXPIRES_AT_KEY)) {
+      return of(false);
+    }
+
     this.refreshing = true;
     this.refreshResult = this.authApi.refresh().pipe(
       map((result) => {
