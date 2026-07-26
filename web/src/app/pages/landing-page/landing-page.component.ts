@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, of, Subject, forkJoin, map } from 'rxjs';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { BundleApiService } from '../../core/services/bundle-api.service';
 import { PriceApiService } from '../../core/services/price-api.service';
@@ -62,7 +64,7 @@ type BranchCard = {
 @Component({
   selector: 'app-landing-page',
   standalone: true,
-  imports: [CommonModule, HeroComponent, CatalogComponent, BranchesComponent, ProductDetailDialogComponent],
+  imports: [CommonModule, HeroComponent, CatalogComponent, BranchesComponent, ProductDetailDialogComponent, ToastModule],
   templateUrl: './landing-page.component.html'
 })
 export class LandingPageComponent implements OnInit, OnDestroy {
@@ -80,6 +82,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   private readonly unitStore = inject(MeasurementUnitStore);
   private readonly classificationStore = inject(MeasurementUnitClassificationStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly messageService = inject(MessageService);
 
   private readonly PAGE_SIZE = 20;
   protected readonly searchSubject = new Subject<string>();
@@ -481,6 +484,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       product.quantity
     );
 
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Producto agregado',
+      detail: `${product.name} añadido al carrito`,
+      life: 1500
+    });
+
     const next = new Map(this.productQuantities());
     next.set(productId, 1);
     this.productQuantities.set(next);
@@ -514,6 +524,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       },
       event.quantity
     );
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Producto agregado',
+      detail: `${product.name} añadido al carrito`,
+      life: 1500
+    });
 
     const next = new Map(this.productQuantities());
     next.set(event.id, 1);
