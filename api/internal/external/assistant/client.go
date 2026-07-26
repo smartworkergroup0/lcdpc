@@ -18,17 +18,19 @@ type Client struct {
 	baseURL    string
 	username   string
 	password   string
+	tokenTTL   time.Duration
 	token      string
 	expiresAt  time.Time
 	mu         sync.RWMutex
 }
 
-func NewClient(baseURL, username, password string) *Client {
+func NewClient(baseURL, username, password string, tokenTTLMin int) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		username:   username,
 		password:   password,
+		tokenTTL:   time.Duration(tokenTTLMin) * time.Minute,
 	}
 }
 
@@ -76,7 +78,7 @@ func (c *Client) ensureToken(ctx context.Context) error {
 	}
 
 	c.token = authResp.Access
-	c.expiresAt = time.Now().Add(50 * time.Minute)
+	c.expiresAt = time.Now().Add(c.tokenTTL)
 	return nil
 }
 
@@ -85,6 +87,10 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 		return nil, 0, err
 	}
 
+	return c.doRequestWithToken(ctx, method, path, params, c.token)
+}
+
+func (c *Client) doRequestWithToken(ctx context.Context, method, path string, params url.Values, token string) ([]byte, int, error) {
 	reqURL := c.baseURL + path
 	if params != nil && len(params) > 0 {
 		reqURL += "?" + params.Encode()
@@ -94,7 +100,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 	if err != nil {
 		return nil, 0, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -105,6 +111,18 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		c.mu.Lock()
+		c.token = ""
+		c.expiresAt = time.Time{}
+		c.mu.Unlock()
+
+		if err := c.ensureToken(ctx); err != nil {
+			return nil, 0, err
+		}
+		return c.doRequestWithToken(ctx, method, path, params, c.token)
 	}
 
 	return respBody, resp.StatusCode, nil
@@ -121,12 +139,12 @@ func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, erro
 	if f.IsProcessed != nil {
 		params.Set("is_processed", strconv.FormatBool(*f.IsProcessed))
 	}
-	if f.Limit > 0 {
-		params.Set("limit", strconv.Itoa(f.Limit))
-	}
+
+	page := 1
 	if f.Offset > 0 {
-		params.Set("offset", strconv.Itoa(f.Offset))
+		page = (f.Offset / 10) + 1
 	}
+	params.Set("page", strconv.Itoa(page))
 
 	body, status, err := c.doRequest(ctx, http.MethodGet, "/external/v1/leads/", params)
 	if err != nil {
@@ -139,6 +157,11 @@ func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, erro
 	var result listResponse[Lead]
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, 0, fmt.Errorf("decode leads response: %w", err)
+	}
+
+	isProcessed := f.IsProcessed != nil && *f.IsProcessed
+	for i := range result.Results {
+		result.Results[i].IsProcessed = isProcessed
 	}
 
 	return result.Results, result.Count, nil
@@ -155,12 +178,12 @@ func (c *Client) ListOrders(ctx context.Context, f ListFilter) ([]Order, int, er
 	if f.IsProcessed != nil {
 		params.Set("is_processed", strconv.FormatBool(*f.IsProcessed))
 	}
-	if f.Limit > 0 {
-		params.Set("limit", strconv.Itoa(f.Limit))
-	}
+
+	page := 1
 	if f.Offset > 0 {
-		params.Set("offset", strconv.Itoa(f.Offset))
+		page = (f.Offset / 10) + 1
 	}
+	params.Set("page", strconv.Itoa(page))
 
 	body, status, err := c.doRequest(ctx, http.MethodGet, "/external/v1/orders/", params)
 	if err != nil {
@@ -173,6 +196,11 @@ func (c *Client) ListOrders(ctx context.Context, f ListFilter) ([]Order, int, er
 	var result listResponse[Order]
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, 0, fmt.Errorf("decode orders response: %w", err)
+	}
+
+	isProcessed := f.IsProcessed != nil && *f.IsProcessed
+	for i := range result.Results {
+		result.Results[i].IsProcessed = isProcessed
 	}
 
 	return result.Results, result.Count, nil

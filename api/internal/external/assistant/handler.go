@@ -69,6 +69,9 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			f.IsProcessed = &b
 		}
+	} else {
+		isProcessed := false
+		f.IsProcessed = &isProcessed
 	}
 	if s := r.URL.Query().Get("limit"); s != "" {
 		if v, err := strconv.Atoi(s); err == nil && v > 0 && v <= 100 {

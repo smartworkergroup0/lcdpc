@@ -161,7 +161,7 @@ func main() {
 	dashboardSvc := dashboard.NewService(pool)
 	apiTokenSvc := apitoken.NewService(pool)
 	svcAccountSvc := serviceaccount.NewService(pool)
-	assistantClient := assistant.NewClient(cfg.SmartWorkerAPIURL, cfg.SmartWorkerUser, cfg.SmartWorkerPass)
+	assistantClient := assistant.NewClient(cfg.SmartWorkerAPIURL, cfg.SmartWorkerUser, cfg.SmartWorkerPass, cfg.SmartWorkerTokenTTLMin)
 
 	router := httpserver.NewServer(cfg, pool, authSvc, oauth2Svc, keySvc, saKeySvc, pricingSvc, branchSvc, brandSvc, categorySvc, staffSvc, syncSvc, rbacStore, rbacSvc, orderSvc, personSvc, systemConfigSvc, userSvc, dashboardSvc, apiTokenSvc, svcAccountSvc, workflowSvc, assistantClient, frontendFS)
 

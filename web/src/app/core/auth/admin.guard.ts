@@ -7,7 +7,6 @@ export const adminGuard: CanActivateFn = () => {
   const router = inject(Router);
 
   if (!authStore.isAuthenticated()) {
-    console.warn('[adminGuard] Usuario no autenticado, redirigiendo a /');
     return router.createUrlTree(['/']);
   }
 
@@ -20,18 +19,9 @@ export const adminGuard: CanActivateFn = () => {
     'module:asistente:view',
   ];
 
-  const userPermissions = authStore.permissions();
   const hasAccess = authStore.hasAnyPermission(...adminPermissions);
 
-  if (!hasAccess) {
-    console.warn('[adminGuard] Acceso denegado a /admin/');
-    console.warn('[adminGuard] Permisos requeridos (al menos uno):', adminPermissions);
-    console.warn('[adminGuard] Permisos del usuario:', userPermissions);
-    console.warn('[adminGuard] Permisos de módulo encontrados:', userPermissions.filter(p => p.startsWith('module:')));
-  }
-
   if (hasAccess) {
-    console.log('[adminGuard] Acceso permitido a /admin/');
     return true;
   }
 

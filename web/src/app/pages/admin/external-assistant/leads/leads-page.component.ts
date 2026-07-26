@@ -51,7 +51,6 @@ import {
             <th>Email</th>
             <th>Status</th>
             <th style="width: 80px">Score</th>
-            <th style="width: 100px">Procesado</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-lead>
@@ -63,14 +62,11 @@ import {
               <p-tag [value]="getStatusLabel(lead.status)" [severity]="getStatusSeverity(lead.status)" />
             </td>
             <td>{{ lead.score }}</td>
-            <td>
-              <p-tag [value]="lead.isProcessed ? 'Si' : 'No'" [severity]="lead.isProcessed ? 'success' : 'warn'" />
-            </td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="6" class="empty-state">No hay leads disponibles</td>
+            <td colspan="5" class="empty-state">No hay leads disponibles</td>
           </tr>
         </ng-template>
       </p-table>

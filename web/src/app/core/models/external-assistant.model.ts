@@ -10,6 +10,7 @@ export interface AssistantLead {
   address: string;
   isProcessed: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface AssistantOrder {
@@ -18,10 +19,13 @@ export interface AssistantOrder {
   identification: string;
   address: string;
   summary: string;
+  isRetentionAgent: boolean;
   status: string;
-  referenceNumber: string;
+  referenceNumber: string | null;
+  referenceDate: string | null;
   isProcessed: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface AssistantListFilter {

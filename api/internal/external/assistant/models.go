@@ -12,18 +12,22 @@ type Lead struct {
 	Address            string `json:"address"`
 	IsProcessed        bool   `json:"is_processed"`
 	CreatedAt          string `json:"created_at"`
+	UpdatedAt          string `json:"updated_at"`
 }
 
 type Order struct {
-	ID              string `json:"id"`
-	CustomerName    string `json:"customer_name"`
-	Identification  string `json:"identification"`
-	Address         string `json:"address"`
-	Summary         string `json:"summary"`
-	Status          string `json:"status"`
-	ReferenceNumber string `json:"reference_number"`
-	IsProcessed     bool   `json:"is_processed"`
-	CreatedAt       string `json:"created_at"`
+	ID               string  `json:"id"`
+	CustomerName     string  `json:"customer_name"`
+	Identification   string  `json:"identification"`
+	Address          string  `json:"address"`
+	Summary          string  `json:"summary"`
+	IsRetentionAgent bool    `json:"is_retention_agent"`
+	Status           string  `json:"status"`
+	ReferenceNumber  *string `json:"reference_number"`
+	ReferenceDate    *string `json:"reference_date"`
+	IsProcessed      bool    `json:"is_processed"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
 }
 
 type ListFilter struct {

@@ -82,7 +82,6 @@ export class HeaderComponent {
       'module:configuracion:view',
       'module:asistente:view'
     );
-    console.log('[Header] isAdmin check:', { hasAccess, totalPerms: perms.length, modulePerms });
     return hasAccess;
   });
 
@@ -114,12 +113,10 @@ export class HeaderComponent {
   }
 
   protected goToAdmin(): void {
-    console.log('[Header] goToAdmin clicked');
     void this.router.navigate(['/admin']);
   }
 
   protected goToLogin(): void {
-    console.log('[Header] goToLogin clicked');
     void this.router.navigate(['/login']);
   }
 

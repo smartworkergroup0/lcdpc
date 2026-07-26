@@ -51,7 +51,6 @@ import {
             <th>Direccion</th>
             <th>Resumen</th>
             <th>Status</th>
-            <th style="width: 100px">Procesado</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-order>
@@ -63,14 +62,11 @@ import {
             <td>
               <p-tag [value]="getStatusLabel(order.status)" [severity]="getStatusSeverity(order.status)" />
             </td>
-            <td>
-              <p-tag [value]="order.isProcessed ? 'Si' : 'No'" [severity]="order.isProcessed ? 'success' : 'warn'" />
-            </td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="6" class="empty-state">No hay ordenes disponibles</td>
+            <td colspan="5" class="empty-state">No hay ordenes disponibles</td>
           </tr>
         </ng-template>
       </p-table>

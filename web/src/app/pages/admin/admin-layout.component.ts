@@ -102,15 +102,7 @@ export class AdminLayoutComponent {
 
   constructor() {
     effect(() => {
-      const perms = this.authStore.permissions();
-      console.log('[AdminLayout] Permisos cargados:', perms.length);
-      console.log('[AdminLayout] Permisos module:', perms.filter(p => p.startsWith('module:')));
-      console.log('[AdminLayout] canViewDashboard:', this.canViewDashboard());
-      console.log('[AdminLayout] canViewOperaciones:', this.canViewOperaciones());
-      console.log('[AdminLayout] canViewAlmacen:', this.canViewAlmacen());
-      console.log('[AdminLayout] canViewPeople:', this.canViewPeople());
-      console.log('[AdminLayout] canViewConfig:', this.canViewConfig());
-      console.log('[AdminLayout] canViewAssistant:', this.canViewAssistant());
+      this.authStore.permissions();
     });
   }
 

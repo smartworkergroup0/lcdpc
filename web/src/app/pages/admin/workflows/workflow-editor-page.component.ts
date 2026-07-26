@@ -319,7 +319,6 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       const src = e.getSourceCellId();
       const tgt = e.getTargetCellId();
       if (!src || !tgt) {
-        console.warn('[SYNC] Edge sin source/target:', e.id, 'src:', src, 'tgt:', tgt);
       }
       return {
         id: e.id,
@@ -339,18 +338,12 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
 
   private removeOrphanedEdges(): void {
     const nodeIds = new Set(this.graph.getNodes().map((n) => n.id));
-    let removed = 0;
     for (const edge of this.graph.getEdges()) {
       const src = edge.getSourceCellId();
       const tgt = edge.getTargetCellId();
       if (!nodeIds.has(src) || !nodeIds.has(tgt)) {
-        console.warn('[ORPHAN] Removiendo edge:', edge.id, 'src:', src, 'tgt:', tgt, 'nodeIds:', [...nodeIds]);
         this.graph.removeEdge(edge);
-        removed++;
       }
-    }
-    if (removed > 0) {
-      console.warn('[ORPHAN] Total edges removidos:', removed);
     }
     this.syncEdgesFromGraph();
   }
@@ -785,10 +778,6 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     this.workflowDescription.set(workflow.description);
     this.pendingDeactivations.set([]);
 
-    console.log('[LOAD] Workflow recibido:', workflow.name, 'id:', workflow.id);
-    console.log('[LOAD] Nodos recibidos:', workflow.nodes.length, JSON.stringify(workflow.nodes.map(n => ({ id: n.id, code: n.data?.code }))));
-    console.log('[LOAD] Edges recibidos:', workflow.edges.length, JSON.stringify(workflow.edges.map(e => ({ id: e.id, src: e.source, tgt: e.target, label: e.data?.label }))));
-
     // Refresh statuses from backend to ensure availableStatuses is accurate
     this.workflowApi.getOrderStatuses('ALL').subscribe({
       next: (statuses) => this.orderStatuses.set(statuses),
@@ -812,13 +801,11 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     }
 
     const validNodeIds = new Set(workflow.nodes.map((n) => n.id));
-    console.log('[LOAD] Valid node IDs:', [...validNodeIds]);
 
     let edgesAdded = 0;
     let edgesSkipped = 0;
     for (const edge of workflow.edges) {
       if (!validNodeIds.has(edge.source) || !validNodeIds.has(edge.target)) {
-        console.warn('[LOAD] Edge SKIP (source/target no existe):', edge.id, 'src:', edge.source, 'tgt:', edge.target);
         edgesSkipped++;
         continue;
       }
@@ -864,8 +851,6 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
       });
       edgesAdded++;
     }
-    console.log('[LOAD] Edges agregados al graph:', edgesAdded, 'Skipped:', edgesSkipped);
-    console.log('[LOAD] Graph edges después de addEdge:', this.graph.getEdges().length);
 
     for (const edge of this.graph.getEdges()) {
       edge.setRouter('manhattan');
@@ -877,9 +862,6 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     this.closeEdgePanel();
     this.syncNodesFromGraph();
     this.removeOrphanedEdges();
-
-    console.log('[LOAD] Graph edges después de removeOrphaned:', this.graph.getEdges().length);
-    console.log('[LOAD] Edges finales en signal:', this.edges().length, JSON.stringify(this.edges().map(e => ({ id: e.id, src: e.source, tgt: e.target }))));
 
     this.graph.resize();
     this.graph.zoomToFit({ padding: 40, maxScale: 1.2 });
@@ -937,9 +919,6 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
 
     this.loading.set(true);
     const { definition } = this.serialize();
-
-    console.log('[SAVE] Edges en serialize():', JSON.stringify(definition.edges.map(e => ({ id: e.id, src: e.source, tgt: e.target, label: e.data?.label }))));
-    console.log('[SAVE] Nodos en serialize():', JSON.stringify(definition.nodes.map(n => ({ id: n.id, code: n.data?.code }))));
 
     const id = this.workflowId();
     const request$ = id
