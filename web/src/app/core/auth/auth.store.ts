@@ -14,6 +14,7 @@ export interface UserSummary {
   onboardingStatus: string;
   emailVerifiedAt: string | null;
   profileId: string;
+  profileWeight: number;
   branchId: string | null;
 }
 
@@ -28,6 +29,7 @@ interface MeGoData {
     onboarding_status: string;
     email_verified_at: string | null;
     profile_id: string;
+    profile_weight: number;
     branch_id: string | null;
   } | null;
   permissions: string[];
@@ -160,6 +162,7 @@ export class AuthStore {
       onboardingStatus: data.user.onboarding_status,
       emailVerifiedAt: data.user.email_verified_at,
       profileId: data.user.profile_id,
+      profileWeight: data.user.profile_weight ?? 0,
       branchId: data.user.branch_id ?? null,
     });
 

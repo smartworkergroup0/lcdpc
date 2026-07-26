@@ -29,6 +29,7 @@ interface StaffGoData {
   whatsapp_phone: string;
   profile_id: string;
   profile_name: string;
+  profile_weight: number;
   created_at_utc: string;
 }
 
@@ -127,6 +128,7 @@ export class StaffApiService {
       whatsappPhone: raw.whatsapp_phone,
       profileId: raw.profile_id,
       profileName: raw.profile_name,
+      profileWeight: raw.profile_weight ?? 0,
       createdAtUtc: raw.created_at_utc,
     };
   }

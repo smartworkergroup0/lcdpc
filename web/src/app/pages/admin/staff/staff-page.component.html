@@ -43,11 +43,11 @@
         <td>
           <p-button icon="pi pi-eye" [text]="true" [rounded]="true" pTooltip="Ver detalles"
                     (onClick)="openDetail(item)" />
-          @if (canUpdate()) {
+          @if (canUpdate() && item.profileWeight <= currentUserProfileWeight()) {
             <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" pTooltip="Editar"
                       (onClick)="openEdit(item)" />
           }
-          @if (canUpdate()) {
+          @if (canUpdate() && item.profileWeight <= currentUserProfileWeight()) {
             <p-button [icon]="item.status === 'Active' ? 'pi pi-ban' : 'pi pi-check-circle'"
                       [text]="true" [rounded]="true"
                       [severity]="item.status === 'Active' ? 'danger' : 'success'"

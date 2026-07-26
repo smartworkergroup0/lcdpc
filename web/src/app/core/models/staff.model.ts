@@ -9,6 +9,7 @@ export interface StaffMember {
   whatsappPhone: string;
   profileId: string;
   profileName: string;
+  profileWeight: number;
   createdAtUtc: string;
 }
 

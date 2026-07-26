@@ -104,7 +104,13 @@ func (h *StaffHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.Create(r.Context(), req)
+	currentUserProfileID, err := uuid.Parse(middleware.GetProfileID(r.Context()))
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	result, err := h.svc.Create(r.Context(), req, currentUserProfileID)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
@@ -127,7 +133,13 @@ func (h *StaffHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.Update(r.Context(), id, req)
+	currentUserProfileID, err := uuid.Parse(middleware.GetProfileID(r.Context()))
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	result, err := h.svc.Update(r.Context(), id, req, currentUserProfileID)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
@@ -174,7 +186,20 @@ func (h *StaffHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StaffHandler) ListProfiles(w http.ResponseWriter, r *http.Request) {
-	profiles, err := h.svc.ListProfiles(r.Context())
+	profileIDStr := middleware.GetProfileID(r.Context())
+	profileID, err := uuid.Parse(profileIDStr)
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	weight, err := h.svc.GetProfileWeight(r.Context(), profileID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	profiles, err := h.svc.ListProfiles(r.Context(), weight)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, err.Error())
 		return

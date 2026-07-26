@@ -580,6 +580,7 @@ type UserSummary struct {
 	OnboardingStatus string     `json:"onboarding_status"`
 	EmailVerifiedAt  *time.Time `json:"email_verified_at"`
 	ProfileID        string     `json:"profile_id"`
+	ProfileWeight    float64    `json:"profile_weight"`
 	BranchID         *string    `json:"branch_id,omitempty"`
 }
 
@@ -617,17 +618,21 @@ func (s *Service) Me(ctx context.Context, accessToken string) (*MeResponse, erro
 		PersonIsClient   *bool
 		PersonIsStaff    *bool
 		ProfileID        uuid.UUID
+		ProfileWeight    float64
 		BranchID         *uuid.UUID
 	}
 
 	err = s.pool.QueryRow(ctx, `
 		SELECT u.id, u.email, u.status, u.onboarding_status, u.email_verified_at_utc,
-		       COALESCE(per.name, ''), per.is_client, COALESCE(per.is_staff, false), u.profile_id, u.branch_id
+		       COALESCE(per.name, ''), per.is_client, COALESCE(per.is_staff, false),
+		       u.profile_id, COALESCE(p.weight, 0), u.branch_id
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
+		JOIN profiles p ON p.id = u.profile_id
 		WHERE u.id = $1
 	`, session.UserID).Scan(&user.ID, &user.Email, &user.Status, &user.OnboardingStatus,
-		&user.EmailVerifiedAt, &user.Name, &user.PersonIsClient, &user.PersonIsStaff, &user.ProfileID, &user.BranchID)
+		&user.EmailVerifiedAt, &user.Name, &user.PersonIsClient, &user.PersonIsStaff,
+		&user.ProfileID, &user.ProfileWeight, &user.BranchID)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -689,6 +694,7 @@ func (s *Service) Me(ctx context.Context, accessToken string) (*MeResponse, erro
 			OnboardingStatus: user.OnboardingStatus,
 			EmailVerifiedAt:  user.EmailVerifiedAt,
 			ProfileID:        user.ProfileID.String(),
+			ProfileWeight:    user.ProfileWeight,
 			BranchID:         branchIDStr,
 		},
 		Permissions: permissions,

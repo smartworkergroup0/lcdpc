@@ -41,6 +41,7 @@ interface ProfileGoData {
   id: string;
   name: string;
   code: string;
+  weight: number;
   roles: RoleEntry[];
   user_count: number;
   created_at_utc: string;
@@ -222,6 +223,7 @@ export class RbacApiService {
       id: raw.id,
       name: raw.name,
       code: raw.code,
+      weight: raw.weight,
       roles: raw.roles,
       userCount: raw.user_count,
       createdAtUtc: raw.created_at_utc,

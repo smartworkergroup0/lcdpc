@@ -33,6 +33,7 @@
           <tr>
             <th>Nombre</th>
             <th>Codigo</th>
+            <th>Peso</th>
             <th>Roles</th>
             <th style="width: 140px">Acciones</th>
           </tr>
@@ -41,6 +42,7 @@
           <tr>
             <td>{{ profile.name }}</td>
             <td><code>{{ profile.code }}</code></td>
+            <td>{{ profile.weight }}</td>
             <td>
               @for (role of profile.roles; track role.id) {
                 <p-tag [value]="role.name" styleClass="mr-1" />
@@ -64,7 +66,7 @@
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="4" class="empty-state">No hay perfiles registrados</td></tr>
+          <tr><td colspan="5" class="empty-state">No hay perfiles registrados</td></tr>
         </ng-template>
       </p-table>
     </p-tabpanel>
@@ -359,6 +361,14 @@
       <input pInputText id="profCode" [(ngModel)]="profileForm.code" [class.ng-invalid]="profileSubmitted && !profileForm.code" style="width: 100%" />
       <label for="profCode">Codigo *</label>
     </p-floatlabel>
+    <div class="field">
+      <p-floatlabel>
+        <p-inputNumber id="profWeight" [(ngModel)]="profileForm.weight"
+                       [min]="0" [max]="9.99" [minFractionDigits]="0" [maxFractionDigits]="2"
+                       style="width: 100%" placeholder=" " />
+        <label for="profWeight">Peso</label>
+      </p-floatlabel>
+    </div>
   </div>
   <ng-template pTemplate="footer">
     <p-button label="Cancelar" severity="secondary" (onClick)="profileDialogVisible.set(false)"></p-button>

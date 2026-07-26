@@ -47,6 +47,7 @@ type ProfileResponse struct {
 	ID        uuid.UUID   `json:"id"`
 	Name      string      `json:"name"`
 	Code      string      `json:"code"`
+	Weight    float64     `json:"weight"`
 	Roles     []RoleEntry `json:"roles"`
 	UserCount int         `json:"user_count"`
 	CreatedAt time.Time   `json:"created_at_utc"`
@@ -54,13 +55,15 @@ type ProfileResponse struct {
 }
 
 type CreateProfileRequest struct {
-	Name string `json:"name" validate:"required"`
-	Code string `json:"code" validate:"required"`
+	Name   string  `json:"name" validate:"required"`
+	Code   string  `json:"code" validate:"required"`
+	Weight float64 `json:"weight"`
 }
 
 type UpdateProfileRequest struct {
-	Name string `json:"name"`
-	Code string `json:"code"`
+	Name   string  `json:"name"`
+	Code   string  `json:"code"`
+	Weight float64 `json:"weight"`
 }
 
 type AssignRoleRequest struct {

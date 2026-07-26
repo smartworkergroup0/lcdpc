@@ -45,6 +45,7 @@ export class StaffPageComponent implements OnInit {
   protected readonly canUpdate = computed(() => this.authStore.hasPermission('staff:update'));
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
+  protected readonly currentUserProfileWeight = computed(() => this.authStore.currentUser()?.profileWeight ?? 0);
 
   protected readonly items = signal<StaffMember[]>([]);
   protected readonly loading = signal(false);

@@ -93,7 +93,7 @@ export class RbacSectionComponent implements OnInit {
   protected readonly profiles = signal<Profile[]>([]);
   protected readonly profileDialogVisible = signal(false);
   protected readonly selectedProfile = signal<Profile | null>(null);
-  protected profileForm: CreateProfileRequest = { name: '', code: '' };
+  protected profileForm: CreateProfileRequest = { name: '', code: '', weight: 0 };
   protected profileSubmitted = false;
 
   // Profile roles dialog
@@ -325,14 +325,14 @@ export class RbacSectionComponent implements OnInit {
 
   openProfileCreate(): void {
     this.selectedProfile.set(null);
-    this.profileForm = { name: '', code: '' };
+    this.profileForm = { name: '', code: '', weight: 0 };
     this.profileSubmitted = false;
     this.profileDialogVisible.set(true);
   }
 
   openProfileEdit(profile: Profile): void {
     this.selectedProfile.set(profile);
-    this.profileForm = { name: profile.name, code: profile.code };
+    this.profileForm = { name: profile.name, code: profile.code, weight: profile.weight };
     this.profileSubmitted = false;
     this.profileDialogVisible.set(true);
   }

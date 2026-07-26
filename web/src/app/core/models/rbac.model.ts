@@ -44,6 +44,7 @@ export interface Profile {
   id: string;
   name: string;
   code: string;
+  weight: number;
   roles: RoleEntry[];
   userCount: number;
   createdAtUtc: string;
@@ -59,11 +60,13 @@ export interface RoleEntry {
 export interface CreateProfileRequest {
   name: string;
   code: string;
+  weight: number;
 }
 
 export interface UpdateProfileRequest {
   name: string;
   code: string;
+  weight: number;
 }
 
 export interface AssignRoleRequest {

@@ -36,6 +36,7 @@ type StaffMember struct {
 	WhatsAppPhone    string     `json:"whatsapp_phone"`
 	ProfileID        uuid.UUID  `json:"profile_id"`
 	ProfileName      string     `json:"profile_name"`
+	ProfileWeight    float64    `json:"profile_weight"`
 	CreatedAtUtc     time.Time  `json:"created_at_utc"`
 }
 
@@ -165,7 +166,7 @@ func (s *Service) List(ctx context.Context, filter StaffFilter) ([]StaffMember, 
 	dataQuery := `
 		SELECT u.id, per.name, u.email, u.status, u.branch_id, b.store_name,
 		       per.identity_document, per.whatsapp_phone,
-		       p.id, p.name, u.created_at_utc
+		       p.id, p.name, p.weight, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		JOIN profiles p ON p.id = u.profile_id
@@ -217,7 +218,7 @@ func (s *Service) List(ctx context.Context, filter StaffFilter) ([]StaffMember, 
 		if err := rows.Scan(
 			&m.UserID, &m.PersonName, &m.Email, &m.Status, &m.BranchID, &m.BranchName,
 			&m.IdentityDocument, &m.WhatsAppPhone,
-			&m.ProfileID, &m.ProfileName, &m.CreatedAtUtc,
+			&m.ProfileID, &m.ProfileName, &m.ProfileWeight, &m.CreatedAtUtc,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan staff: %w", err)
 		}
@@ -231,7 +232,7 @@ func (s *Service) GetByID(ctx context.Context, userID uuid.UUID) (*StaffMember, 
 	err := s.pool.QueryRow(ctx, `
 		SELECT u.id, per.Name, u.email, u.status, u.branch_id, b.store_name,
 		       per.identity_document, per.whatsapp_phone,
-		       p.id, p.name, u.created_at_utc
+		       p.id, p.name, p.weight, u.created_at_utc
 		FROM users u
 		LEFT JOIN persons per ON per.id = u.person_id
 		JOIN profiles p ON p.id = u.profile_id
@@ -240,7 +241,7 @@ func (s *Service) GetByID(ctx context.Context, userID uuid.UUID) (*StaffMember, 
 	`, userID).Scan(
 		&m.UserID, &m.PersonName, &m.Email, &m.Status, &m.BranchID, &m.BranchName,
 		&m.IdentityDocument, &m.WhatsAppPhone,
-		&m.ProfileID, &m.ProfileName, &m.CreatedAtUtc,
+		&m.ProfileID, &m.ProfileName, &m.ProfileWeight, &m.CreatedAtUtc,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("NOT_FOUND")
@@ -251,10 +252,15 @@ func (s *Service) GetByID(ctx context.Context, userID uuid.UUID) (*StaffMember, 
 	return &m, nil
 }
 
-func (s *Service) Create(ctx context.Context, req CreateStaffRequest) (*StaffMember, error) {
+func (s *Service) Create(ctx context.Context, req CreateStaffRequest, currentUserProfileID uuid.UUID) (*StaffMember, error) {
 	pwHash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	// Validate profile weight
+	if err := s.validateProfileWeight(ctx, req.ProfileID, currentUserProfileID); err != nil {
+		return nil, err
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -311,7 +317,32 @@ func (s *Service) Create(ctx context.Context, req CreateStaffRequest) (*StaffMem
 	return s.GetByID(ctx, userID)
 }
 
-func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateStaffRequest) (*StaffMember, error) {
+func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateStaffRequest, currentUserProfileID uuid.UUID) (*StaffMember, error) {
+	// Block edit if staff's current profile weight exceeds current user's weight
+	var currentStaffWeight float64
+	err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(p.weight, 0)
+		FROM users u JOIN profiles p ON p.id = u.profile_id
+		WHERE u.id = $1
+	`, userID).Scan(&currentStaffWeight)
+	if err != nil {
+		return nil, fmt.Errorf("get staff profile: %w", err)
+	}
+	currentUserWeight, err := s.GetProfileWeight(ctx, currentUserProfileID)
+	if err != nil {
+		return nil, fmt.Errorf("get current user weight: %w", err)
+	}
+	if currentStaffWeight > currentUserWeight {
+		return nil, fmt.Errorf("PROFILE_WEIGHT_EXCEEDED")
+	}
+
+	// Validate profile weight if changing profile
+	if req.ProfileID != nil {
+		if err := s.validateProfileWeight(ctx, *req.ProfileID, currentUserProfileID); err != nil {
+			return nil, err
+		}
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -457,8 +488,8 @@ type ProfileOption struct {
 	Name string    `json:"name"`
 }
 
-func (s *Service) ListProfiles(ctx context.Context) ([]ProfileOption, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, name FROM profiles ORDER BY name`)
+func (s *Service) ListProfiles(ctx context.Context, maxWeight float64) ([]ProfileOption, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id, name FROM profiles WHERE weight <= $1 ORDER BY name`, maxWeight)
 	if err != nil {
 		return nil, fmt.Errorf("list profiles: %w", err)
 	}
@@ -473,4 +504,29 @@ func (s *Service) ListProfiles(ctx context.Context) ([]ProfileOption, error) {
 		profiles = append(profiles, p)
 	}
 	return profiles, nil
+}
+
+func (s *Service) GetProfileWeight(ctx context.Context, profileID uuid.UUID) (float64, error) {
+	var weight float64
+	err := s.pool.QueryRow(ctx, `SELECT weight FROM profiles WHERE id = $1`, profileID).Scan(&weight)
+	if err != nil {
+		return 0, fmt.Errorf("get profile weight: %w", err)
+	}
+	return weight, nil
+}
+
+func (s *Service) validateProfileWeight(ctx context.Context, targetProfileID, currentUserProfileID uuid.UUID) error {
+	var targetWeight, currentUserWeight float64
+	err := s.pool.QueryRow(ctx, `SELECT weight FROM profiles WHERE id = $1`, targetProfileID).Scan(&targetWeight)
+	if err != nil {
+		return fmt.Errorf("PROFILE_NOT_FOUND")
+	}
+	err = s.pool.QueryRow(ctx, `SELECT weight FROM profiles WHERE id = $1`, currentUserProfileID).Scan(&currentUserWeight)
+	if err != nil {
+		return fmt.Errorf("CURRENT_PROFILE_NOT_FOUND")
+	}
+	if targetWeight > currentUserWeight {
+		return fmt.Errorf("PROFILE_WEIGHT_EXCEEDED")
+	}
+	return nil
 }
