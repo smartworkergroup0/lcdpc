@@ -140,10 +140,6 @@ func (s *Service) ListCatalogProducts(ctx context.Context, filter ProductFilter,
 	}
 
 	dataQuery += ` ORDER BY p.name`
-	limit := filter.GetLimit()
-	offset := filter.GetOffset()
-	dataQuery += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
-	args = append(args, limit, offset)
 
 	rows, err := s.pool.Query(ctx, dataQuery, args...)
 	if err != nil {
@@ -280,11 +276,6 @@ func (s *Service) ListCatalogBundles(ctx context.Context, filter BundleFilter, d
 	}
 
 	dataQuery += ` ORDER BY bu.name`
-	limit := filter.GetLimit()
-	offset := filter.GetOffset()
-	dataQuery += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
-	args = append(args, limit, offset)
-
 	rows, err := s.pool.Query(ctx, dataQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list catalog bundles: %w", err)
