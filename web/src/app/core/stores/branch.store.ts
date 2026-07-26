@@ -4,6 +4,7 @@ import { BranchApiService } from '../services/branch-api.service';
 export interface BranchOption {
   id: string;
   name: string;
+  code: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -24,7 +25,7 @@ export class BranchStore {
 
     this.branchApi.list().subscribe({
       next: (branchList) => {
-        const mapped = branchList.map((b) => ({ id: b.id, name: b.storeName }));
+        const mapped = branchList.map((b) => ({ id: b.id, name: b.storeName, code: b.code }));
         this._branches.set(mapped);
         if (mapped.length > 0 && !this._selectedBranchId()) {
           this._selectedBranchId.set(mapped[0].id);
@@ -40,6 +41,13 @@ export class BranchStore {
   selectBranch(branchId: string): void {
     if (branchId) {
       this._selectedBranchId.set(branchId);
+    }
+  }
+
+  selectBranchByCode(code: string): void {
+    const branch = this._branches().find((b) => b.code === code);
+    if (branch) {
+      this._selectedBranchId.set(branch.id);
     }
   }
 

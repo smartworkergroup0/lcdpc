@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, OnDestroy, signal } from '@angular/core';
-import { Router } from '@angular/router';
-import { Observable, of, Subject, forkJoin } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Observable, of, Subject, forkJoin, map } from 'rxjs';
 import { ProductApiService } from '../../core/services/product-api.service';
 import { BundleApiService } from '../../core/services/bundle-api.service';
 import { PriceApiService } from '../../core/services/price-api.service';
@@ -67,6 +67,7 @@ type BranchCard = {
 })
 export class LandingPageComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly productApi = inject(ProductApiService);
   private readonly bundleApi = inject(BundleApiService);
   private readonly priceApi = inject(PriceApiService);
@@ -102,6 +103,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   protected readonly selectedProduct = signal<ProductCard | null>(null);
   protected readonly detailDialogVisible = signal(false);
   protected readonly productQuantities = signal<Map<string, number>>(new Map());
+  private readonly pendingProductCode = signal<string | null>(null);
 
   protected readonly heroSlides: HeroSlide[] = [
     {
@@ -214,6 +216,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     this.unitStore.load();
     this.classificationStore.load();
 
+    const branchCode = this.route.snapshot.queryParamMap.get('branch');
+    const productCode = this.route.snapshot.queryParamMap.get('product');
+
+    if (productCode) {
+      this.pendingProductCode.set(productCode);
+    }
+
     this.priceCategoryApi.list().subscribe({
       next: (categories) => this.priceCategories.set(categories),
     });
@@ -229,6 +238,10 @@ export class LandingPageComponent implements OnInit, OnDestroy {
             icon: 'storefront'
           }))
         );
+
+        if (branchCode) {
+          this.branchStore.selectBranchByCode(branchCode);
+        }
       },
     });
 
@@ -289,15 +302,27 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     };
     const categoryId = this.selectedCategoryId();
     if (categoryId && categoryId !== 'all') baseParams['category_id'] = categoryId;
+
+    const productCode = this.pendingProductCode();
     const searchQuery = this.search();
-    if (searchQuery) baseParams['name'] = searchQuery;
+
+    const productParams = { ...baseParams };
+    const bundleParams = { ...baseParams };
+
+    if (productCode) {
+      productParams['sku'] = productCode;
+      bundleParams['code'] = productCode;
+    } else if (searchQuery) {
+      productParams['name'] = searchQuery;
+      bundleParams['name'] = searchQuery;
+    }
 
     const calls: { products?: Observable<any>; bundles?: Observable<any> } = {};
     if (this.hasMoreProducts()) {
-      calls.products = this.productApi.list({ ...baseParams, offset: this.productsOffset() });
+      calls.products = this.productApi.list({ ...productParams, offset: this.productsOffset() });
     }
     if (this.hasMoreBundles()) {
-      calls.bundles = this.bundleApi.list({ ...baseParams, offset: this.bundlesOffset(), status: 'Active' });
+      calls.bundles = this.bundleApi.list({ ...bundleParams, offset: this.bundlesOffset(), status: 'Active' });
     }
 
     if (!calls.products && !calls.bundles) {
@@ -328,25 +353,37 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.loadingMore.set(false);
 
-        this.loadPricesForNewProducts(newProducts);
+        if (productCode && (newProducts.length > 0 || newBundles.length > 0)) {
+          const foundId = newProducts.length > 0 ? newProducts[0].productId : newBundles[0]?.bundleId;
+          this.pendingProductCode.set(null);
+          this.loadPricesForNewProducts(newProducts).subscribe({
+            next: () => { if (foundId) this.openDetail(foundId); },
+          });
+        } else {
+          this.loadPricesForNewProducts(newProducts).subscribe();
+          if (productCode) {
+            this.pendingProductCode.set(null);
+          }
+        }
       },
       error: () => {
         this.loading.set(false);
         this.loadingMore.set(false);
+        this.pendingProductCode.set(null);
       },
     });
   }
 
-  private loadPricesForNewProducts(newProducts: Product[]): void {
+  private loadPricesForNewProducts(newProducts: Product[]): Observable<void> {
     const retailCategory = this.priceCategories().find((c) => c.code === 'RETAIL');
     const retailCategoryId = retailCategory?.id ?? null;
 
-    if (newProducts.length === 0 || !retailCategoryId) return;
+    if (newProducts.length === 0 || !retailCategoryId) return of(undefined);
 
     const priceCalls = newProducts.map((p) => this.priceApi.listByProductId(p.productId));
 
-    forkJoin(priceCalls).subscribe({
-      next: (pricesPerProduct) => {
+    return forkJoin(priceCalls).pipe(
+      map((pricesPerProduct) => {
         const newPrices = new Map(this.productRetailPrices());
         pricesPerProduct.forEach((prices, i) => {
           const retail = prices.find((pr) => pr.priceCategoryId === retailCategoryId);
@@ -355,8 +392,8 @@ export class LandingPageComponent implements OnInit, OnDestroy {
           }
         });
         this.productRetailPrices.set(newPrices);
-      },
-    });
+      })
+    );
   }
 
   private resetAndReload(): void {
