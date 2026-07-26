@@ -4,11 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { SelectModule } from 'primeng/select';
-import { InputTextModule } from 'primeng/inputtext';
-import { IconFieldModule } from 'primeng/iconfield';
-import { InputIconModule } from 'primeng/inputicon';
-import { ToolbarModule } from 'primeng/toolbar';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -16,7 +11,6 @@ import { ExternalAssistantApiService } from '../../../../core/services/external-
 import {
   AssistantOrder,
   ASSISTANT_ORDER_STATUS_LABELS,
-  ASSISTANT_ORDER_STATUS_OPTIONS,
 } from '../../../../core/models/external-assistant.model';
 import { AssistantAcceptDialogComponent } from './assistant-accept-dialog.component';
 
@@ -25,25 +19,11 @@ import { AssistantAcceptDialogComponent } from './assistant-accept-dialog.compon
   standalone: true,
   imports: [
     CommonModule, FormsModule, ButtonModule, TableModule, TagModule,
-    SelectModule, InputTextModule, IconFieldModule, InputIconModule,
-    ToolbarModule, ToastModule, ConfirmDialogModule,
-    AssistantAcceptDialogComponent,
+    ToastModule, ConfirmDialogModule, AssistantAcceptDialogComponent,
   ],
   providers: [MessageService, ConfirmationService],
   template: `
     <section class="orders-page">
-      <p-toolbar styleClass="admin-toolbar">
-        <ng-template pTemplate="start">
-          <p-iconfield>
-            <p-inputicon><i class="pi pi-search"></i></p-inputicon>
-            <input pInputText type="text" placeholder="Buscar ordenes..." [(ngModel)]="filterSearch" (keyup.enter)="applyFilters()" />
-          </p-iconfield>
-        </ng-template>
-        <ng-template pTemplate="end">
-          <p-select [options]="statusOptions" [(ngModel)]="filterStatus" optionLabel="label" optionValue="value" placeholder="Todos los status" [showClear]="true" (onChange)="applyFilters()"></p-select>
-        </ng-template>
-      </p-toolbar>
-
       <p-table [value]="orders()" [lazy]="true" [paginator]="true"
                [rows]="pageSize" [totalRecords]="totalCount()" [loading]="loading()"
                (onLazyLoad)="loadOrders($event)" styleClass="admin-table">
@@ -111,11 +91,6 @@ export class AssistantOrdersPageComponent {
   protected readonly totalCount = signal(0);
   protected readonly pageSize = 10;
 
-  protected filterSearch = '';
-  protected filterStatus: string | null = null;
-
-  protected readonly statusOptions = ASSISTANT_ORDER_STATUS_OPTIONS;
-
   protected readonly showAcceptDialog = signal(false);
   protected readonly selectedOrder = signal<AssistantOrder | null>(null);
 
@@ -124,11 +99,7 @@ export class AssistantOrdersPageComponent {
     const limit = event.rows ?? this.pageSize;
     this.loading.set(true);
 
-    const filter: Record<string, any> = { limit, offset };
-    if (this.filterSearch) filter['search'] = this.filterSearch;
-    if (this.filterStatus) filter['status'] = this.filterStatus;
-
-    this.assistantApi.listOrders(filter).subscribe({
+    this.assistantApi.listOrders({ limit, offset }).subscribe({
       next: (res) => {
         this.orders.set(res.items);
         this.totalCount.set(res.totalCount);
@@ -139,10 +110,6 @@ export class AssistantOrdersPageComponent {
         this.loading.set(false);
       },
     });
-  }
-
-  applyFilters(): void {
-    this.loadOrders({ first: 0, rows: this.pageSize });
   }
 
   getStatusLabel(status: string): string {

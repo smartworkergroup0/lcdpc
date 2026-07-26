@@ -168,10 +168,35 @@
 }
 
 .item-fields {
-  display: grid;
-  grid-template-columns: 2fr 80px 1.5fr auto auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+
+  .product-field {
+    flex: 2;
+    min-width: 200px;
+  }
+
+  .qty-field {
+    flex: 0 0 90px;
+  }
+
+  .price-field {
+    flex: 2;
+    min-width: 150px;
+  }
+
+  .item-subtotal {
+    flex: 0 0 75px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .remove-btn {
+    flex: 0 0 auto;
+  }
 }
 
 .item-subtotal {
@@ -210,6 +235,13 @@
   }
 
   .item-fields {
-    grid-template-columns: 1fr 1fr;
+    .product-field,
+    .price-field {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+    .qty-field {
+      flex: 1;
+    }
   }
 }
