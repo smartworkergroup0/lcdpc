@@ -61,6 +61,7 @@
             </div>
 
             <div class="product-actions">
+              <div class="actions-top">
                 <div class="quantity-control">
                   <p-button icon="pi pi-minus" [text]="true"
                             [disabled]="product.quantity <= 1"
@@ -82,14 +83,15 @@
                 } @else {
                   <span class="stock-info out-of-stock">Sin stock</span>
                 }
-                <p-button
-                  label="Agregar"
-                  icon="pi pi-shopping-cart"
-                  [severity]="product.featured ? 'secondary' : 'primary'"
-                  [disabled]="!negativeStock && product.stockAvailable === 0"
-                  (onClick)="addToCart.emit(product.id)"
-                ></p-button>
               </div>
+              <p-button class="actions-bottom"
+                label="Agregar"
+                icon="pi pi-shopping-cart"
+                [severity]="product.featured ? 'secondary' : 'primary'"
+                [disabled]="!negativeStock && product.stockAvailable === 0"
+                (onClick)="addToCart.emit(product.id)"
+              ></p-button>
+            </div>
           </ng-template>
         </p-card>
       } @empty {
