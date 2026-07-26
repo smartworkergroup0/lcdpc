@@ -397,9 +397,15 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
               o.id === order.id ? { ...o, status: originalStatus, history: originalHistory } : o
             )
           );
-          const msg = err?.error?.message === 'INVALID_TRANSITION'
-            ? `Transición no válida desde "${this.getNodeLabel(originalStatus)}"`
-            : 'No se pudo cambiar el estado. Intente de nuevo.';
+          const rawMsg = err?.error?.message ?? '';
+          let msg: string;
+          if (rawMsg.startsWith('INVALID_TRANSITION:')) {
+            msg = rawMsg.replace('INVALID_TRANSITION:', '').trim();
+          } else if (rawMsg === 'INVALID_TRANSITION') {
+            msg = `Transición no válida desde "${this.getNodeLabel(originalStatus)}"`;
+          } else {
+            msg = 'No se pudo cambiar el estado. Intente de nuevo.';
+          }
           this.messageService.add({
             severity: 'error',
             summary: 'Error',

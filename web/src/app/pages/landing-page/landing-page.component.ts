@@ -106,6 +106,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   protected readonly detailDialogVisible = signal(false);
   protected readonly productQuantities = signal<Map<string, number>>(new Map());
   private readonly pendingProductCode = signal<string | null>(null);
+  private readonly pendingBundleCode = signal<string | null>(null);
 
   protected readonly heroSlides: HeroSlide[] = [
     {
@@ -220,9 +221,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
     const branchCode = this.route.snapshot.queryParamMap.get('branch');
     const productCode = this.route.snapshot.queryParamMap.get('product');
+    const bundleCode = this.route.snapshot.queryParamMap.get('bundles');
 
     if (productCode) {
       this.pendingProductCode.set(productCode);
+    }
+    if (bundleCode) {
+      this.pendingBundleCode.set(bundleCode);
     }
 
     this.priceCategoryApi.list().subscribe({
@@ -309,6 +314,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     if (categoryId && categoryId !== 'all') baseParams['category_id'] = categoryId;
 
     const productCode = this.pendingProductCode();
+    const bundleCode = this.pendingBundleCode();
     const searchQuery = this.search();
 
     const productParams = { ...baseParams };
@@ -316,9 +322,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
     if (productCode) {
       productParams['sku'] = productCode;
-      bundleParams['code'] = productCode;
     } else if (searchQuery) {
       productParams['name'] = searchQuery;
+    }
+
+    if (bundleCode) {
+      bundleParams['code'] = bundleCode;
+    } else if (searchQuery) {
       bundleParams['name'] = searchQuery;
     }
 
@@ -358,23 +368,29 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.loadingMore.set(false);
 
-        if (productCode && (newProducts.length > 0 || newBundles.length > 0)) {
-          const foundId = newProducts.length > 0 ? newProducts[0].productId : newBundles[0]?.bundleId;
+        if (productCode && newProducts.length > 0) {
+          const foundId = newProducts[0].productId;
           this.pendingProductCode.set(null);
           this.loadPricesForNewProducts(newProducts).subscribe({
             next: () => { if (foundId) this.openDetail(foundId); },
           });
+        } else if (bundleCode && newBundles.length > 0) {
+          const foundId = newBundles[0].bundleId;
+          this.pendingBundleCode.set(null);
+          this.loadPricesForNewProducts([]).subscribe({
+            next: () => { if (foundId) this.openDetail(foundId); },
+          });
         } else {
           this.loadPricesForNewProducts(newProducts).subscribe();
-          if (productCode) {
-            this.pendingProductCode.set(null);
-          }
+          if (productCode) this.pendingProductCode.set(null);
+          if (bundleCode) this.pendingBundleCode.set(null);
         }
       },
       error: () => {
         this.loading.set(false);
         this.loadingMore.set(false);
         this.pendingProductCode.set(null);
+        this.pendingBundleCode.set(null);
       },
     });
   }

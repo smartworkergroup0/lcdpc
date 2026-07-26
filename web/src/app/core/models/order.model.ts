@@ -64,10 +64,16 @@ export interface StatusOption {
   color: string;
 }
 
+export interface SkippedTransition {
+  target_code: string;
+  reason: string;
+}
+
 export interface ValidTransitionsResponse {
   current_status: string;
   is_terminal: boolean;
   statuses: StatusOption[];
+  skipped_transitions?: SkippedTransition[];
 }
 
 export interface StatusHistoryEntry {
