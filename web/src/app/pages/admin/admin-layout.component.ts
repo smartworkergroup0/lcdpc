@@ -43,61 +43,61 @@ export class AdminLayoutComponent {
 
   protected readonly userName = computed(() => this.authStore.currentUser()?.displayName ?? 'Admin');
 
-  protected readonly canViewSales = computed(() =>
-    this.authStore.hasPermission('sales:view')
+  protected readonly canViewDashboard = computed(() =>
+    this.authStore.hasPermission('module:dashboard:view')
   );
 
-  protected readonly canViewProducts = computed(() =>
-    this.authStore.hasPermission('product:view')
-  );
-  protected readonly canViewBundles = computed(() =>
-    this.authStore.hasPermission('bundle:view')
-  );
-  protected readonly canViewOrders = computed(() =>
-    this.authStore.hasPermission('order:view')
-  );
-  protected readonly canViewOrderMatrix = computed(() =>
-    this.authStore.hasPermission('order:view')
-  );
-  protected readonly canViewStaff = computed(() =>
-    this.authStore.hasPermission('staff:view')
-  );
-  protected readonly canViewClients = computed(() =>
-    this.authStore.hasPermission('client:view')
-  );
-  protected readonly canViewPeople = computed(() =>
-    this.authStore.hasAnyPermission('staff:view', 'client:view')
-  );
-
-  protected readonly canViewWorkflows = computed(() =>
-    this.authStore.hasPermission('workflow:view')
+  protected readonly canViewOperaciones = computed(() =>
+    this.authStore.hasPermission('module:operaciones:view')
   );
   protected readonly canViewAlmacen = computed(() =>
-    this.authStore.hasAnyPermission('product:view', 'bundle:view')
+    this.authStore.hasPermission('module:almacen:view')
   );
-  protected readonly canViewOperaciones = computed(() =>
-    this.authStore.hasAnyPermission('sales:view', 'order:view')
+  protected readonly canViewPeople = computed(() =>
+    this.authStore.hasPermission('module:personas:view')
   );
   protected readonly canViewConfig = computed(() =>
-    this.authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view', 'workflow:view')
+    this.authStore.hasPermission('module:configuracion:view')
   );
-
   protected readonly canViewAssistant = computed(() =>
-    this.authStore.hasPermission('assistant:view')
+    this.authStore.hasPermission('module:asistente:view')
   );
 
+  protected readonly canViewSales = computed(() =>
+    this.authStore.hasPermission('module:ventas:view')
+  );
+  protected readonly canViewProducts = computed(() =>
+    this.authStore.hasPermission('module:productos:view')
+  );
+  protected readonly canViewBundles = computed(() =>
+    this.authStore.hasPermission('module:combos:view')
+  );
+  protected readonly canViewOrders = computed(() =>
+    this.authStore.hasPermission('module:ordenes:view')
+  );
+  protected readonly canViewOrderMatrix = computed(() =>
+    this.authStore.hasPermission('module:matriz:view')
+  );
+  protected readonly canViewStaff = computed(() =>
+    this.authStore.hasPermission('module:personal:view')
+  );
+  protected readonly canViewClients = computed(() =>
+    this.authStore.hasPermission('module:clientes:view')
+  );
+  protected readonly canViewWorkflows = computed(() =>
+    this.authStore.hasPermission('module:flujos:view')
+  );
   protected readonly canViewRbac = computed(() =>
-    this.authStore.hasPermission('rbac:profile:view')
+    this.authStore.hasPermission('module:rbac:view')
   );
   protected readonly canViewInventario = computed(() =>
-    this.authStore.hasAnyPermission('category:view', 'price_category:view', 'measurement_unit:view')
+    this.authStore.hasPermission('module:inventario:view')
   );
   protected readonly canViewAdministracion = computed(() =>
-    this.authStore.hasAnyPermission('branch:create', 'branch:view')
+    this.authStore.hasPermission('module:administracion:view')
   );
-
   protected readonly canViewSistema = computed(() =>
-    this.authStore.hasPermission('system_config:view')
+    this.authStore.hasPermission('module:sistema:view')
   );
 
   protected toggleSidebar(): void {

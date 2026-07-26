@@ -36,25 +36,25 @@ export const routes: Routes = [
 		canActivate: [adminGuard],
 		children: [
 			{ path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-			{ path: 'dashboard', component: DashboardPageComponent },
-			{ path: 'products', component: ProductsPageComponent, canActivate: [permissionGuard('product:view')] },
-			{ path: 'bundles', component: BundlesPageComponent, canActivate: [permissionGuard('bundle:view')] },
-			{ path: 'orders', component: OrdersPageComponent, canActivate: [permissionGuard('order:view')] },
-			{ path: 'sales', component: SalesPageComponent, canActivate: [permissionGuard('sales:view')] },
-			{ path: 'orders-matrix', component: OrderMatrixPageComponent, canActivate: [permissionGuard('order:view')] },
-			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('workflow:view')] },
-			{ path: 'staff', component: StaffPageComponent, canActivate: [permissionGuard('staff:view')] },
-			{ path: 'clients', component: ClientsPageComponent, canActivate: [permissionGuard('client:view')] },
+			{ path: 'dashboard', component: DashboardPageComponent, canActivate: [permissionGuard('module:dashboard:view')] },
+			{ path: 'products', component: ProductsPageComponent, canActivate: [permissionGuard('module:productos:view')] },
+			{ path: 'bundles', component: BundlesPageComponent, canActivate: [permissionGuard('module:combos:view')] },
+			{ path: 'orders', component: OrdersPageComponent, canActivate: [permissionGuard('module:ordenes:view')] },
+			{ path: 'sales', component: SalesPageComponent, canActivate: [permissionGuard('module:ventas:view')] },
+			{ path: 'orders-matrix', component: OrderMatrixPageComponent, canActivate: [permissionGuard('module:matriz:view')] },
+			{ path: 'workflows', component: WorkflowEditorPageComponent, canActivate: [permissionGuard('module:flujos:view')] },
+			{ path: 'staff', component: StaffPageComponent, canActivate: [permissionGuard('module:personal:view')] },
+			{ path: 'clients', component: ClientsPageComponent, canActivate: [permissionGuard('module:clientes:view')] },
 			{ path: 'config', component: ConfigPageComponent, canActivate: [() => {
 				const authStore = inject(AuthStore);
 				const router = inject(Router);
-				if (authStore.hasAnyPermission('rbac:profile:view', 'category:view', 'price_category:view', 'measurement_unit:view', 'branch:create', 'branch:view', 'system_config:view')) return true;
+				if (authStore.hasAnyPermission('module:rbac:view', 'module:inventario:view', 'module:administracion:view', 'module:sistema:view')) return true;
 				return router.createUrlTree(['/admin']);
 			}] },
 			{
 				path: 'external-assistant',
 				component: ExternalAssistantLayoutComponent,
-				canActivate: [permissionGuard('assistant:view')],
+				canActivate: [permissionGuard('module:asistente:view')],
 				children: [
 					{ path: 'leads', component: AssistantLeadsPageComponent },
 					{ path: 'orders', component: AssistantOrdersPageComponent },

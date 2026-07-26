@@ -21,10 +21,12 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a routerLink="/admin/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="collapseAll()">
-        <span class="pi pi-chart-bar"></span>
-        <span class="nav-label">Dashboard</span>
-      </a>
+      @if (canViewDashboard()) {
+        <a routerLink="/admin/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="collapseAll()">
+          <span class="pi pi-chart-bar"></span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+      }
 
       @if (canViewOperaciones()) {
         <button class="nav-group-toggle" [class.expanded]="operacionesExpanded()" (click)="toggleOperaciones()">

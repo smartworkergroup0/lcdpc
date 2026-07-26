@@ -31,6 +31,8 @@ import { ClassificationsSectionComponent } from './classifications-section.compo
         }
         @if (canViewMeasurementUnits()) {
           <p-tab value="measurement-units">Unidades de Medida</p-tab>
+        }
+        @if (canViewClassifications()) {
           <p-tab value="classifications">Clasificaciones</p-tab>
         }
       </p-tablist>
@@ -54,6 +56,8 @@ import { ClassificationsSectionComponent } from './classifications-section.compo
           <p-tabpanel value="measurement-units">
             <app-measurement-units-section />
           </p-tabpanel>
+        }
+        @if (canViewClassifications()) {
           <p-tabpanel value="classifications">
             <app-classifications-section />
           </p-tabpanel>
@@ -73,10 +77,11 @@ import { ClassificationsSectionComponent } from './classifications-section.compo
 export class InventarioSectionComponent {
   private readonly authStore = inject(AuthStore);
 
-  protected readonly canViewBrands = computed(() => this.authStore.hasPermission('brand:view'));
-  protected readonly canViewCategories = computed(() => this.authStore.hasPermission('category:view'));
-  protected readonly canViewPriceCategories = computed(() => this.authStore.hasPermission('price_category:view'));
-  protected readonly canViewMeasurementUnits = computed(() => this.authStore.hasPermission('measurement_unit:view'));
+  protected readonly canViewBrands = computed(() => this.authStore.hasPermission('module:inventario:marcas:view'));
+  protected readonly canViewCategories = computed(() => this.authStore.hasPermission('module:inventario:categorias:view'));
+  protected readonly canViewPriceCategories = computed(() => this.authStore.hasPermission('module:inventario:categorias_precio:view'));
+  protected readonly canViewMeasurementUnits = computed(() => this.authStore.hasPermission('module:inventario:unidades_medida:view'));
+  protected readonly canViewClassifications = computed(() => this.authStore.hasPermission('module:inventario:clasificaciones:view'));
 
   protected readonly firstTab = computed(() => {
     if (this.canViewBrands()) return 'brands';

@@ -64,6 +64,12 @@ export class RbacSectionComponent implements OnInit {
   protected readonly canUpdateSA = computed(() => this.authStore.hasPermission('service_account:update'));
   protected readonly canDeleteSA = computed(() => this.authStore.hasPermission('service_account:delete'));
 
+  protected readonly canViewPerfiles = computed(() => this.authStore.hasPermission('module:rbac:perfiles:view'));
+  protected readonly canViewRoles = computed(() => this.authStore.hasPermission('module:rbac:roles:view'));
+  protected readonly canViewRecursos = computed(() => this.authStore.hasPermission('module:rbac:recursos:view'));
+  protected readonly canViewApiTokens = computed(() => this.authStore.hasPermission('module:rbac:api_tokens:view'));
+  protected readonly canViewCuentasServicio = computed(() => this.authStore.hasPermission('module:rbac:cuentas_servicio:view'));
+
   // Resources
   protected readonly resources = signal<Resource[]>([]);
   protected readonly resourceDialogVisible = signal(false);

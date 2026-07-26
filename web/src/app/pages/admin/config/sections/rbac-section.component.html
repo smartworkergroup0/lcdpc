@@ -1,12 +1,23 @@
 <p-tabs value="profiles">
   <p-tablist>
-    <p-tab value="profiles">Perfiles</p-tab>
-    <p-tab value="roles">Roles</p-tab>
-    <p-tab value="resources">Recursos</p-tab>
-    <p-tab value="api-tokens">API Tokens</p-tab>
-    <p-tab value="service-accounts">Cuentas de Servicio</p-tab>
+    @if (canViewPerfiles()) {
+      <p-tab value="profiles">Perfiles</p-tab>
+    }
+    @if (canViewRoles()) {
+      <p-tab value="roles">Roles</p-tab>
+    }
+    @if (canViewRecursos()) {
+      <p-tab value="resources">Recursos</p-tab>
+    }
+    @if (canViewApiTokens()) {
+      <p-tab value="api-tokens">API Tokens</p-tab>
+    }
+    @if (canViewCuentasServicio()) {
+      <p-tab value="service-accounts">Cuentas de Servicio</p-tab>
+    }
   </p-tablist>
   <p-tabpanels>
+    @if (canViewPerfiles()) {
     <p-tabpanel value="profiles">
       <div class="tab-toolbar">
         <p-iconfield>
@@ -57,7 +68,9 @@
         </ng-template>
       </p-table>
     </p-tabpanel>
+    }
 
+    @if (canViewRoles()) {
     <p-tabpanel value="roles">
       <div class="tab-toolbar">
         <p-iconfield>
@@ -103,7 +116,9 @@
         </ng-template>
       </p-table>
     </p-tabpanel>
+    }
 
+    @if (canViewRecursos()) {
     <p-tabpanel value="resources">
       <div class="tab-toolbar">
         <p-iconfield>
@@ -141,7 +156,9 @@
         </ng-template>
       </p-table>
     </p-tabpanel>
+    }
 
+    @if (canViewApiTokens()) {
     <p-tabpanel value="api-tokens">
       <div class="tab-toolbar">
         <p-iconfield>
@@ -196,7 +213,9 @@
         </ng-template>
       </p-table>
     </p-tabpanel>
+    }
 
+    @if (canViewCuentasServicio()) {
     <p-tabpanel value="service-accounts">
       <div class="tab-toolbar">
         <p-iconfield>
@@ -257,6 +276,7 @@
         </ng-template>
       </p-table>
     </p-tabpanel>
+    }
   </p-tabpanels>
 </p-tabs>
 
