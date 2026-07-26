@@ -68,7 +68,7 @@
                             [disabled]="!systemConfigStore.negativeStock() && item.quantity <= (item.canDecimalStock ? 0.01 : 1)"
                             (onClick)="decrement(item.id)"></p-button>
                   <p-inputNumber [ngModel]="item.quantity" [min]="item.canDecimalStock ? 0.01 : 1"
-                                 [max]="item.stockAvailable"
+                                 [max]="systemConfigStore.negativeStock() ? 9999 : item.stockAvailable"
                                  [step]="item.canDecimalStock ? 0.1 : 1"
                                  [maxFractionDigits]="item.canDecimalStock ? 3 : 0" [allowEmpty]="false"
                                  [style]="{'width': '2rem', 'textAlign': 'center'}"
@@ -76,7 +76,7 @@
                                  (onInput)="onQuantityInputChange(item.id, $event.value)">
                   </p-inputNumber>
                   <p-button icon="pi pi-plus" [text]="true" [rounded]="true" size="small"
-                            [disabled]="item.quantity >= item.stockAvailable"
+                            [disabled]="!systemConfigStore.negativeStock() && item.quantity >= item.stockAvailable"
                             (onClick)="increment(item.id)"></p-button>
                 </div>
                 <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" size="small" ariaLabel="Eliminar" (onClick)="removeItem(item.id)"></p-button>

@@ -34,7 +34,7 @@
               @for (role of profile.roles; track role.id) {
                 <p-tag [value]="role.name" styleClass="mr-1" />
               }
-              @if (profile.roles.length === 0) {
+              @if ((profile.roles?.length ?? 0) === 0) {
                 <span class="text-muted">Sin roles</span>
               }
             </td>

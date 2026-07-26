@@ -101,6 +101,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
   protected readonly branches = signal<BranchCard[]>([]);
   protected readonly selectedProduct = signal<ProductCard | null>(null);
   protected readonly detailDialogVisible = signal(false);
+  protected readonly productQuantities = signal<Map<string, number>>(new Map());
 
   protected readonly heroSlides: HeroSlide[] = [
     {
@@ -125,8 +126,13 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
   protected readonly filteredProducts = computed(() => {
     const prices = this.productRetailPrices();
+    const quantities = this.productQuantities();
+    const negativeStock = this.systemConfigStore.negativeStock();
+    const maxQty = negativeStock ? 9999 : undefined;
     const productCards: ProductCard[] = this.allProducts().map((p) => {
       const retailPrice = prices.get(p.productId) ?? 0;
+      const stored = quantities.get(p.productId) ?? 1;
+      const capped = maxQty != null ? Math.min(stored, maxQty) : Math.min(stored, p.stockAvailable || 1);
       return {
         id: p.productId,
         name: p.name,
@@ -137,7 +143,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         alt: p.name,
         categoryId: p.categoryId ?? '',
         category: this.categoryStore.getCategoryName(p.categoryId),
-        quantity: 1,
+        quantity: Math.max(1, capped),
         branchId: p.branchId,
         stockAvailable: p.stockAvailable,
         canDecimalStock: this.resolveCanDecimalStock(p.baseUnitId),
@@ -154,6 +160,8 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         name: productMap.get(bi.productId) ?? `Producto #${bi.productId}`,
         quantity: bi.quantity,
       }));
+      const stored = quantities.get(b.bundleId) ?? 1;
+      const capped = maxQty != null ? Math.min(stored, maxQty) : Math.min(stored, b.stockAvailable || 1);
       return {
         id: b.bundleId,
         name: b.name,
@@ -165,7 +173,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
         categoryId: b.categoryId ?? '',
         category: this.categoryStore.getCategoryName(b.categoryId),
         featured: true,
-        quantity: 1,
+        quantity: Math.max(1, capped),
         branchId: b.branchId,
         stockAvailable: b.stockAvailable,
         canDecimalStock: false,
@@ -361,6 +369,7 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     this.productsTotalCount.set(Infinity);
     this.bundlesTotalCount.set(Infinity);
     this.productRetailPrices.set(new Map());
+    this.productQuantities.set(new Map());
     this.loadBatch();
   }
 
@@ -369,11 +378,50 @@ export class LandingPageComponent implements OnInit, OnDestroy {
     this.resetAndReload();
   }
 
-  protected incrementQuantity(_productId: string): void {}
+  protected incrementQuantity(productId: string): void {
+    const cards = this.filteredProducts();
+    const product = cards.find((p) => p.id === productId);
+    if (!product) return;
 
-  protected decrementQuantity(_productId: string): void {}
+    const current = this.productQuantities().get(productId) ?? product.quantity;
+    const negativeStock = this.systemConfigStore.negativeStock();
+    const maxQty = negativeStock ? 9999 : product.stockAvailable;
 
-  protected onQuantityInputChange(_event: { productId: string; quantity: number }): void {}
+    if (!negativeStock && current >= product.stockAvailable) return;
+
+    const next = new Map(this.productQuantities());
+    next.set(productId, Math.min(current + 1, maxQty));
+    this.productQuantities.set(next);
+  }
+
+  protected decrementQuantity(productId: string): void {
+    const cards = this.filteredProducts();
+    const product = cards.find((p) => p.id === productId);
+    if (!product) return;
+
+    const current = this.productQuantities().get(productId) ?? product.quantity;
+    const min = product.canDecimalStock ? 0.01 : 1;
+    const newQty = Math.max(min, current - 1);
+
+    const next = new Map(this.productQuantities());
+    next.set(productId, newQty);
+    this.productQuantities.set(next);
+  }
+
+  protected onQuantityInputChange(event: { productId: string; quantity: number }): void {
+    const cards = this.filteredProducts();
+    const product = cards.find((p) => p.id === event.productId);
+    if (!product) return;
+
+    const negativeStock = this.systemConfigStore.negativeStock();
+    const maxQty = negativeStock ? 9999 : product.stockAvailable;
+    const min = product.canDecimalStock ? 0.01 : 1;
+    const clamped = Math.max(min, Math.min(event.quantity, maxQty));
+
+    const next = new Map(this.productQuantities());
+    next.set(event.productId, clamped);
+    this.productQuantities.set(next);
+  }
 
   protected addToCart(productId: string): void {
     const cards = this.filteredProducts();
@@ -395,6 +443,10 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       },
       product.quantity
     );
+
+    const next = new Map(this.productQuantities());
+    next.set(productId, 1);
+    this.productQuantities.set(next);
   }
 
   protected openDetail(productId: string): void {
@@ -425,6 +477,10 @@ export class LandingPageComponent implements OnInit, OnDestroy {
       },
       event.quantity
     );
+
+    const next = new Map(this.productQuantities());
+    next.set(event.id, 1);
+    this.productQuantities.set(next);
   }
 
   protected goToAdvancedSearch(query: string): void {

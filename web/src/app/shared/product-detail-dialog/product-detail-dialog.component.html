@@ -83,7 +83,7 @@
           <p-button icon="pi pi-minus" [text]="true" [disabled]="quantity <= (canInputDecimal() ? 0.1 : 1)" (onClick)="decrement()" />
           <p-inputNumber [ngModel]="quantity" [min]="canInputDecimal() ? 0.01 : 1"
                          [step]="canInputDecimal() ? 0.1 : 1"
-                         [max]="negativeStock ? undefined : effectiveStock()"
+                         [max]="negativeStock ? 9999 : effectiveStock()"
                          [maxFractionDigits]="canInputDecimal() ? 3 : 0" [allowEmpty]="false"
                          [style]="{'width': '4.5rem', 'textAlign': 'center'}"
                          inputStyleClass="detail-decimal-qty"

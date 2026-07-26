@@ -116,9 +116,9 @@ export class ProductDetailDialogComponent implements OnChanges {
   protected increment(): void {
     if (!this.product) return;
     if (!this.negativeStock && this.effectiveStock() <= 0) return;
-    const max = this.effectiveStock();
+    const max = this.negativeStock ? 9999 : this.effectiveStock();
     const newQty = Math.round((this.quantity + 1) * 100) / 100;
-    this.quantity = this.negativeStock ? newQty : Math.min(newQty, max);
+    this.quantity = Math.min(newQty, max);
   }
 
   protected decrement(): void {
@@ -129,7 +129,7 @@ export class ProductDetailDialogComponent implements OnChanges {
   protected onQuantityInput(value: number | null): void {
     if (value === null || value === undefined) return;
     const min = this.canInputDecimal() ? 0.1 : 1;
-    const max = this.negativeStock ? Infinity : this.effectiveStock();
+    const max = this.negativeStock ? 9999 : this.effectiveStock();
     this.quantity = Math.max(min, Math.min(value, max));
     this.validationMessage.set(null);
   }

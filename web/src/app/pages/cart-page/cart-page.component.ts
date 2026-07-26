@@ -234,7 +234,10 @@ export class CartPageComponent implements OnInit {
   // Botones no consideran canDecimalStock — siempre +1/-1.
   protected increment(id: string): void {
     const item = this.items().find((i) => i.id === id);
-    if (item && item.quantity < item.stockAvailable) {
+    if (!item) return;
+    const max = this.systemConfigStore.negativeStock() ? 9999 : item.stockAvailable;
+    if (!this.systemConfigStore.negativeStock() && item.quantity >= item.stockAvailable) return;
+    if (item.quantity < max) {
       this.cartStore.increment(id);
     }
   }
@@ -248,7 +251,7 @@ export class CartPageComponent implements OnInit {
     const item = this.items().find(i => i.id === id);
     if (!item) return;
     const min = item.canDecimalStock ? 0.01 : 1;
-    const max = item.stockAvailable;
+    const max = this.systemConfigStore.negativeStock() ? 9999 : item.stockAvailable;
     this.cartStore.updateQuantity(id, Math.max(min, Math.min(value, max)));
   }
 

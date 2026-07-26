@@ -163,14 +163,14 @@ export class RbacSectionComponent implements OnInit {
   protected readonly availableResources = computed(() => {
     const target = this.roleResourcesTarget();
     if (!target) return this.resources().map((r) => ({ label: r.code, value: r.id }));
-    const assigned = new Set(target.resources.map((r) => r.id));
+    const assigned = new Set((target.resources ?? []).map((r) => r.id));
     return this.resources().filter((r) => !assigned.has(r.id)).map((r) => ({ label: r.code, value: r.id }));
   });
 
   protected readonly availableRoles = computed(() => {
     const target = this.profileRolesTarget();
     if (!target) return this.roles().map((r) => ({ label: `${r.name} (${r.code})`, value: r.id }));
-    const assigned = new Set(target.roles.map((r) => r.id));
+    const assigned = new Set((target.roles ?? []).map((r) => r.id));
     return this.roles().filter((r) => !assigned.has(r.id)).map((r) => ({ label: `${r.name} (${r.code})`, value: r.id }));
   });
 

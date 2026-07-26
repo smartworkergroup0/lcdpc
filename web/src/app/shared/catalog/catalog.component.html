@@ -67,7 +67,7 @@
                             (onClick)="decrement.emit(product.id)"></p-button>
                   <p-inputNumber [ngModel]="product.quantity" [min]="product.canDecimalStock ? 0.01 : 1"
                                  [step]="product.canDecimalStock ? 0.1 : 1"
-                                 [max]="negativeStock ? undefined : product.stockAvailable"
+                                 [max]="negativeStock ? 9999 : product.stockAvailable"
                                  [maxFractionDigits]="product.canDecimalStock ? 3 : 0" [allowEmpty]="false"
                                  [style]="{'width': '2.5rem', 'textAlign': 'center'}"
                                  inputStyleClass="decimal-qty-input"

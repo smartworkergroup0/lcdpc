@@ -37,8 +37,8 @@ type LowStockItem struct {
 	ProductID      string  `json:"product_id"`
 	Name           string  `json:"name"`
 	SKU            string  `json:"sku"`
-	StockAvailable int     `json:"stock_available"`
-	Stock          int     `json:"stock"`
+	StockAvailable float64 `json:"stock_available"`
+	Stock          float64 `json:"stock"`
 	BranchID       string  `json:"branch_id"`
 	BaseUnitID     *string `json:"base_unit_id"`
 }

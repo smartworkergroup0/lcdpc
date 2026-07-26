@@ -114,7 +114,7 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByU
 			if stockAvailable < qty && !negativeStock {
 				return nil, fmt.Errorf("INSUFFICIENT_STOCK: product %s has %.4f available, requested %.4f", item.ProductID, stockAvailable, qty)
 			}
-			if stockBlocked+qty > stock {
+			if stockBlocked+qty > stock && !negativeStock {
 				return nil, fmt.Errorf("STOCK_EXCEEDED: product %s stock=%.4f blocked=%.4f requested=%.4f", item.ProductID, stock, stockBlocked, qty)
 			}
 
@@ -142,7 +142,7 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByU
 				if bundleAvailable < qty && !negativeStock {
 					return nil, fmt.Errorf("INSUFFICIENT_BUNDLE_STOCK: bundle %s has %.4f available, requested %.4f", item.BundleID, bundleAvailable, qty)
 				}
-				if bundleBlocked+qty > bundleStock {
+				if bundleBlocked+qty > bundleStock && !negativeStock {
 					return nil, fmt.Errorf("BUNDLE_STOCK_EXCEEDED: bundle %s stock=%.4f blocked=%.4f requested=%.4f", item.BundleID, bundleStock, bundleBlocked, qty)
 				}
 				_, err = tx.Exec(ctx, `
@@ -528,7 +528,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderReque
 				if stockAvailable < qty && !negativeStock {
 					return nil, fmt.Errorf("INSUFFICIENT_STOCK: product %s has %.4f available, requested %.4f", item.ProductID, stockAvailable, qty)
 				}
-				if stockBlocked+qty > stock {
+				if stockBlocked+qty > stock && !negativeStock {
 					return nil, fmt.Errorf("STOCK_EXCEEDED: product %s stock=%.4f blocked=%.4f requested=%.4f", item.ProductID, stock, stockBlocked, qty)
 				}
 
@@ -556,7 +556,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateOrderReque
 					if bundleAvailable < qty && !negativeStock {
 						return nil, fmt.Errorf("INSUFFICIENT_BUNDLE_STOCK: bundle %s has %.4f available, requested %.4f", item.BundleID, bundleAvailable, qty)
 					}
-					if bundleBlocked+qty > bundleStock {
+					if bundleBlocked+qty > bundleStock && !negativeStock {
 						return nil, fmt.Errorf("BUNDLE_STOCK_EXCEEDED: bundle %s stock=%.4f blocked=%.4f requested=%.4f", item.BundleID, bundleStock, bundleBlocked, qty)
 					}
 					_, err = tx.Exec(ctx, `
@@ -1178,7 +1178,7 @@ func blockBundleProductStock(ctx context.Context, tx pgx.Tx, bundleID uuid.UUID,
 			if stockAvailable < bi.qty && !negativeStock {
 				return fmt.Errorf("INSUFFICIENT_STOCK: product %s has %.4f available, bundle needs %.4f", bi.productID, stockAvailable, bi.qty)
 			}
-			if stockBlocked+bi.qty > stock {
+			if stockBlocked+bi.qty > stock && !negativeStock {
 				return fmt.Errorf("STOCK_EXCEEDED: product %s stock=%.4f blocked=%.4f bundle needs %.4f", bi.productID, stock, stockBlocked, bi.qty)
 			}
 			_, err = tx.Exec(ctx, `
