@@ -30,6 +30,7 @@ import {
   CreateServiceAccountRequest,
   UpdateServiceAccountRequest,
 } from '../../../../core/models/service-account.model';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-rbac-section',
@@ -122,6 +123,14 @@ export class RbacSectionComponent implements OnInit {
   protected readonly saving = signal(false);
   protected readonly loading = signal(false);
 
+  // Lazy loading
+  protected activeTab = signal('profiles');
+  private readonly loadedProfiles = signal(false);
+  private readonly loadedRoles = signal(false);
+  private readonly loadedResources = signal(false);
+  private readonly loadedApiTokens = signal(false);
+  private readonly loadedSvcAccounts = signal(false);
+
   // Search signals
   protected readonly searchProfiles = signal('');
   protected readonly searchRoles = signal('');
@@ -181,18 +190,93 @@ export class RbacSectionComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadAll();
+    this.loadProfiles();
   }
 
-  loadAll(): void {
+  onTabChange(tab: string | number | undefined): void {
+    if (tab == null) return;
+    const tabStr = String(tab);
+    this.activeTab.set(tabStr);
+    switch (tabStr) {
+      case 'profiles': this.loadProfiles(); break;
+      case 'roles': this.loadRoles(); break;
+      case 'resources': this.loadResources(); break;
+      case 'api-tokens': this.loadApiTokens(); break;
+      case 'service-accounts': this.loadSvcAccounts(); break;
+    }
+  }
+
+  private loadProfiles(): void {
+    if (this.loadedProfiles()) return;
     this.loading.set(true);
-    this.rbacApi.listResources().subscribe({ next: (d) => this.resources.set(d) });
-    this.rbacApi.listRoles().subscribe({ next: (d) => this.roles.set(d) });
-    this.rbacApi.listProfiles().subscribe({
-      next: (d) => { this.profiles.set(d); this.loading.set(false); },
+    forkJoin({
+      profiles: this.rbacApi.listProfiles(),
+      roles: this.rbacApi.listRoles(),
+    }).subscribe({
+      next: (d) => { this.profiles.set(d.profiles); this.roles.set(d.roles); this.loadedProfiles.set(true); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
+  }
+
+  private loadRoles(): void {
+    if (this.loadedRoles()) return;
+    this.loading.set(true);
+    forkJoin({
+      roles: this.rbacApi.listRoles(),
+      resources: this.rbacApi.listResources(),
+    }).subscribe({
+      next: (d) => { this.roles.set(d.roles); this.resources.set(d.resources); this.loadedRoles.set(true); this.loading.set(false); },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private loadResources(): void {
+    if (this.loadedResources()) return;
+    this.loading.set(true);
+    this.rbacApi.listResources().subscribe({
+      next: (d) => { this.resources.set(d); this.loadedResources.set(true); this.loading.set(false); },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private loadApiTokens(): void {
+    if (this.loadedApiTokens()) return;
+    this.loading.set(true);
+    this.apiTokenApi.list().subscribe({
+      next: (d) => { this.apiTokens.set(d); this.loadedApiTokens.set(true); this.loading.set(false); },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private loadSvcAccounts(): void {
+    if (this.loadedSvcAccounts()) return;
+    this.loading.set(true);
+    forkJoin({
+      serviceAccounts: this.svcAccountApi.list(),
+      profiles: this.rbacApi.listProfiles(),
+    }).subscribe({
+      next: (d) => { this.serviceAccounts.set(d.serviceAccounts); this.profiles.set(d.profiles); this.loadedSvcAccounts.set(true); this.loading.set(false); },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private reloadProfiles(): void {
+    this.rbacApi.listProfiles().subscribe({ next: (d) => this.profiles.set(d) });
+  }
+
+  private reloadRoles(): void {
+    this.rbacApi.listRoles().subscribe({ next: (d) => this.roles.set(d) });
+  }
+
+  private reloadResources(): void {
+    this.rbacApi.listResources().subscribe({ next: (d) => this.resources.set(d) });
+  }
+
+  private reloadApiTokens(): void {
     this.apiTokenApi.list().subscribe({ next: (d) => this.apiTokens.set(d) });
+  }
+
+  private reloadSvcAccounts(): void {
     this.svcAccountApi.list().subscribe({ next: (d) => this.serviceAccounts.set(d) });
   }
 
@@ -224,7 +308,7 @@ export class RbacSectionComponent implements OnInit {
       ? this.rbacApi.updateResource(this.selectedResource()!.id, this.resourceForm)
       : this.rbacApi.createResource(this.resourceForm);
     op.subscribe({
-      next: () => { this.saving.set(false); this.resourceDialogVisible.set(false); this.loadAll(); },
+      next: () => { this.saving.set(false); this.resourceDialogVisible.set(false); this.reloadResources(); this.reloadRoles(); },
       error: () => this.saving.set(false),
     });
   }
@@ -239,7 +323,7 @@ export class RbacSectionComponent implements OnInit {
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.rbacApi.deleteResource(resource.id).subscribe({
-          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.loadAll(); },
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.reloadResources(); this.reloadRoles(); },
           error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
         });
       },
@@ -270,7 +354,7 @@ export class RbacSectionComponent implements OnInit {
       ? this.rbacApi.updateRole(this.selectedRole()!.id, this.roleForm)
       : this.rbacApi.createRole(this.roleForm);
     op.subscribe({
-      next: () => { this.saving.set(false); this.roleDialogVisible.set(false); this.loadAll(); },
+      next: () => { this.saving.set(false); this.roleDialogVisible.set(false); this.reloadRoles(); this.reloadProfiles(); },
       error: () => this.saving.set(false),
     });
   }
@@ -285,7 +369,7 @@ export class RbacSectionComponent implements OnInit {
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.rbacApi.deleteRole(role.id).subscribe({
-          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.loadAll(); },
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.reloadRoles(); this.reloadProfiles(); },
           error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
         });
       },
@@ -305,7 +389,7 @@ export class RbacSectionComponent implements OnInit {
       next: () => {
         this.selectedResourceId = null;
         this.rbacApi.getRole(roleId).subscribe({ next: (r) => this.roleResourcesTarget.set(r) });
-        this.loadAll();
+        this.reloadRoles();
       },
     });
   }
@@ -316,7 +400,7 @@ export class RbacSectionComponent implements OnInit {
     this.rbacApi.removeResourceFromRole(roleId, resourceId).subscribe({
       next: () => {
         this.rbacApi.getRole(roleId).subscribe({ next: (r) => this.roleResourcesTarget.set(r) });
-        this.loadAll();
+        this.reloadRoles();
       },
     });
   }
@@ -345,7 +429,7 @@ export class RbacSectionComponent implements OnInit {
       ? this.rbacApi.updateProfile(this.selectedProfile()!.id, this.profileForm)
       : this.rbacApi.createProfile(this.profileForm);
     op.subscribe({
-      next: () => { this.saving.set(false); this.profileDialogVisible.set(false); this.loadAll(); },
+      next: () => { this.saving.set(false); this.profileDialogVisible.set(false); this.reloadProfiles(); },
       error: () => this.saving.set(false),
     });
   }
@@ -360,7 +444,7 @@ export class RbacSectionComponent implements OnInit {
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.rbacApi.deleteProfile(profile.id).subscribe({
-          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.loadAll(); },
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.reloadProfiles(); this.reloadSvcAccounts(); },
           error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
         });
       },
@@ -380,7 +464,7 @@ export class RbacSectionComponent implements OnInit {
       next: () => {
         this.selectedRoleId = null;
         this.rbacApi.getProfile(profileId).subscribe({ next: (p) => this.profileRolesTarget.set(p) });
-        this.loadAll();
+        this.reloadProfiles();
       },
     });
   }
@@ -391,7 +475,7 @@ export class RbacSectionComponent implements OnInit {
     this.rbacApi.removeRoleFromProfile(profileId, roleId).subscribe({
       next: () => {
         this.rbacApi.getProfile(profileId).subscribe({ next: (p) => this.profileRolesTarget.set(p) });
-        this.loadAll();
+        this.reloadProfiles();
       },
     });
   }
@@ -421,7 +505,7 @@ export class RbacSectionComponent implements OnInit {
         name: this.apiTokenForm.name,
         is_active: this.selectedApiToken()!.isActive,
       }).subscribe({
-        next: () => { this.saving.set(false); this.apiTokenDialogVisible.set(false); this.loadAll(); },
+        next: () => { this.saving.set(false); this.apiTokenDialogVisible.set(false); this.reloadApiTokens(); },
         error: () => this.saving.set(false),
       });
     } else {
@@ -431,7 +515,7 @@ export class RbacSectionComponent implements OnInit {
           this.apiTokenDialogVisible.set(false);
           this.createdTokenRaw = result.rawToken;
           this.createdTokenVisible.set(true);
-          this.loadAll();
+          this.reloadApiTokens();
         },
         error: () => this.saving.set(false),
       });
@@ -442,7 +526,7 @@ export class RbacSectionComponent implements OnInit {
     this.apiTokenApi.update(token.id, { name: token.name, is_active: !token.isActive }).subscribe({
       next: () => {
         this.messageService.add({ severity: 'success', summary: 'Exito' });
-        this.loadAll();
+        this.reloadApiTokens();
       },
       error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
     });
@@ -458,7 +542,7 @@ export class RbacSectionComponent implements OnInit {
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.apiTokenApi.delete(token.id).subscribe({
-          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.loadAll(); },
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.reloadApiTokens(); },
           error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
         });
       },
@@ -504,7 +588,7 @@ export class RbacSectionComponent implements OnInit {
         token_expiry_hours: this.svcAccountForm.token_expiry_hours,
       };
       this.svcAccountApi.update(this.selectedSvcAccount()!.id, req).subscribe({
-        next: () => { this.saving.set(false); this.svcAccountDialogVisible.set(false); this.loadAll(); },
+        next: () => { this.saving.set(false); this.svcAccountDialogVisible.set(false); this.reloadSvcAccounts(); },
         error: () => this.saving.set(false),
       });
     } else {
@@ -514,7 +598,7 @@ export class RbacSectionComponent implements OnInit {
           this.svcAccountDialogVisible.set(false);
           this.createdPasswordRaw = result.rawPassword;
           this.createdPasswordVisible.set(true);
-          this.loadAll();
+          this.reloadSvcAccounts();
         },
         error: () => this.saving.set(false),
       });
@@ -530,7 +614,7 @@ export class RbacSectionComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.messageService.add({ severity: 'success', summary: 'Exito' });
-        this.loadAll();
+        this.reloadSvcAccounts();
       },
       error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
     });
@@ -546,7 +630,7 @@ export class RbacSectionComponent implements OnInit {
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.svcAccountApi.delete(sa.id).subscribe({
-          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.loadAll(); },
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Exito' }); this.reloadSvcAccounts(); },
           error: () => this.messageService.add({ severity: 'error', summary: 'Error' }),
         });
       },

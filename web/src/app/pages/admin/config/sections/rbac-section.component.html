@@ -1,4 +1,4 @@
-<p-tabs value="profiles">
+<p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)">
   <p-tablist>
     @if (canViewPerfiles()) {
       <p-tab value="profiles">Perfiles</p-tab>
