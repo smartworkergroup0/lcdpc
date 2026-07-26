@@ -212,7 +212,17 @@ func (s *Service) GetActiveWorkflow(ctx context.Context, entityType string) (*Wo
 		return nil, nil
 	}
 
-	result := &WorkflowInfo{}
+	result := &WorkflowInfo{
+		TerminalStatuses: make(map[string]bool),
+	}
+
+	// Build terminal statuses from nodes with IsFinal
+	for _, node := range wf.Definition.Nodes {
+		if node.Data.IsFinal {
+			result.TerminalStatuses[node.Data.Code] = true
+		}
+	}
+
 	for _, edge := range wf.Definition.Edges {
 		sourceNode := findNodeByID(wf, edge.Source)
 		targetNode := findNodeByID(wf, edge.Target)
@@ -457,14 +467,6 @@ func (s *Service) activateWorkflowStatuses(ctx context.Context, definition Defin
 // DeactivateStatus deactivates a status and reverts orders to their previous status.
 // Idempotent: if the status is already deactivated, returns success with ordersReverted=0.
 func (s *Service) DeactivateStatus(ctx context.Context, code string) (*DeactivateStatusResponse, error) {
-	// Terminal statuses should not revert orders
-	terminalStatuses := map[string]bool{
-		"REJECTED_BY_VALIDATION": true,
-		"DELIVERY_FAILED":       true,
-		"COMPLETED":             true,
-		"CANCELLED_BY_CUSTOMER": true,
-	}
-
 	// Check if status exists (regardless of is_active)
 	var isActive bool
 	err := s.pool.QueryRow(ctx, `SELECT is_active FROM order_statuses WHERE code = $1`, code).Scan(&isActive)
@@ -483,6 +485,13 @@ func (s *Service) DeactivateStatus(ctx context.Context, code string) (*Deactivat
 		}, nil
 	}
 
+	// Determine if status is terminal from workflow isFinal flag
+	isTerminal := false
+	wf, wfErr := s.GetActiveWorkflow(ctx, "order")
+	if wfErr == nil && wf != nil {
+		isTerminal = wf.TerminalStatuses[code]
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -498,7 +507,7 @@ func (s *Service) DeactivateStatus(ctx context.Context, code string) (*Deactivat
 	ordersReverted := 0
 
 	// Revert orders if not terminal status
-	if !terminalStatuses[code] {
+	if !isTerminal {
 		// Find all active orders with this status
 		rows, err := tx.Query(ctx, `
 			SELECT id FROM orders 

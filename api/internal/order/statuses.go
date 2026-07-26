@@ -18,20 +18,9 @@ const (
 	StatusCancelledByCustomer     = "CANCELLED_BY_CUSTOMER"
 )
 
-var terminalStatuses = map[string]bool{
-	StatusRejectedByValidation: true,
-	StatusDeliveryFailed:       true,
-	StatusCompleted:            true,
-	StatusCancelledByCustomer:  true,
-}
-
 var editableStatuses = map[string]bool{
 	StatusPendingReview: true,
 	StatusUnderReview:   true,
-}
-
-func IsTerminal(status string) bool {
-	return terminalStatuses[status]
 }
 
 func IsEditable(status string) bool {

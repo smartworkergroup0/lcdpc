@@ -75,10 +75,16 @@ type StatusOption struct {
 	Color string `json:"color"`
 }
 
+type SkippedTransition struct {
+	TargetCode string `json:"target_code"`
+	Reason     string `json:"reason"`
+}
+
 type ValidTransitionsResponse struct {
-	CurrentStatus string         `json:"current_status"`
-	IsTerminal    bool           `json:"is_terminal"`
-	Statuses      []StatusOption `json:"statuses"`
+	CurrentStatus     string              `json:"current_status"`
+	IsTerminal        bool                `json:"is_terminal"`
+	Statuses          []StatusOption      `json:"statuses"`
+	SkippedTransition []SkippedTransition `json:"skipped_transitions,omitempty"`
 }
 
 type StatusHistoryEntry struct {

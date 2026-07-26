@@ -637,7 +637,7 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 		return nil, err
 	}
 	if valid.IsTerminal {
-		return nil, fmt.Errorf("INVALID_TRANSITION")
+		return nil, fmt.Errorf("INVALID_TRANSITION: el estado \"%s\" es terminal y no permite transiciones", valid.CurrentStatus)
 	}
 
 	targetAllowed := false
@@ -648,7 +648,16 @@ func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChan
 		}
 	}
 	if !targetAllowed {
-		return nil, fmt.Errorf("INVALID_TRANSITION")
+		// Build detailed message with available transitions
+		available := make([]string, 0, len(valid.Statuses))
+		for _, st := range valid.Statuses {
+			available = append(available, st.Code)
+		}
+		if len(available) == 0 {
+			return nil, fmt.Errorf("INVALID_TRANSITION: no hay transiciones disponibles desde \"%s\"", valid.CurrentStatus)
+		}
+		return nil, fmt.Errorf("INVALID_TRANSITION: \"%s\" no es una transición válida desde \"%s\". Transiciones válidas: [%s]",
+			req.ToStatus, valid.CurrentStatus, strings.Join(available, ", "))
 	}
 
 	// Find workflow edge for post-transition actions
@@ -717,14 +726,6 @@ func (s *Service) GetValidTransitions(ctx context.Context, orderID uuid.UUID) (*
 		return nil, err
 	}
 
-	if IsTerminal(o.Status) {
-		return &ValidTransitionsResponse{
-			CurrentStatus: o.Status,
-			IsTerminal:    true,
-			Statuses:      []StatusOption{},
-		}, nil
-	}
-
 	// Load active statuses for labels/colors
 	activeStatusMap, err := s.loadActiveStatusMap(ctx)
 	if err != nil {
@@ -734,10 +735,18 @@ func (s *Service) GetValidTransitions(ctx context.Context, orderID uuid.UUID) (*
 	// Try workflow-based transitions
 	wf, wfErr := s.wfReader.GetActiveWorkflow(ctx, "order")
 	if wfErr == nil && wf != nil {
+		// Determine terminal status from workflow isFinal flag
+		if wf.TerminalStatuses[o.Status] {
+			return &ValidTransitionsResponse{
+				CurrentStatus: o.Status,
+				IsTerminal:    true,
+				Statuses:      []StatusOption{},
+			}, nil
+		}
 		return s.getWorkflowTransitions(ctx, o, wf, activeStatusMap)
 	}
 
-	// No workflow active — no transitions available
+	// No workflow active — treat as non-terminal with no transitions
 	return &ValidTransitionsResponse{
 		CurrentStatus: o.Status,
 		IsTerminal:    false,
@@ -767,9 +776,10 @@ func (s *Service) loadActiveStatusMap(ctx context.Context) (map[string]StatusOpt
 
 func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *workflow.WorkflowInfo, activeMap map[string]StatusOption) (*ValidTransitionsResponse, error) {
 	result := &ValidTransitionsResponse{
-		CurrentStatus: o.Status,
-		IsTerminal:    false,
-		Statuses:      []StatusOption{},
+		CurrentStatus:     o.Status,
+		IsTerminal:        false,
+		Statuses:          []StatusOption{},
+		SkippedTransition: []SkippedTransition{},
 	}
 
 	for _, edge := range wf.Edges {
@@ -779,11 +789,19 @@ func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *work
 		// Only include if target is an active status
 		targetOpt, isActive := activeMap[edge.TargetCode]
 		if !isActive {
+			result.SkippedTransition = append(result.SkippedTransition, SkippedTransition{
+				TargetCode: edge.TargetCode,
+				Reason:     fmt.Sprintf("el estado destino \"%s\" está inactivo", edge.TargetCode),
+			})
 			continue
 		}
 		// Evaluate conditions — skip transition if conditions not met
 		if len(edge.Conditions) > 0 {
 			if err := s.evaluateConditions(ctx, o, edge.Conditions); err != nil {
+				result.SkippedTransition = append(result.SkippedTransition, SkippedTransition{
+					TargetCode: edge.TargetCode,
+					Reason:     fmt.Sprintf("condiciones no cumplidas: %s", err.Error()),
+				})
 				continue
 			}
 		}

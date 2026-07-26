@@ -184,7 +184,8 @@ type WorkflowEdgeInfo struct {
 }
 
 type WorkflowInfo struct {
-	Edges []WorkflowEdgeInfo
+	Edges           []WorkflowEdgeInfo
+	TerminalStatuses map[string]bool
 }
 
 type DeactivateStatusResponse struct {
