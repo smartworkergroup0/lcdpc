@@ -363,7 +363,7 @@ func (s *Service) loadRetailPrices(ctx context.Context, productIDs []uuid.UUID) 
 		SELECT pbp.product_id, pbp.amount
 		FROM product_branch_prices pbp
 		JOIN price_categories pc ON pc.id = pbp.price_category_id
-		WHERE pbp.product_id = ANY($1) AND pc.code = 'retail'
+		WHERE pbp.product_id = ANY($1) AND pc.code = 'RETAIL'
 	`, productIDs)
 	if err != nil {
 		return nil, fmt.Errorf("load retail prices: %w", err)
@@ -387,7 +387,7 @@ func (s *Service) loadBundleRetailPrices(ctx context.Context, bundleIDs []uuid.U
 		SELECT bp.bundle_id, bp.amount
 		FROM bundle_prices bp
 		JOIN price_categories pc ON pc.id = bp.price_category_id
-		WHERE bp.bundle_id = ANY($1) AND pc.code = 'retail'
+		WHERE bp.bundle_id = ANY($1) AND pc.code = 'RETAIL'
 	`, bundleIDs)
 	if err != nil {
 		return nil, fmt.Errorf("load bundle retail prices: %w", err)
