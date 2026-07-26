@@ -123,33 +123,16 @@
   left: 0;
   z-index: 1;
   background: var(--surface);
-  width: 180px;
-  min-width: 180px;
+  width: 90px;
+  min-width: 90px;
   text-align: left !important;
   cursor: pointer;
   border-right: 2px solid var(--border) !important;
 
-  .order-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
   .order-id {
     font-weight: 600;
     color: var(--text-strong);
     font-size: 0.85rem;
-  }
-  .order-total {
-    font-size: 0.75rem;
-    color: var(--text-soft);
-  }
-  .order-items {
-    font-size: 0.7rem;
-    color: var(--text-soft);
-  }
-  .order-time {
-    font-size: 0.7rem;
-    color: var(--text-soft);
   }
 }
 
@@ -370,6 +353,12 @@
 .timeline-date {
   font-size: 0.75rem;
   color: var(--text-soft);
+}
+
+.timeline-user {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-strong);
 }
 
 .timeline-notes {

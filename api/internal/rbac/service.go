@@ -361,7 +361,7 @@ func (s *Service) getResourcesForRole(ctx context.Context, roleID uuid.UUID) ([]
 	}
 	defer rows.Close()
 
-	var resources []ResourceEntry
+	resources := []ResourceEntry{}
 	for rows.Next() {
 		var r ResourceEntry
 		if err := rows.Scan(&r.ID, &r.Code); err != nil {
@@ -389,7 +389,7 @@ func (s *Service) getRolesForProfile(ctx context.Context, profileID uuid.UUID) (
 	}
 	defer rows.Close()
 
-	var roles []RoleEntry
+	roles := []RoleEntry{}
 	for rows.Next() {
 		var r RoleEntry
 		if err := rows.Scan(&r.ID, &r.Code, &r.Name); err != nil {

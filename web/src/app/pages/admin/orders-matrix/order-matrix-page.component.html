@@ -83,12 +83,7 @@
           @for (order of orders(); track order.id) {
             <tr [class.terminal-row]="isTerminalStatus(order.status)">
               <td class="col-order" (click)="openDetail(order)">
-                <div class="order-cell">
-                  <span class="order-id">{{ order.displayId }}</span>
-                  <span class="order-total">{{ order.priceTotal | currency }}</span>
-                  <span class="order-items">{{ order.totalItems }} items</span>
-                  <span class="order-time">{{ order.createdAtUtc | date:'shortTime' }}</span>
-                </div>
+                <span class="order-id">{{ order.displayId }}</span>
               </td>
               @for (node of activeStatuses(); track node.code) {
                 <td
@@ -235,6 +230,9 @@
             <div class="timeline-content">
               <p-tag [value]="getNodeLabel(entry.toStatus)" [severity]="statusSeverity[entry.toStatus]" size="small" />
               <span class="timeline-date">{{ entry.createdAtUtc | date:'short' }}</span>
+              @if (entry.changedByName) {
+                <span class="timeline-user">{{ entry.changedByName }}</span>
+              }
               @if (entry.notes) {
                 <span class="timeline-notes">{{ entry.notes }}</span>
               }

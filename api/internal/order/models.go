@@ -87,6 +87,7 @@ type StatusHistoryEntry struct {
 	FromStatus      *string    `json:"from_status"`
 	ToStatus        string     `json:"to_status"`
 	ChangedByUserID *uuid.UUID `json:"changed_by_user_id"`
+	ChangedByName   *string    `json:"changed_by_name"`
 	Notes           *string    `json:"notes"`
 	CreatedAtUtc    time.Time  `json:"created_at_utc"`
 }

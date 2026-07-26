@@ -391,10 +391,13 @@ func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]O
 	}
 
 	historyRows, err := s.pool.Query(ctx, `
-		SELECT id, order_id, from_status, to_status, COALESCE(changed_by_user_id::text, ''), notes, created_at_utc
-		FROM order_status_history
-		WHERE order_id = ANY($1::uuid[])
-		ORDER BY created_at_utc
+		SELECT osh.id, osh.order_id, osh.from_status, osh.to_status,
+		       COALESCE(osh.changed_by_user_id::text, ''), COALESCE(p.name, ''), osh.notes, osh.created_at_utc
+		FROM order_status_history osh
+		LEFT JOIN users u ON u.id = osh.changed_by_user_id
+		LEFT JOIN persons p ON p.id = u.person_id
+		WHERE osh.order_id = ANY($1::uuid[])
+		ORDER BY osh.created_at_utc
 	`, orderIDs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("batch get history: %w", err)
@@ -404,8 +407,8 @@ func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]O
 	historyMap := make(map[uuid.UUID][]StatusHistoryEntry)
 	for historyRows.Next() {
 		var e StatusHistoryEntry
-		var changedBy string
-		if err := historyRows.Scan(&e.ID, &e.OrderID, &e.FromStatus, &e.ToStatus, &changedBy, &e.Notes, &e.CreatedAtUtc); err != nil {
+		var changedBy, changedByName string
+		if err := historyRows.Scan(&e.ID, &e.OrderID, &e.FromStatus, &e.ToStatus, &changedBy, &changedByName, &e.Notes, &e.CreatedAtUtc); err != nil {
 			return nil, 0, fmt.Errorf("scan history: %w", err)
 		}
 		if changedBy != "" {
@@ -414,6 +417,9 @@ func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]O
 				return nil, 0, fmt.Errorf("parse history user id: %w", parseErr)
 			}
 			e.ChangedByUserID = &parsed
+		}
+		if changedByName != "" {
+			e.ChangedByName = &changedByName
 		}
 		historyMap[e.OrderID] = append(historyMap[e.OrderID], e)
 	}
@@ -853,8 +859,12 @@ func (s *Service) executeActions(ctx context.Context, o *Order, actions []workfl
 
 func (s *Service) GetHistory(ctx context.Context, orderID uuid.UUID) ([]StatusHistoryEntry, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, order_id, from_status, to_status, COALESCE(changed_by_user_id::text, ''), notes, created_at_utc
-		FROM order_status_history WHERE order_id = $1 ORDER BY created_at_utc
+		SELECT osh.id, osh.order_id, osh.from_status, osh.to_status,
+		       COALESCE(osh.changed_by_user_id::text, ''), COALESCE(p.name, ''), osh.notes, osh.created_at_utc
+		FROM order_status_history osh
+		LEFT JOIN users u ON u.id = osh.changed_by_user_id
+		LEFT JOIN persons p ON p.id = u.person_id
+		WHERE osh.order_id = $1 ORDER BY osh.created_at_utc
 	`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get history: %w", err)
@@ -864,8 +874,8 @@ func (s *Service) GetHistory(ctx context.Context, orderID uuid.UUID) ([]StatusHi
 	entries := make([]StatusHistoryEntry, 0)
 	for rows.Next() {
 		var e StatusHistoryEntry
-		var changedBy string
-		if err := rows.Scan(&e.ID, &e.OrderID, &e.FromStatus, &e.ToStatus, &changedBy, &e.Notes, &e.CreatedAtUtc); err != nil {
+		var changedBy, changedByName string
+		if err := rows.Scan(&e.ID, &e.OrderID, &e.FromStatus, &e.ToStatus, &changedBy, &changedByName, &e.Notes, &e.CreatedAtUtc); err != nil {
 			return nil, fmt.Errorf("scan history: %w", err)
 		}
 		if changedBy != "" {
@@ -874,6 +884,9 @@ func (s *Service) GetHistory(ctx context.Context, orderID uuid.UUID) ([]StatusHi
 				return nil, fmt.Errorf("parse history user id: %w", parseErr)
 			}
 			e.ChangedByUserID = &parsed
+		}
+		if changedByName != "" {
+			e.ChangedByName = &changedByName
 		}
 		entries = append(entries, e)
 	}

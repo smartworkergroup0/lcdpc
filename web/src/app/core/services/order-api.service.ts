@@ -63,6 +63,7 @@ interface StatusHistoryGoData {
   from_status: string | null;
   to_status: string;
   changed_by_user_id: string | null;
+  changed_by_name: string | null;
   notes: string | null;
   created_at_utc: string;
 }
@@ -207,6 +208,7 @@ export class OrderApiService {
       fromStatus: raw.from_status,
       toStatus: raw.to_status,
       changedByUserId: raw.changed_by_user_id,
+      changedByName: raw.changed_by_name,
       notes: raw.notes,
       createdAtUtc: raw.created_at_utc,
     };

@@ -104,7 +104,7 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
   private productNames = signal<Map<string, string>>(new Map());
   private bundleNames = signal<Map<string, string>>(new Map());
 
-  protected readonly refreshInterval = signal<number | null>(null);
+  protected readonly refreshInterval = signal<number | null>(60000);
   protected readonly intervalOptions = [
     { label: '30s', value: 30000 },
     { label: '1m', value: 60000 },
@@ -366,6 +366,7 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
         fromStatus: originalStatus,
         toStatus: targetStatus,
         changedByUserId: null,
+        changedByName: null,
         notes: null,
         createdAtUtc: new Date().toISOString(),
       },

@@ -76,6 +76,7 @@ export interface StatusHistoryEntry {
   fromStatus: string | null;
   toStatus: string;
   changedByUserId: string | null;
+  changedByName: string | null;
   notes: string | null;
   createdAtUtc: string;
 }

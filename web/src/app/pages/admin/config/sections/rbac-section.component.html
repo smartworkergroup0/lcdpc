@@ -330,6 +330,7 @@
     <div class="assign-row">
       <p-select [options]="availableResources()" [(ngModel)]="selectedResourceId"
                 optionLabel="label" optionValue="value" placeholder="Seleccionar recurso"
+                [filter]="true" filterBy="label"
                 [style]="{'width':'100%'}" appendTo="body" />
       <p-button icon="pi pi-plus" (onClick)="assignResourceToRole()" [disabled]="!selectedResourceId"></p-button>
     </div>
@@ -384,6 +385,7 @@
     <div class="assign-row">
       <p-select [options]="availableRoles()" [(ngModel)]="selectedRoleId"
                 optionLabel="label" optionValue="value" placeholder="Seleccionar rol"
+                [filter]="true" filterBy="label"
                 [style]="{'width':'100%'}" appendTo="body" />
       <p-button icon="pi pi-plus" (onClick)="assignRoleToProfile()" [disabled]="!selectedRoleId"></p-button>
     </div>
