@@ -32,7 +32,7 @@
           styleClass="admin-nav-button"
           [text]="true"
           severity="secondary"
-          routerLink="/admin"
+          (onClick)="goToAdmin()"
         ></p-button>
       }
 
@@ -145,7 +145,7 @@
 				[text]="true"
 				severity="secondary"
 				ariaLabel="Iniciar sesión"
-				routerLink="/login"
+				(onClick)="goToLogin()"
 			></p-button>
 		}
 

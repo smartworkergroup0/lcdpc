@@ -165,6 +165,9 @@ export class AuthStore {
 
     this.permissions.set(data.permissions ?? []);
 
+    console.log('[AuthStore] Permisos cargados:', data.permissions?.length ?? 0);
+    console.log('[AuthStore] Permisos module:', (data.permissions ?? []).filter((p: string) => p.startsWith('module:')));
+
     if (data.expires_in != null) {
       this.setExpiresAt(Date.now() + data.expires_in * 1000);
     }

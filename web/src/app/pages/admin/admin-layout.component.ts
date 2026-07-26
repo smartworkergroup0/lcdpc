@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthStore } from '../../core/auth/auth.store';
 import { BranchStore } from '../../core/stores/branch.store';
@@ -99,6 +99,20 @@ export class AdminLayoutComponent {
   protected readonly canViewSistema = computed(() =>
     this.authStore.hasPermission('module:sistema:view')
   );
+
+  constructor() {
+    effect(() => {
+      const perms = this.authStore.permissions();
+      console.log('[AdminLayout] Permisos cargados:', perms.length);
+      console.log('[AdminLayout] Permisos module:', perms.filter(p => p.startsWith('module:')));
+      console.log('[AdminLayout] canViewDashboard:', this.canViewDashboard());
+      console.log('[AdminLayout] canViewOperaciones:', this.canViewOperaciones());
+      console.log('[AdminLayout] canViewAlmacen:', this.canViewAlmacen());
+      console.log('[AdminLayout] canViewPeople:', this.canViewPeople());
+      console.log('[AdminLayout] canViewConfig:', this.canViewConfig());
+      console.log('[AdminLayout] canViewAssistant:', this.canViewAssistant());
+    });
+  }
 
   protected toggleSidebar(): void {
     this.collapsed.update((v) => !v);

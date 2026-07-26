@@ -1,15 +1,14 @@
--- Seed module:*:view permissions for sidebar groups, items, and panels
--- Uses gen_random_uuid() to avoid UUID conflicts with earlier migrations
+-- Fix: Insert module permissions that failed in 000068 due to UUID conflicts
+-- Uses ON CONFLICT (code) DO NOTHING so it's safe for both cases:
+-- - 000068 ran but didn't insert (UUID conflicts)
+-- - 000068 never ran
 INSERT INTO resources (code) VALUES
-    -- Dashboard
     ('module:dashboard:view'),
-    -- Sidebar groups
     ('module:operaciones:view'),
     ('module:almacen:view'),
     ('module:personas:view'),
     ('module:configuracion:view'),
     ('module:asistente:view'),
-    -- Sidebar items
     ('module:ventas:view'),
     ('module:ordenes:view'),
     ('module:matriz:view'),
@@ -24,19 +23,25 @@ INSERT INTO resources (code) VALUES
     ('module:flujos:view'),
     ('module:leads:view'),
     ('module:asistente_ordenes:view'),
-    -- RBAC tabs
     ('module:rbac:perfiles:view'),
     ('module:rbac:roles:view'),
     ('module:rbac:recursos:view'),
     ('module:rbac:api_tokens:view'),
     ('module:rbac:cuentas_servicio:view'),
-    -- Inventario tabs
     ('module:inventario:marcas:view'),
     ('module:inventario:categorias:view'),
     ('module:inventario:categorias_precio:view'),
     ('module:inventario:unidades_medida:view'),
     ('module:inventario:clasificaciones:view')
 ON CONFLICT (code) DO NOTHING;
+
+-- Assign module:dashboard:view to ALL roles so every user can access the dashboard
+INSERT INTO role_resources (role_id, resource_id)
+SELECT r.id, res.id
+FROM roles r
+CROSS JOIN resources res
+WHERE res.code = 'module:dashboard:view'
+ON CONFLICT (role_id, resource_id) DO NOTHING;
 
 -- Assign all module permissions to global_admin
 INSERT INTO role_resources (role_id, resource_id)

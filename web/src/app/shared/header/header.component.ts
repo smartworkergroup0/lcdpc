@@ -71,15 +71,20 @@ export class HeaderComponent {
     return this.router.url.startsWith('/cart');
   }
 
-  protected readonly isAdmin = computed(() =>
-    this.authStore.hasAnyPermission(
-      'product:create', 'product:update', 'product:delete',
-      'bundle:create', 'bundle:update', 'bundle:delete',
-      'order:view', 'order:create', 'order:update', 'order:delete',
-      'rbac:resource:view',
-      'staff:view'
-    )
-  );
+  protected readonly isAdmin = computed(() => {
+    const perms = this.authStore.permissions();
+    const modulePerms = perms.filter(p => p.startsWith('module:'));
+    const hasAccess = this.authStore.hasAnyPermission(
+      'module:dashboard:view',
+      'module:operaciones:view',
+      'module:almacen:view',
+      'module:personas:view',
+      'module:configuracion:view',
+      'module:asistente:view'
+    );
+    console.log('[Header] isAdmin check:', { hasAccess, totalPerms: perms.length, modulePerms });
+    return hasAccess;
+  });
 
   constructor() {
     const subscription = this.router.events
@@ -106,6 +111,16 @@ export class HeaderComponent {
     if (!this.hasCartItems()) return;
     this.cartOverlay.hide();
     void this.router.navigateByUrl('/cart');
+  }
+
+  protected goToAdmin(): void {
+    console.log('[Header] goToAdmin clicked');
+    void this.router.navigate(['/admin']);
+  }
+
+  protected goToLogin(): void {
+    console.log('[Header] goToLogin clicked');
+    void this.router.navigate(['/login']);
   }
 
 	protected async logout(): Promise<void> {
