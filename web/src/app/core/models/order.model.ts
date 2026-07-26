@@ -36,6 +36,7 @@ export interface CreateOrderRequest {
   person_tax_id?: string | null;
   person_whatsapp_phone?: string;
   person_full_address?: string;
+  smartworker_order_id?: string;
   notes: string;
   items: CreateOrderItem[];
 }

@@ -31,11 +31,12 @@ type Order struct {
 }
 
 type ListFilter struct {
-	Search      *string
-	Status      *string
-	IsProcessed *bool
-	Limit       int
-	Offset      int
+	Search             *string
+	Status             *string
+	IsProcessed        *bool
+	UserIdentification *string
+	Limit              int
+	Offset             int
 }
 
 type authResponse struct {

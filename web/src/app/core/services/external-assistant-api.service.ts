@@ -78,4 +78,37 @@ export class ExternalAssistantApiService {
         })),
       );
   }
+
+  getLeadByIdentification(identification: string): Observable<AssistantLead | null> {
+    const params: Record<string, string> = { user_identification: identification };
+    return this.http
+      .get<JsendEnvelope<PaginatedGoData<AssistantLead>>>(
+        `${this.baseUrl}/api/v1/external/assistant/leads`,
+        { params },
+      )
+      .pipe(
+        map((res) => {
+          const items = res.data.items;
+          return items.length > 0 ? items[0] : null;
+        }),
+      );
+  }
+
+  acceptOrder(orderId: string): Observable<void> {
+    return this.http
+      .post<JsendEnvelope<{ status: string }>>(
+        `${this.baseUrl}/api/v1/external/assistant/orders/${orderId}/accept`,
+        {},
+      )
+      .pipe(map(() => undefined));
+  }
+
+  rejectOrder(orderId: string): Observable<void> {
+    return this.http
+      .post<JsendEnvelope<{ status: string }>>(
+        `${this.baseUrl}/api/v1/external/assistant/orders/${orderId}/reject`,
+        {},
+      )
+      .pipe(map(() => undefined));
+  }
 }

@@ -7,22 +7,23 @@ import (
 )
 
 type Order struct {
-	ID              uuid.UUID   `json:"id"`
-	DisplayID       string      `json:"display_id"`
-	BranchID        uuid.UUID   `json:"branch_id"`
-	PersonID        *uuid.UUID  `json:"person_id"`
-	ClientUserID    *uuid.UUID  `json:"client_user_id"`
-	clientUserIDRaw string      `json:"-"`
-	personIDRaw     string      `json:"-"`
-	Status          string      `json:"status"`
-	PriceTotal      float64     `json:"price_total"`
-	TotalItems      int         `json:"total_items"`
-	Currency        string      `json:"currency"`
-	Notes           *string     `json:"notes"`
-	DeletedAt       *time.Time  `json:"deleted_at"`
-	CreatedAtUtc    time.Time   `json:"created_at_utc"`
-	UpdatedAtUtc    time.Time   `json:"updated_at_utc"`
-	Items           []OrderItem `json:"items,omitempty"`
+	ID                 uuid.UUID   `json:"id"`
+	DisplayID          string      `json:"display_id"`
+	BranchID           uuid.UUID   `json:"branch_id"`
+	PersonID           *uuid.UUID  `json:"person_id"`
+	ClientUserID       *uuid.UUID  `json:"client_user_id"`
+	clientUserIDRaw    string      `json:"-"`
+	personIDRaw        string      `json:"-"`
+	Status             string      `json:"status"`
+	PriceTotal         float64     `json:"price_total"`
+	TotalItems         int         `json:"total_items"`
+	Currency           string      `json:"currency"`
+	Notes              *string     `json:"notes"`
+	SmartworkerOrderID *string     `json:"smartworker_order_id"`
+	DeletedAt          *time.Time  `json:"deleted_at"`
+	CreatedAtUtc       time.Time   `json:"created_at_utc"`
+	UpdatedAtUtc       time.Time   `json:"updated_at_utc"`
+	Items              []OrderItem `json:"items,omitempty"`
 }
 
 type OrderItem struct {
@@ -46,6 +47,7 @@ type CreateOrderRequest struct {
 	PersonTaxID            *string           `json:"person_tax_id,omitempty"`
 	PersonWhatsAppPhone    *string           `json:"person_whatsapp_phone,omitempty"`
 	PersonFullAddress      *string           `json:"person_full_address,omitempty"`
+	SmartworkerOrderID     *string           `json:"smartworker_order_id,omitempty"`
 	Notes                  string            `json:"notes"`
 	Items                  []CreateOrderItem `json:"items"`
 	IsAdmin                bool              `json:"-"`

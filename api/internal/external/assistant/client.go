@@ -128,6 +128,108 @@ func (c *Client) doRequestWithToken(ctx context.Context, method, path string, pa
 	return respBody, resp.StatusCode, nil
 }
 
+func (c *Client) doPost(ctx context.Context, path string, body interface{}) ([]byte, int, error) {
+	if err := c.ensureToken(ctx); err != nil {
+		return nil, 0, err
+	}
+	return c.doPostWithToken(ctx, path, body, c.token)
+}
+
+func (c *Client) doPostWithToken(ctx context.Context, path string, body interface{}, token string) ([]byte, int, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			return nil, 0, fmt.Errorf("marshal body: %w", err)
+		}
+		bodyReader = strings.NewReader(string(jsonBody))
+	}
+
+	reqURL := c.baseURL + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bodyReader)
+	if err != nil {
+		return nil, 0, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		c.mu.Lock()
+		c.token = ""
+		c.expiresAt = time.Time{}
+		c.mu.Unlock()
+
+		if err := c.ensureToken(ctx); err != nil {
+			return nil, 0, err
+		}
+		return c.doPostWithToken(ctx, path, body, c.token)
+	}
+
+	return respBody, resp.StatusCode, nil
+}
+
+func (c *Client) GetLeadByIdentification(ctx context.Context, identification string) (*Lead, error) {
+	params := url.Values{}
+	params.Set("user_identification", identification)
+
+	body, status, err := c.doRequest(ctx, http.MethodGet, "/external/v1/leads/", params)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("get lead by identification failed (%d): %s", status, string(body))
+	}
+
+	var result listResponse[Lead]
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("decode leads response: %w", err)
+	}
+	if len(result.Results) == 0 {
+		return nil, fmt.Errorf("LEAD_NOT_FOUND")
+	}
+	return &result.Results[0], nil
+}
+
+func (c *Client) ChangeOrderStatus(ctx context.Context, orderID string, status string) error {
+	path := fmt.Sprintf("/external/v1/orders/%s/change_status/", orderID)
+	reqBody := map[string]string{"status": status}
+
+	respBody, statusCode, err := c.doPost(ctx, path, reqBody)
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusOK && statusCode != http.StatusNoContent {
+		return fmt.Errorf("change order status failed (%d): %s", statusCode, string(respBody))
+	}
+	return nil
+}
+
+func (c *Client) MarkOrderProcessed(ctx context.Context, orderID string) error {
+	path := fmt.Sprintf("/external/v1/orders/%s/mark_processed/", orderID)
+
+	respBody, statusCode, err := c.doPost(ctx, path, nil)
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusOK && statusCode != http.StatusNoContent {
+		return fmt.Errorf("mark order processed failed (%d): %s", statusCode, string(respBody))
+	}
+	return nil
+}
+
 func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, error) {
 	params := url.Values{}
 	if f.Search != nil && *f.Search != "" {
@@ -138,6 +240,9 @@ func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, erro
 	}
 	if f.IsProcessed != nil {
 		params.Set("is_processed", strconv.FormatBool(*f.IsProcessed))
+	}
+	if f.UserIdentification != nil && *f.UserIdentification != "" {
+		params.Set("user_identification", *f.UserIdentification)
 	}
 
 	page := 1

@@ -1,0 +1,119 @@
+<p-dialog header="Atender Orden de SmartWorker"
+          [visible]="visible" (visibleChange)="visibleChange.emit($event)"
+          [modal]="true" [dismissableMask]="true" [draggable]="false"
+          [style]="{width: 'min(900px, 95vw)'}"
+          (onHide)="close()">
+  <div class="accept-form" [style]="{marginTop: '25px'}">
+
+    @if (activeStep === 0) {
+      <!-- Step 1: Branch Selection -->
+      <div class="step-branch">
+        <h3>Seleccionar Sucursal</h3>
+        <div class="field">
+          <p-select id="branch" [options]="branches()" [(ngModel)]="selectedBranchId"
+                    optionLabel="label" optionValue="value" placeholder="Sucursal *"
+                    [showClear]="false" [style]="{'width':'100%'}"
+                    [class.ng-invalid]="submitted && !selectedBranchId"
+                    (onChange)="onBranchSelected()" appendTo="body" />
+        </div>
+        @if (parsedItems().length > 0) {
+          <div class="parsed-preview">
+            <h4>Referencia de SmartWorker ({{ parsedItems().length }} productos detectados)</h4>
+            <div class="parsed-list">
+              @for (pi of parsedItems(); track $index) {
+                <div class="parsed-item">
+                  <span class="parsed-qty">{{ pi.quantity }}x</span>
+                  <span class="parsed-name">{{ pi.productName }}</span>
+                  <span class="parsed-price">${{ pi.unitPrice.toFixed(2) }} c/u</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    @if (activeStep === 1) {
+      <!-- Step 2: Items Review -->
+      <div class="step-items">
+        <div class="items-header">
+          <div class="items-header-left">
+            <p-button icon="pi pi-arrow-left" label="Volver" severity="secondary" [text]="true" size="small"
+                      (onClick)="goToBranch()" />
+          </div>
+          <h3>Productos del Pedido</h3>
+          <p-button label="Agregar Item" icon="pi pi-plus" [text]="true" size="small"
+                    (onClick)="addItem()" />
+        </div>
+
+        <div class="items-split">
+          <!-- Left: Reference -->
+          <div class="reference-panel">
+            <h4>Referencia SmartWorker</h4>
+            @for (pi of parsedItems(); track $index) {
+              <div class="ref-item">
+                <span class="ref-qty">{{ pi.quantity }}x</span>
+                <span class="ref-name">{{ pi.productName }}</span>
+                <span class="ref-price">${{ pi.unitPrice.toFixed(2) }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Right: Editable items -->
+          <div class="items-panel">
+            @for (item of items; track $index; let i = $index) {
+              <div class="item-row" [class.item-matched]="item.matchedFrom">
+                @if (item.matchedFrom) {
+                  <div class="item-match-badge">
+                    <i class="pi pi-check-circle"></i>
+                    <span>Match: {{ item.matchedFrom }}</span>
+                  </div>
+                }
+                <div class="item-fields">
+                  <p-select class="product-field" [options]="products()" [(ngModel)]="item.product_id"
+                            optionLabel="name" optionValue="productId"
+                            placeholder="Producto" (onChange)="onProductSelect(i)" appendTo="body" />
+                  <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="0.01"
+                                 [maxFractionDigits]="3" placeholder="Cant." />
+                  <p-select class="price-field" [options]="item.priceOptions"
+                            [(ngModel)]="item.selectedPriceId" optionLabel="label" optionValue="id"
+                            (onChange)="onPriceOptionSelect(i, $event.value)"
+                            [disabled]="item.priceOptions.length === 0"
+                            placeholder="Precio" appendTo="body" />
+                  <span class="item-subtotal">{{ (item.quantity * item.unit_price) | currency:'USD' }}</span>
+                  <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
+                            (onClick)="removeItem(i)" />
+                </div>
+              </div>
+            } @empty {
+              <div class="empty-items">
+                <p>No hay items. Haga clic en "Agregar Item" para comenzar.</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (items.length > 0) {
+          <div class="items-total">
+            <span>Total:</span>
+            <strong>{{ total | currency:'USD' }}</strong>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button label="Cancelar" severity="secondary" (onClick)="close()" />
+    @if (activeStep === 0) {
+      <p-button label="Siguiente" icon="pi pi-arrow-right" [disabled]="!selectedBranchId"
+                (onClick)="goToItems()" />
+    }
+    @if (activeStep === 1) {
+      <p-button label="Crear Orden" icon="pi pi-check" [loading]="saving()"
+                [disabled]="!hasItems" (onClick)="save()" />
+    }
+  </ng-template>
+</p-dialog>
+
+<p-toast />

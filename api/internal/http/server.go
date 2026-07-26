@@ -770,6 +770,8 @@ func NewServer(
 
 		r.Get("/leads", assistantH.ListLeads)
 		r.Get("/orders", assistantH.ListOrders)
+		r.Post("/orders/{orderID}/accept", assistantH.AcceptOrder)
+		r.Post("/orders/{orderID}/reject", assistantH.RejectOrder)
 	})
 
 	// SPA frontend (embedded)

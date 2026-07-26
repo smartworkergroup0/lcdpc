@@ -10,13 +10,15 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { ToolbarModule } from 'primeng/toolbar';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { ExternalAssistantApiService } from '../../../../core/services/external-assistant-api.service';
 import {
   AssistantOrder,
   ASSISTANT_ORDER_STATUS_LABELS,
   ASSISTANT_ORDER_STATUS_OPTIONS,
 } from '../../../../core/models/external-assistant.model';
+import { AssistantAcceptDialogComponent } from './assistant-accept-dialog.component';
 
 @Component({
   selector: 'app-assistant-orders-page',
@@ -24,9 +26,10 @@ import {
   imports: [
     CommonModule, FormsModule, ButtonModule, TableModule, TagModule,
     SelectModule, InputTextModule, IconFieldModule, InputIconModule,
-    ToolbarModule, ToastModule,
+    ToolbarModule, ToastModule, ConfirmDialogModule,
+    AssistantAcceptDialogComponent,
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <section class="orders-page">
       <p-toolbar styleClass="admin-toolbar">
@@ -51,6 +54,7 @@ import {
             <th>Direccion</th>
             <th>Resumen</th>
             <th>Status</th>
+            <th>Opciones</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-order>
@@ -62,25 +66,45 @@ import {
             <td>
               <p-tag [value]="getStatusLabel(order.status)" [severity]="getStatusSeverity(order.status)" />
             </td>
+            <td>
+              @if (order.status === 'PENDIENTE') {
+                <div class="action-buttons">
+                  <p-button icon="pi pi-check" severity="success" [rounded]="true" [text]="true"
+                            pTooltip="Atender" (onClick)="openAcceptDialog(order)" />
+                  <p-button icon="pi pi-times" severity="danger" [rounded]="true" [text]="true"
+                            pTooltip="Rechazar" (onClick)="confirmReject(order)" />
+                </div>
+              }
+            </td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="5" class="empty-state">No hay ordenes disponibles</td>
+            <td colspan="6" class="empty-state">No hay ordenes disponibles</td>
           </tr>
         </ng-template>
       </p-table>
     </section>
+
+    <app-assistant-accept-dialog
+      [visible]="showAcceptDialog()"
+      [order]="selectedOrder()"
+      (visibleChange)="showAcceptDialog.set($event)"
+      (saved)="onAcceptSaved()" />
+
     <p-toast />
+    <p-confirmDialog />
   `,
   styles: `
     .orders-page { display: flex; flex-direction: column; gap: 1rem; }
     .empty-state { text-align: center; padding: 2rem; color: var(--text-soft); }
+    .action-buttons { display: flex; gap: 0.25rem; }
   `,
 })
 export class AssistantOrdersPageComponent {
   private readonly assistantApi = inject(ExternalAssistantApiService);
   private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
 
   protected readonly orders = signal<AssistantOrder[]>([]);
   protected readonly loading = signal(false);
@@ -91,6 +115,9 @@ export class AssistantOrdersPageComponent {
   protected filterStatus: string | null = null;
 
   protected readonly statusOptions = ASSISTANT_ORDER_STATUS_OPTIONS;
+
+  protected readonly showAcceptDialog = signal(false);
+  protected readonly selectedOrder = signal<AssistantOrder | null>(null);
 
   loadOrders(event: any): void {
     const offset = event.first ?? 0;
@@ -129,5 +156,42 @@ export class AssistantOrdersPageComponent {
       CANCELADO: 'danger',
     };
     return map[status] ?? 'secondary';
+  }
+
+  protected openAcceptDialog(order: AssistantOrder): void {
+    this.selectedOrder.set(order);
+    this.showAcceptDialog.set(true);
+  }
+
+  protected confirmReject(order: AssistantOrder): void {
+    this.confirmationService.confirm({
+      header: 'Rechazar Orden',
+      message: `¿Estas seguro de rechazar la orden de ${order.customerName}? Esta accion no se puede deshacer.`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Rechazar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.rejectOrder(order),
+    });
+  }
+
+  private rejectOrder(order: AssistantOrder): void {
+    this.loading.set(true);
+    this.assistantApi.rejectOrder(order.id).subscribe({
+      next: () => {
+        this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Orden rechazada correctamente' });
+        this.loadOrders({ first: 0, rows: this.pageSize });
+      },
+      error: () => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo rechazar la orden' });
+        this.loading.set(false);
+      },
+    });
+  }
+
+  protected onAcceptSaved(): void {
+    this.showAcceptDialog.set(false);
+    this.selectedOrder.set(null);
+    this.loadOrders({ first: 0, rows: this.pageSize });
   }
 }

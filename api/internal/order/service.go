@@ -80,9 +80,9 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByU
 	}
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO orders (id, display_id, branch_id, person_id, client_user_id, status, price_total, total_items, currency, notes, created_at_utc, updated_at_utc)
-		VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 'USD', $7, now(), now())
-	`, orderID, displayID, req.BranchID, resolvedPersonID, resolvedClientUserID, StatusPendingReview, nullString(req.Notes))
+		INSERT INTO orders (id, display_id, branch_id, person_id, client_user_id, status, price_total, total_items, currency, notes, smartworker_order_id, created_at_utc, updated_at_utc)
+		VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 'USD', $7, $8, now(), now())
+	`, orderID, displayID, req.BranchID, resolvedPersonID, resolvedClientUserID, StatusPendingReview, nullString(req.Notes), req.SmartworkerOrderID)
 	if err != nil {
 		return nil, fmt.Errorf("insert order: %w", err)
 	}
@@ -194,10 +194,10 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByU
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
 	o := &Order{}
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, deleted_at, created_at_utc, updated_at_utc
+		SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, smartworker_order_id, deleted_at, created_at_utc, updated_at_utc
 		FROM orders WHERE id = $1 AND deleted_at IS NULL
 	`, id).Scan(&o.ID, &o.DisplayID, &o.BranchID, &o.personIDRaw, &o.clientUserIDRaw, &o.Status, &o.PriceTotal, &o.TotalItems,
-		&o.Currency, &o.Notes, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc)
+		&o.Currency, &o.Notes, &o.SmartworkerOrderID, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("ORDER_NOT_FOUND")
 	}
@@ -229,7 +229,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
 
 func (s *Service) List(ctx context.Context, filter OrderFilter) ([]Order, int, error) {
 	countQuery := `SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL`
-	dataQuery := `SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, deleted_at, created_at_utc, updated_at_utc FROM orders WHERE deleted_at IS NULL`
+	dataQuery := `SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, smartworker_order_id, deleted_at, created_at_utc, updated_at_utc FROM orders WHERE deleted_at IS NULL`
 	args := []interface{}{}
 	argIdx := 1
 
@@ -290,7 +290,7 @@ func (s *Service) List(ctx context.Context, filter OrderFilter) ([]Order, int, e
 	for rows.Next() {
 		var o Order
 		if err := rows.Scan(&o.ID, &o.DisplayID, &o.BranchID, &o.personIDRaw, &o.clientUserIDRaw, &o.Status, &o.PriceTotal, &o.TotalItems,
-			&o.Currency, &o.Notes, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc); err != nil {
+			&o.Currency, &o.Notes, &o.SmartworkerOrderID, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc); err != nil {
 			return nil, 0, fmt.Errorf("scan order: %w", err)
 		}
 		if o.personIDRaw != "" {
@@ -314,7 +314,7 @@ func (s *Service) List(ctx context.Context, filter OrderFilter) ([]Order, int, e
 
 func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]OrderWithHistory, int, error) {
 	countQuery := `SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL`
-	dataQuery := `SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, deleted_at, created_at_utc, updated_at_utc FROM orders WHERE deleted_at IS NULL`
+	dataQuery := `SELECT id, display_id, branch_id, COALESCE(person_id::text, ''), COALESCE(client_user_id::text, ''), status, price_total, total_items, currency, notes, smartworker_order_id, deleted_at, created_at_utc, updated_at_utc FROM orders WHERE deleted_at IS NULL`
 	args := []interface{}{}
 	argIdx := 1
 
@@ -361,7 +361,7 @@ func (s *Service) ListWithHistory(ctx context.Context, filter MatrixFilter) ([]O
 	for rows.Next() {
 		var o Order
 		if err := rows.Scan(&o.ID, &o.DisplayID, &o.BranchID, &o.personIDRaw, &o.clientUserIDRaw, &o.Status, &o.PriceTotal, &o.TotalItems,
-			&o.Currency, &o.Notes, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc); err != nil {
+			&o.Currency, &o.Notes, &o.SmartworkerOrderID, &o.DeletedAt, &o.CreatedAtUtc, &o.UpdatedAtUtc); err != nil {
 			return nil, 0, fmt.Errorf("scan order: %w", err)
 		}
 		if o.personIDRaw != "" {
