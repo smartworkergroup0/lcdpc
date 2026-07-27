@@ -23,7 +23,7 @@ import {
   providers: [MessageService],
   template: `
     <section class="leads-page">
-      @if (!sessionStore.selectedSessionId()) {
+      @if (!sessionStore.selectedSession()) {
         <div class="no-session-warning">
           <p>Selecciona una cuenta de servicio para ver los leads.</p>
         </div>
@@ -78,7 +78,7 @@ export class AssistantLeadsPageComponent {
   protected readonly pageSize = 10;
 
   loadLeads(event: any): void {
-    const sessionId = this.sessionStore.selectedSessionId();
+    const sessionId = this.sessionStore.selectedSession()?.id;
     if (!sessionId) return;
 
     const offset = event.first ?? 0;

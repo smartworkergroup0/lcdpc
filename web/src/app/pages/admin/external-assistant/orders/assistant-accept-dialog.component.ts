@@ -8,11 +8,8 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { TooltipModule } from 'primeng/tooltip';
-import { StepperModule } from 'primeng/stepper';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
-import { AuthStore } from '../../../../core/auth/auth.store';
-import { BranchApiService } from '../../../../core/services/branch-api.service';
 import { ProductApiService } from '../../../../core/services/product-api.service';
 import { PriceApiService } from '../../../../core/services/price-api.service';
 import { PriceCategoryApiService } from '../../../../core/services/price-category-api.service';
@@ -53,7 +50,7 @@ interface OrderItemForm {
   imports: [
     CommonModule, FormsModule, ButtonModule, DialogModule,
     SelectModule, InputNumberModule, InputTextModule, FloatLabelModule,
-    TooltipModule, StepperModule, ToastModule,
+    TooltipModule, ToastModule,
   ],
   providers: [MessageService],
   templateUrl: './assistant-accept-dialog.component.html',
@@ -66,8 +63,6 @@ export class AssistantAcceptDialogComponent implements OnChanges {
   @Output() visibleChange = new EventEmitter<boolean>();
   @Output() saved = new EventEmitter<void>();
 
-  private readonly authStore = inject(AuthStore);
-  private readonly branchApi = inject(BranchApiService);
   private readonly productApi = inject(ProductApiService);
   private readonly priceApi = inject(PriceApiService);
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
@@ -78,15 +73,10 @@ export class AssistantAcceptDialogComponent implements OnChanges {
   private readonly messageService = inject(MessageService);
 
   protected readonly saving = signal(false);
-  protected readonly branches = signal<{ label: string; value: string }[]>([]);
   protected readonly products = signal<Product[]>([]);
   protected readonly priceCategories = signal<PriceCategory[]>([]);
   protected readonly parsedItems = signal<ParsedItem[]>([]);
-  protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
-  protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
 
-  protected activeStep = 0;
-  protected selectedBranchId = '';
   protected items: OrderItemForm[] = [];
   protected submitted = false;
 
@@ -100,50 +90,37 @@ export class AssistantAcceptDialogComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible && this.order) {
-      this.activeStep = 0;
       this.submitted = false;
       this.saving.set(false);
-      this.selectedBranchId = '';
       this.items = [];
-
-      this.loadBranches();
-      this.priceCategoryApi.list().subscribe({
-        next: (cats) => this.priceCategories.set(cats),
-      });
-
       this.parsedItems.set(this.parseSummary(this.order.summary));
+
+      this.priceCategoryApi.list().subscribe({
+        next: (cats) => {
+          this.priceCategories.set(cats);
+          this.loadProductsForSessionBranch();
+        },
+      });
     }
   }
 
-  private loadBranches(): void {
-    this.branchApi.listAdmin().subscribe({
-      next: (branches) => {
-        this.branches.set(branches.map((b) => ({ label: b.storeName, value: b.id })));
-        if (!this.canViewAllBranches() && this.userBranchId()) {
-          this.selectedBranchId = this.userBranchId()!;
-          this.onBranchSelected();
-        }
-      },
-    });
-  }
+  private loadProductsForSessionBranch(): void {
+    const branchId = this.sessionStore.selectedSessionBranchId();
+    if (!branchId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Advertencia',
+        detail: 'No se encontro la sede asociada a la cuenta de servicio',
+      });
+      return;
+    }
 
-  protected onBranchSelected(): void {
-    if (!this.selectedBranchId) return;
-    this.productApi.list({ branch_id: this.selectedBranchId, limit: 100 }).subscribe({
+    this.productApi.list({ branch_id: branchId, limit: 100 }).subscribe({
       next: (res) => {
         this.products.set(res.items.filter((p) => p.isActive));
         this.buildItemsFromParsed();
       },
     });
-  }
-
-  protected goToItems(): void {
-    if (!this.selectedBranchId) return;
-    this.activeStep = 1;
-  }
-
-  protected goToBranch(): void {
-    this.activeStep = 0;
   }
 
   private buildItemsFromParsed(): void {
@@ -238,26 +215,32 @@ export class AssistantAcceptDialogComponent implements OnChanges {
     this.items.splice(index, 1);
   }
 
-  protected getProductName(productId: string): string {
-    return this.products().find((p) => p.productId === productId)?.name ?? '';
-  }
-
   protected async save(): Promise<void> {
     this.submitted = true;
-    if (!this.selectedBranchId || !this.order) return;
+    if (!this.order) return;
     const validItems = this.items.filter((i) => i.product_id && i.quantity > 0);
     if (validItems.length === 0) return;
     if (this.saving()) return;
 
+    const branchId = this.sessionStore.selectedSessionBranchId();
+    if (!branchId) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'No hay sede asociada a la cuenta de servicio',
+      });
+      return;
+    }
+
     this.saving.set(true);
 
     try {
-      const identification = this.order.identification;
+      const { prefixed, numeric } = this.normalizeIdentification(this.order.identification);
       let personId: string | null = null;
 
       // 1. Try to find person by document
       try {
-        const person = await this.personApi.getByDocument(identification).toPromise();
+        const person = await this.personApi.getByDocument(prefixed).toPromise();
         if (person) {
           personId = person.id;
         }
@@ -270,10 +253,10 @@ export class AssistantAcceptDialogComponent implements OnChanges {
         let phone = '';
         let address = this.order.address;
 
-        const sessionId = this.sessionStore.selectedSessionId();
+        const sessionId = this.sessionStore.selectedSession()?.id;
         if (sessionId) {
           try {
-            const lead = await this.assistantApi.getLeadByIdentification(sessionId, identification).toPromise();
+            const lead = await this.assistantApi.getLeadByIdentification(sessionId, numeric).toPromise();
             if (lead) {
               phone = lead.phone || '';
               address = lead.address || address;
@@ -285,7 +268,7 @@ export class AssistantAcceptDialogComponent implements OnChanges {
 
         const person = await this.personApi.createClient({
           name: this.order.customerName,
-          identityDocument: identification,
+          identityDocument: prefixed,
           whatsappPhone: phone,
           fullAddress: address,
         }).toPromise();
@@ -301,7 +284,7 @@ export class AssistantAcceptDialogComponent implements OnChanges {
 
       // 3. Create order
       const orderResult = await this.orderApi.create({
-        branch_id: this.selectedBranchId,
+        branch_id: branchId,
         person_id: personId,
         smartworker_order_id: this.order.id,
         notes: `Importado desde SmartWorker - Orden #${this.order.id}`,
@@ -314,12 +297,11 @@ export class AssistantAcceptDialogComponent implements OnChanges {
       }).toPromise();
 
       // 4. Notify SmartWorker
-      const sessionId = this.sessionStore.selectedSessionId();
+      const sessionId = this.sessionStore.selectedSession()?.id;
       if (sessionId) {
         try {
           await this.assistantApi.acceptOrder(sessionId, this.order.id).toPromise();
         } catch {
-          // If SmartWorker notification fails, log but don't fail the whole flow
           this.messageService.add({
             severity: 'warn',
             summary: 'Advertencia',
@@ -345,6 +327,14 @@ export class AssistantAcceptDialogComponent implements OnChanges {
     this.visibleChange.emit(false);
   }
 
+  private normalizeIdentification(raw: string): { prefixed: string; numeric: string } {
+    const trimmed = raw.trim();
+    if (/^[A-Za-z]/.test(trimmed)) {
+      return { prefixed: trimmed, numeric: trimmed.substring(1) };
+    }
+    return { prefixed: 'V' + trimmed, numeric: trimmed };
+  }
+
   private parseSummary(summary: string): ParsedItem[] {
     if (!summary) return [];
 
@@ -352,7 +342,7 @@ export class AssistantAcceptDialogComponent implements OnChanges {
     const lines = summary.split('\n').filter((l) => l.trim().length > 0);
 
     for (const line of lines) {
-      const match = line.match(/(\d+(?:\.\d+)?)\s*[xX×]\s*(.+?)\s*\(\$\s*([\d.]+)\s*c\/u\s*\)\s*=\s*\$([\d.]+)/);
+      const match = line.match(/(\d+(?:\.\d+)?)\s+unidades?\s*[xX×]\s*(.+?)\s*\(\$\s*([\d.]+)\s*c\/u\s*\)\s*=\s*\$([\d.]+)/);
       if (match) {
         items.push({
           quantity: parseFloat(match[1]),

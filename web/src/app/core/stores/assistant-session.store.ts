@@ -1,10 +1,12 @@
-import { Injectable, signal } from '@angular/core';
+import { computed, Injectable, signal } from '@angular/core';
+import { AssistantSession } from '../models/assistant-session.model';
 
 @Injectable({ providedIn: 'root' })
 export class AssistantSessionStore {
-  readonly selectedSessionId = signal<string | null>(null);
+  readonly selectedSession = signal<AssistantSession | null>(null);
+  readonly selectedSessionBranchId = computed(() => this.selectedSession()?.branchId ?? null);
 
-  setSession(id: string | null): void {
-    this.selectedSessionId.set(id);
+  setSession(session: AssistantSession | null): void {
+    this.selectedSession.set(session);
   }
 }

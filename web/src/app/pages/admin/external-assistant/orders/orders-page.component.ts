@@ -25,7 +25,7 @@ import { AssistantAcceptDialogComponent } from './assistant-accept-dialog.compon
   providers: [MessageService, ConfirmationService],
   template: `
     <section class="orders-page">
-      @if (!sessionStore.selectedSessionId()) {
+      @if (!sessionStore.selectedSession()) {
         <div class="no-session-warning">
           <p>Selecciona una cuenta de servicio para ver las ordenes.</p>
         </div>
@@ -104,7 +104,7 @@ export class AssistantOrdersPageComponent {
   protected readonly selectedOrder = signal<AssistantOrder | null>(null);
 
   loadOrders(event: any): void {
-    const sessionId = this.sessionStore.selectedSessionId();
+    const sessionId = this.sessionStore.selectedSession()?.id;
     if (!sessionId) return;
 
     const offset = event.first ?? 0;
@@ -165,7 +165,7 @@ export class AssistantOrdersPageComponent {
   }
 
   private rejectOrder(order: AssistantOrder): void {
-    const sessionId = this.sessionStore.selectedSessionId();
+    const sessionId = this.sessionStore.selectedSession()?.id;
     if (!sessionId) return;
 
     this.loading.set(true);

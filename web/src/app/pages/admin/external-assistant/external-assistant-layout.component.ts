@@ -126,7 +126,7 @@ export class ExternalAssistantLayoutComponent implements OnInit {
         this.sessions.set(d);
         if (d.length > 0 && !this.selectedSessionId) {
           this.selectedSessionId = d[0].id;
-          this.sessionStore.setSession(d[0].id);
+          this.sessionStore.setSession(d[0]);
         }
       },
     });
@@ -134,6 +134,7 @@ export class ExternalAssistantLayoutComponent implements OnInit {
 
   protected onSessionChange(sessionId: string): void {
     this.selectedSessionId = sessionId;
-    this.sessionStore.setSession(sessionId);
+    const session = this.sessions().find((s) => s.id === sessionId) ?? null;
+    this.sessionStore.setSession(session);
   }
 }
