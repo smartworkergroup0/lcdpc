@@ -20,6 +20,7 @@ import { AuthStore } from '../../../../core/auth/auth.store';
 import { RbacApiService } from '../../../../core/services/rbac-api.service';
 import { ApiTokenApiService } from '../../../../core/services/api-token-api.service';
 import { ServiceAccountApiService } from '../../../../core/services/service-account-api.service';
+import { BranchApiService } from '../../../../core/services/branch-api.service';
 import {
   Resource, Role, Profile,
   CreateResourceRequest, CreateRoleRequest, CreateProfileRequest,
@@ -30,6 +31,7 @@ import {
   CreateServiceAccountRequest,
   UpdateServiceAccountRequest,
 } from '../../../../core/models/service-account.model';
+import { Branch } from '../../../../core/models/branch.model';
 import { forkJoin } from 'rxjs';
 
 @Component({
@@ -50,6 +52,7 @@ export class RbacSectionComponent implements OnInit {
   private readonly rbacApi = inject(RbacApiService);
   private readonly apiTokenApi = inject(ApiTokenApiService);
   private readonly svcAccountApi = inject(ServiceAccountApiService);
+  private readonly branchApi = inject(BranchApiService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
 
@@ -115,10 +118,15 @@ export class RbacSectionComponent implements OnInit {
   protected readonly serviceAccounts = signal<ServiceAccount[]>([]);
   protected readonly svcAccountDialogVisible = signal(false);
   protected readonly selectedSvcAccount = signal<ServiceAccount | null>(null);
-  protected svcAccountForm: CreateServiceAccountRequest = { name: '', username: '', password: '', profile_id: '' };
+  protected svcAccountForm: CreateServiceAccountRequest = { name: '', username: '', password: '', profile_id: '', branch_id: '' };
   protected svcAccountSubmitted = false;
   protected readonly createdPasswordVisible = signal(false);
   protected createdPasswordRaw = '';
+
+  // Branches
+  protected readonly branches = signal<Branch[]>([]);
+  protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
+  protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
 
   protected readonly saving = signal(false);
   protected readonly loading = signal(false);
@@ -130,6 +138,7 @@ export class RbacSectionComponent implements OnInit {
   private readonly loadedResources = signal(false);
   private readonly loadedApiTokens = signal(false);
   private readonly loadedSvcAccounts = signal(false);
+  private readonly loadedBranches = signal(false);
 
   // Search signals
   protected readonly searchProfiles = signal('');
@@ -202,7 +211,7 @@ export class RbacSectionComponent implements OnInit {
       case 'roles': this.loadRoles(); break;
       case 'resources': this.loadResources(); break;
       case 'api-tokens': this.loadApiTokens(); break;
-      case 'service-accounts': this.loadSvcAccounts(); break;
+      case 'service-accounts': this.loadSvcAccounts(); this.loadBranches(); break;
     }
   }
 
@@ -251,12 +260,16 @@ export class RbacSectionComponent implements OnInit {
   private loadSvcAccounts(): void {
     if (this.loadedSvcAccounts()) return;
     this.loading.set(true);
-    forkJoin({
-      serviceAccounts: this.svcAccountApi.list(),
-      profiles: this.rbacApi.listProfiles(),
-    }).subscribe({
-      next: (d) => { this.serviceAccounts.set(d.serviceAccounts); this.profiles.set(d.profiles); this.loadedSvcAccounts.set(true); this.loading.set(false); },
+    this.svcAccountApi.list().subscribe({
+      next: (d) => { this.serviceAccounts.set(d); this.loadedSvcAccounts.set(true); this.loading.set(false); },
       error: () => this.loading.set(false),
+    });
+  }
+
+  private loadBranches(): void {
+    if (this.loadedBranches()) return;
+    this.branchApi.listAdmin().subscribe({
+      next: (d) => { this.branches.set(d); this.loadedBranches.set(true); },
     });
   }
 
@@ -282,6 +295,10 @@ export class RbacSectionComponent implements OnInit {
 
   protected readonly profileOptions = computed(() =>
     this.profiles().map((p) => ({ label: `${p.name} (${p.code})`, value: p.id }))
+  );
+
+  protected readonly branchOptions = computed(() =>
+    this.branches().map((b) => ({ label: `${b.code} - ${b.storeName}`, value: b.id }))
   );
 
   // ── Resources ──
@@ -558,14 +575,17 @@ export class RbacSectionComponent implements OnInit {
 
   openSvcAccountCreate(): void {
     this.selectedSvcAccount.set(null);
-    this.svcAccountForm = { name: '', username: '', password: '', profile_id: '' };
+    this.svcAccountForm = { name: '', username: '', password: '', profile_id: '', branch_id: '' };
+    if (!this.canViewAllBranches() && this.userBranchId()) {
+      this.svcAccountForm.branch_id = this.userBranchId()!;
+    }
     this.svcAccountSubmitted = false;
     this.svcAccountDialogVisible.set(true);
   }
 
   openSvcAccountEdit(sa: ServiceAccount): void {
     this.selectedSvcAccount.set(sa);
-    this.svcAccountForm = { name: sa.name, username: sa.username, password: '', profile_id: sa.profileId, token_expiry_hours: sa.tokenExpiryHours };
+    this.svcAccountForm = { name: sa.name, username: sa.username, password: '', profile_id: sa.profileId, branch_id: sa.branchId, token_expiry_hours: sa.tokenExpiryHours };
     this.svcAccountSubmitted = false;
     this.svcAccountDialogVisible.set(true);
   }
@@ -577,6 +597,7 @@ export class RbacSectionComponent implements OnInit {
     if (!this.svcAccountForm.name) return;
     if (!isEdit && (!this.svcAccountForm.username || !this.svcAccountForm.password)) return;
     if (!this.svcAccountForm.profile_id) return;
+    if (!this.svcAccountForm.branch_id) return;
 
     this.saving.set(true);
 
@@ -585,6 +606,7 @@ export class RbacSectionComponent implements OnInit {
         name: this.svcAccountForm.name,
         is_active: this.selectedSvcAccount()!.isActive,
         profile_id: this.svcAccountForm.profile_id,
+        branch_id: this.svcAccountForm.branch_id,
         token_expiry_hours: this.svcAccountForm.token_expiry_hours,
       };
       this.svcAccountApi.update(this.selectedSvcAccount()!.id, req).subscribe({
@@ -610,6 +632,7 @@ export class RbacSectionComponent implements OnInit {
       name: sa.name,
       is_active: !sa.isActive,
       profile_id: sa.profileId,
+      branch_id: sa.branchId,
       token_expiry_hours: sa.tokenExpiryHours,
     }).subscribe({
       next: () => {

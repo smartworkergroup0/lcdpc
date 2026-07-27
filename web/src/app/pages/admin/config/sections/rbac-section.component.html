@@ -234,6 +234,7 @@
             <th>Nombre</th>
             <th>Username</th>
             <th>Perfil</th>
+            <th>Sucursal</th>
             <th>Expiracion Token</th>
             <th>Estado</th>
             <th>Creado</th>
@@ -245,6 +246,7 @@
             <td>{{ sa.name }}</td>
             <td><code>{{ sa.username }}</code></td>
             <td>{{ sa.profileName }}</td>
+            <td>{{ sa.branchName }}</td>
             <td>{{ sa.tokenExpiryHours }}h</td>
             <td>
               @if (sa.isActive) {
@@ -274,7 +276,7 @@
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="7" class="empty-state">No hay cuentas de servicio registradas</td></tr>
+          <tr><td colspan="8" class="empty-state">No hay cuentas de servicio registradas</td></tr>
         </ng-template>
       </p-table>
     </p-tabpanel>
@@ -488,6 +490,15 @@
                 [class.ng-invalid]="svcAccountSubmitted && !svcAccountForm.profile_id"
                 [style]="{'width':'100%'}" appendTo="body" />
     </div>
+    @if (canViewAllBranches()) {
+      <div class="field">
+        <label class="field-label">Sucursal *</label>
+        <p-select [options]="branchOptions()" [(ngModel)]="svcAccountForm.branch_id"
+                  optionLabel="label" optionValue="value" placeholder="Seleccionar sucursal"
+                  [class.ng-invalid]="svcAccountSubmitted && !svcAccountForm.branch_id"
+                  [style]="{'width':'100%'}" appendTo="body" />
+      </div>
+    }
     <div class="field">
       <label class="field-label">Expiracion Token (horas)</label>
       <p-inputNumber [(ngModel)]="svcAccountForm.token_expiry_hours"

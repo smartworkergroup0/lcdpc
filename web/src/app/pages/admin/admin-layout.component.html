@@ -185,6 +185,12 @@
               <span class="pi pi-shopping-cart"></span>
               <span class="nav-label">Ordenes</span>
             </a>
+            @if (canViewAssistantSessions()) {
+              <a routerLink="/admin/external-assistant/sessions" routerLinkActive="active" (click)="collapseAll()">
+                <span class="pi pi-key"></span>
+                <span class="nav-label">Sesiones</span>
+              </a>
+            }
           </div>
         }
       }

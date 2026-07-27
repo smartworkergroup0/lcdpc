@@ -20,6 +20,7 @@ import { WorkflowEditorPageComponent } from './pages/admin/workflows/workflow-ed
 import { ExternalAssistantLayoutComponent } from './pages/admin/external-assistant/external-assistant-layout.component';
 import { AssistantLeadsPageComponent } from './pages/admin/external-assistant/leads/leads-page.component';
 import { AssistantOrdersPageComponent } from './pages/admin/external-assistant/orders/orders-page.component';
+import { AssistantSessionsPageComponent } from './pages/admin/external-assistant/sessions/sessions-page.component';
 import { SalesPageComponent } from './pages/admin/sales/sales-page.component';
 import { adminGuard } from './core/auth/admin.guard';
 import { permissionGuard } from './core/auth/permission.guard';
@@ -58,6 +59,7 @@ export const routes: Routes = [
 				children: [
 					{ path: 'leads', component: AssistantLeadsPageComponent },
 					{ path: 'orders', component: AssistantOrdersPageComponent },
+					{ path: 'sessions', component: AssistantSessionsPageComponent, canActivate: [permissionGuard('assistant_session:view')] },
 					{ path: '', redirectTo: 'leads', pathMatch: 'full' },
 				],
 			},

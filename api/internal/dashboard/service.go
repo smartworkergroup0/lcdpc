@@ -54,13 +54,14 @@ func (s *Service) SalesTrend(ctx context.Context, days int, branchID string) ([]
 
 	query := `
 		SELECT
-			TO_CHAR(created_at_utc, 'YYYY-MM-DD') AS day,
-			COUNT(*)::int,
-			COALESCE(SUM(price_total), 0)
-		FROM orders
-		WHERE deleted_at IS NULL
-		  AND status = 'COMPLETED'
-		  AND created_at_utc >= $1
+			TO_CHAR(h.created_at_utc, 'YYYY-MM-DD') AS day,
+			COUNT(DISTINCT o.id)::int,
+			COALESCE(SUM(o.price_total), 0)
+		FROM orders o
+		JOIN order_status_history h ON o.id = h.order_id
+		WHERE o.deleted_at IS NULL
+		  AND h.to_status = 'COMPLETED'
+		  AND h.created_at_utc >= $1
 	`
 	args := []any{since}
 	if branchID != "" {
@@ -286,9 +287,10 @@ func (s *Service) TodayActivity(ctx context.Context, branchID string) (*TodayAct
 		WHERE deleted_at IS NULL AND created_at_utc >= $1
 	`
 	completedQuery := `
-		SELECT COUNT(*)::int, COALESCE(SUM(price_total), 0)
-		FROM orders
-		WHERE deleted_at IS NULL AND status = 'COMPLETED' AND created_at_utc >= $1
+		SELECT COUNT(DISTINCT o.id)::int, COALESCE(SUM(o.price_total), 0)
+		FROM orders o
+		JOIN order_status_history h ON o.id = h.order_id
+		WHERE o.deleted_at IS NULL AND h.to_status = 'COMPLETED' AND h.created_at_utc >= $1
 	`
 	pendingQuery := `
 		SELECT COUNT(*)::int

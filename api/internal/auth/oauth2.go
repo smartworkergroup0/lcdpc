@@ -62,14 +62,15 @@ func (s *OAuth2Service) SALogin(ctx context.Context, username, password string) 
 		Username         string
 		PasswordHash     string
 		ProfileID        uuid.UUID
+		BranchID         uuid.UUID
 		TokenExpiryHours int
 		IsActive         bool
 	}
 
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, username, password_hash, profile_id, token_expiry_hours, is_active
+		SELECT id, username, password_hash, profile_id, branch_id, token_expiry_hours, is_active
 		FROM service_accounts WHERE username = $1 AND deleted_at_utc IS NULL
-	`, username).Scan(&sa.ID, &sa.Username, &sa.PasswordHash, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive)
+	`, username).Scan(&sa.ID, &sa.Username, &sa.PasswordHash, &sa.ProfileID, &sa.BranchID, &sa.TokenExpiryHours, &sa.IsActive)
 	if err != nil {
 		return nil, &TokenErrorResponse{Error: "invalid_client", ErrorDescription: "Invalid credentials."}
 	}
@@ -90,6 +91,7 @@ func (s *OAuth2Service) SALogin(ctx context.Context, username, password string) 
 		Aud:       s.tokenCfg.Audience,
 		Sub:       sa.ID.String(),
 		ProfileID: sa.ProfileID.String(),
+		BranchID:  sa.BranchID.String(),
 		ClientID:  username,
 		Email:     sa.Username,
 		Iat:       now.Unix(),
@@ -147,13 +149,14 @@ func (s *OAuth2Service) SARefresh(ctx context.Context, accessToken string) (*Tok
 		ID               uuid.UUID
 		Username         string
 		ProfileID        uuid.UUID
+		BranchID         uuid.UUID
 		TokenExpiryHours int
 		IsActive         bool
 	}
 	err = s.pool.QueryRow(ctx, `
-		SELECT id, username, profile_id, token_expiry_hours, is_active
+		SELECT id, username, profile_id, branch_id, token_expiry_hours, is_active
 		FROM service_accounts WHERE id = $1 AND deleted_at_utc IS NULL
-	`, saID).Scan(&sa.ID, &sa.Username, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive)
+	`, saID).Scan(&sa.ID, &sa.Username, &sa.ProfileID, &sa.BranchID, &sa.TokenExpiryHours, &sa.IsActive)
 	if err != nil {
 		return nil, &TokenErrorResponse{Error: "invalid_grant", ErrorDescription: "Service account not found."}
 	}
@@ -169,6 +172,7 @@ func (s *OAuth2Service) SARefresh(ctx context.Context, accessToken string) (*Tok
 		Aud:       s.tokenCfg.Audience,
 		Sub:       sa.ID.String(),
 		ProfileID: sa.ProfileID.String(),
+		BranchID:  sa.BranchID.String(),
 		ClientID:  sa.Username,
 		Email:     sa.Username,
 		Iat:       now.Unix(),

@@ -1,10 +1,12 @@
 package assistant
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/lcdpc/lcdpc-go/internal/http/response"
 )
 
@@ -16,8 +18,23 @@ func NewHandler(client *Client) *Handler {
 	return &Handler{client: client}
 }
 
+func extractAccountID(r *http.Request) (uuid.UUID, error) {
+	idStr := r.Header.Get("X-Assistant-Account-ID")
+	if idStr == "" {
+		return uuid.Nil, fmt.Errorf("X-Assistant-Account-ID header is required")
+	}
+	return uuid.Parse(idStr)
+}
+
 func (h *Handler) ListLeads(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	accountID, err := extractAccountID(r)
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"X-Assistant-Account-ID": err.Error()})
+		return
+	}
+
 	f := ListFilter{}
 
 	if s := r.URL.Query().Get("search"); s != "" {
@@ -49,7 +66,7 @@ func (h *Handler) ListLeads(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items, total, err := h.client.ListLeads(ctx, f)
+	items, total, err := h.client.ListLeads(ctx, accountID, f)
 	if err != nil {
 		response.Error(w, http.StatusBadGateway, "Failed to fetch leads from assistant API")
 		return
@@ -60,6 +77,13 @@ func (h *Handler) ListLeads(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	accountID, err := extractAccountID(r)
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"X-Assistant-Account-ID": err.Error()})
+		return
+	}
+
 	f := ListFilter{}
 
 	if s := r.URL.Query().Get("search"); s != "" {
@@ -91,7 +115,7 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items, total, err := h.client.ListOrders(ctx, f)
+	items, total, err := h.client.ListOrders(ctx, accountID, f)
 	if err != nil {
 		response.Error(w, http.StatusBadGateway, "Failed to fetch orders from assistant API")
 		return
@@ -102,40 +126,73 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AcceptOrder(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	accountID, err := extractAccountID(r)
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"X-Assistant-Account-ID": err.Error()})
+		return
+	}
+
 	orderID := chi.URLParam(r, "orderID")
 	if orderID == "" {
 		response.Error(w, http.StatusBadRequest, "orderID is required")
 		return
 	}
 
-	// Step 1: Change status to PROCESADO — if fails, rollback (return error)
-	if err := h.client.ChangeOrderStatus(ctx, orderID, "PROCESADO"); err != nil {
+	if err := h.client.ChangeOrderStatus(ctx, accountID, orderID, "PROCESADO"); err != nil {
 		response.Error(w, http.StatusBadGateway, "Failed to change order status to PROCESADO")
 		return
 	}
 
-	// Step 2: Mark as processed — if fails, continue anyway
-	_ = h.client.MarkOrderProcessed(ctx, orderID)
+	_ = h.client.MarkOrderProcessed(ctx, accountID, orderID)
 
 	response.Success(w, map[string]string{"status": "accepted"})
 }
 
-func (h *Handler) RejectOrder(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) MarkProcessedOrder(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	accountID, err := extractAccountID(r)
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"X-Assistant-Account-ID": err.Error()})
+		return
+	}
+
 	orderID := chi.URLParam(r, "orderID")
 	if orderID == "" {
 		response.Error(w, http.StatusBadRequest, "orderID is required")
 		return
 	}
 
-	// Step 1: Change status to CANCELADO — imperative, if fails return error
-	if err := h.client.ChangeOrderStatus(ctx, orderID, "CANCELADO"); err != nil {
+	if err := h.client.MarkOrderProcessed(ctx, accountID, orderID); err != nil {
+		response.Error(w, http.StatusBadGateway, "Failed to mark order as processed")
+		return
+	}
+
+	response.Success(w, map[string]string{"status": "processed"})
+}
+
+func (h *Handler) RejectOrder(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	accountID, err := extractAccountID(r)
+	if err != nil {
+		response.Fail(w, http.StatusBadRequest, map[string]string{"X-Assistant-Account-ID": err.Error()})
+		return
+	}
+
+	orderID := chi.URLParam(r, "orderID")
+	if orderID == "" {
+		response.Error(w, http.StatusBadRequest, "orderID is required")
+		return
+	}
+
+	if err := h.client.ChangeOrderStatus(ctx, accountID, orderID, "CANCELADO"); err != nil {
 		response.Error(w, http.StatusBadGateway, "Failed to change order status to CANCELADO")
 		return
 	}
 
-	// Step 2: Mark as processed — if fails, continue anyway
-	_ = h.client.MarkOrderProcessed(ctx, orderID)
+	_ = h.client.MarkOrderProcessed(ctx, accountID, orderID)
 
 	response.Success(w, map[string]string{"status": "rejected"})
 }

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/lcdpc/lcdpc-go/internal/http/middleware"
 	"github.com/lcdpc/lcdpc-go/internal/pricing"
 	"github.com/lcdpc/lcdpc-go/internal/rbac"
@@ -28,6 +29,12 @@ func (h *SAPricingHandler) ListProducts(w http.ResponseWriter, r *http.Request) 
 
 	f := pricing.ParseProductFilter(r)
 
+	if branchIDStr := middleware.GetBranchID(r.Context()); branchIDStr != "" {
+		if id, err := uuid.Parse(branchIDStr); err == nil {
+			f.BranchID = &id
+		}
+	}
+
 	result, err := h.pricingSvc.ListCatalogProducts(r.Context(), f, h.catalogDomain)
 	if err != nil {
 		slog.Error("list catalog products failed", "error", err, "filter", f)
@@ -46,6 +53,12 @@ func (h *SAPricingHandler) ListBundles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := pricing.ParseBundleFilter(r)
+
+	if branchIDStr := middleware.GetBranchID(r.Context()); branchIDStr != "" {
+		if id, err := uuid.Parse(branchIDStr); err == nil {
+			f.BranchID = &id
+		}
+	}
 
 	result, err := h.pricingSvc.ListCatalogBundles(r.Context(), f, h.catalogDomain)
 	if err != nil {

@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Inject, Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { API_BASE_URL } from '../../pages/auth-page/auth-api-go.service';
@@ -63,6 +63,10 @@ export class ExternalAssistantApiService {
     this.baseUrl = apiBaseUrl.replace(/\/$/, '');
   }
 
+  private sessionHeader(sessionId: string): { headers: HttpHeaders } {
+    return { headers: new HttpHeaders({ 'X-Assistant-Account-ID': sessionId }) };
+  }
+
   private mapLead(raw: LeadGoData): AssistantLead {
     return {
       id: raw.id,
@@ -97,7 +101,7 @@ export class ExternalAssistantApiService {
     };
   }
 
-  listLeads(filter?: AssistantListFilter): Observable<PaginatedResponse<AssistantLead>> {
+  listLeads(sessionId: string, filter?: AssistantListFilter): Observable<PaginatedResponse<AssistantLead>> {
     const params: Record<string, string> = {};
     if (filter?.limit != null) params['limit'] = String(filter.limit);
     if (filter?.offset != null) params['offset'] = String(filter.offset);
@@ -108,7 +112,7 @@ export class ExternalAssistantApiService {
     return this.http
       .get<JsendEnvelope<PaginatedGoData<LeadGoData>>>(
         `${this.baseUrl}/api/v1/external/assistant/leads`,
-        { params },
+        { ...this.sessionHeader(sessionId), params },
       )
       .pipe(
         map((res) => ({
@@ -120,7 +124,7 @@ export class ExternalAssistantApiService {
       );
   }
 
-  listOrders(filter?: AssistantListFilter): Observable<PaginatedResponse<AssistantOrder>> {
+  listOrders(sessionId: string, filter?: AssistantListFilter): Observable<PaginatedResponse<AssistantOrder>> {
     const params: Record<string, string> = {};
     if (filter?.limit != null) params['limit'] = String(filter.limit);
     if (filter?.offset != null) params['offset'] = String(filter.offset);
@@ -131,7 +135,7 @@ export class ExternalAssistantApiService {
     return this.http
       .get<JsendEnvelope<PaginatedGoData<OrderGoData>>>(
         `${this.baseUrl}/api/v1/external/assistant/orders`,
-        { params },
+        { ...this.sessionHeader(sessionId), params },
       )
       .pipe(
         map((res) => ({
@@ -143,12 +147,12 @@ export class ExternalAssistantApiService {
       );
   }
 
-  getLeadByIdentification(identification: string): Observable<AssistantLead | null> {
+  getLeadByIdentification(sessionId: string, identification: string): Observable<AssistantLead | null> {
     const params: Record<string, string> = { user_identification: identification };
     return this.http
       .get<JsendEnvelope<PaginatedGoData<LeadGoData>>>(
         `${this.baseUrl}/api/v1/external/assistant/leads`,
-        { params },
+        { ...this.sessionHeader(sessionId), params },
       )
       .pipe(
         map((res) => {
@@ -158,20 +162,32 @@ export class ExternalAssistantApiService {
       );
   }
 
-  acceptOrder(orderId: string): Observable<void> {
+  acceptOrder(sessionId: string, orderId: string): Observable<void> {
     return this.http
       .post<JsendEnvelope<{ status: string }>>(
         `${this.baseUrl}/api/v1/external/assistant/orders/${orderId}/accept`,
         {},
+        this.sessionHeader(sessionId),
       )
       .pipe(map(() => undefined));
   }
 
-  rejectOrder(orderId: string): Observable<void> {
+  rejectOrder(sessionId: string, orderId: string): Observable<void> {
     return this.http
       .post<JsendEnvelope<{ status: string }>>(
         `${this.baseUrl}/api/v1/external/assistant/orders/${orderId}/reject`,
         {},
+        this.sessionHeader(sessionId),
+      )
+      .pipe(map(() => undefined));
+  }
+
+  markOrderProcessed(sessionId: string, orderId: string): Observable<void> {
+    return this.http
+      .post<JsendEnvelope<{ status: string }>>(
+        `${this.baseUrl}/api/v1/external/assistant/orders/${orderId}/mark-processed`,
+        {},
+        this.sessionHeader(sessionId),
       )
       .pipe(map(() => undefined));
   }

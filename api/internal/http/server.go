@@ -18,6 +18,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/internal/category"
 	"github.com/lcdpc/lcdpc-go/internal/dashboard"
 	assistant "github.com/lcdpc/lcdpc-go/internal/external/assistant"
+	assistantSession "github.com/lcdpc/lcdpc-go/internal/external/assistant/session"
 	"github.com/lcdpc/lcdpc-go/internal/http/handler"
 	"github.com/lcdpc/lcdpc-go/internal/http/middleware"
 	"github.com/lcdpc/lcdpc-go/internal/order"
@@ -56,6 +57,7 @@ func NewServer(
 	svcAccountSvc *serviceaccount.Service,
 	workflowSvc *workflow.Service,
 	assistantClient *assistant.Client,
+	assistantSessionSvc *assistantSession.Service,
 	frontendFS fs.FS,
 ) *chi.Mux {
 	r := chi.NewRouter()
@@ -98,6 +100,7 @@ func NewServer(
 	saBranchH := handler.NewSABranchHandler(branchSvc, rbacStore)
 	workflowH := workflow.NewHandler(workflowSvc)
 	assistantH := assistant.NewHandler(assistantClient)
+	assistantSessionH := assistantSession.NewHandler(assistantSessionSvc, rbacStore)
 
 	// Public
 	if frontendFS == nil {
@@ -766,12 +769,36 @@ func NewServer(
 	r.Route("/api/v1/external/assistant", func(r chi.Router) {
 		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
 		r.Use(middleware.RequireAuth())
-		r.Use(middleware.RequirePermission(rbacStore, "assistant:view"))
 
-		r.Get("/leads", assistantH.ListLeads)
-		r.Get("/orders", assistantH.ListOrders)
-		r.Post("/orders/{orderID}/accept", assistantH.AcceptOrder)
-		r.Post("/orders/{orderID}/reject", assistantH.RejectOrder)
+		// Session CRUD (own permissions)
+		r.Route("/sessions", func(r chi.Router) {
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(rbacStore, "assistant_session:view"))
+				r.Get("/", assistantSessionH.List)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(rbacStore, "assistant_session:create"))
+				r.Post("/", assistantSessionH.Create)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(rbacStore, "assistant_session:update"))
+				r.Put("/{id}", assistantSessionH.Update)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(rbacStore, "assistant_session:delete"))
+				r.Delete("/{id}", assistantSessionH.Delete)
+			})
+		})
+
+		// Proxy endpoints (require assistant:view + X-Assistant-Account-ID header)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequirePermission(rbacStore, "assistant:view"))
+			r.Get("/leads", assistantH.ListLeads)
+			r.Get("/orders", assistantH.ListOrders)
+			r.Post("/orders/{orderID}/accept", assistantH.AcceptOrder)
+			r.Post("/orders/{orderID}/reject", assistantH.RejectOrder)
+			r.Post("/orders/{orderID}/mark-processed", assistantH.MarkProcessedOrder)
+		})
 	})
 
 	// SPA frontend (embedded)

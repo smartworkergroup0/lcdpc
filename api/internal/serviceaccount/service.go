@@ -22,9 +22,11 @@ func NewService(pool *pgxpool.Pool) *Service {
 func (s *Service) List(ctx context.Context) ([]ServiceAccountResponse, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT sa.id, sa.name, sa.username, sa.profile_id, p.name AS profile_name,
+		       sa.branch_id, b.store_name AS branch_name,
 		       sa.token_expiry_hours, sa.is_active, sa.created_at_utc, sa.updated_at_utc
 		FROM service_accounts sa
 		JOIN profiles p ON p.id = sa.profile_id
+		JOIN branches b ON b.id = sa.branch_id
 		WHERE sa.deleted_at_utc IS NULL
 		ORDER BY sa.created_at_utc DESC
 	`)
@@ -37,6 +39,7 @@ func (s *Service) List(ctx context.Context) ([]ServiceAccountResponse, error) {
 	for rows.Next() {
 		var sa ServiceAccountResponse
 		if err := rows.Scan(&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.ProfileName,
+			&sa.BranchID, &sa.BranchName,
 			&sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC); err != nil {
 			return nil, fmt.Errorf("scan service account: %w", err)
 		}
@@ -49,11 +52,14 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*ServiceAccountRes
 	var sa ServiceAccountResponse
 	err := s.pool.QueryRow(ctx, `
 		SELECT sa.id, sa.name, sa.username, sa.profile_id, p.name AS profile_name,
+		       sa.branch_id, b.store_name AS branch_name,
 		       sa.token_expiry_hours, sa.is_active, sa.created_at_utc, sa.updated_at_utc
 		FROM service_accounts sa
 		JOIN profiles p ON p.id = sa.profile_id
+		JOIN branches b ON b.id = sa.branch_id
 		WHERE sa.id = $1 AND sa.deleted_at_utc IS NULL
 	`, id).Scan(&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.ProfileName,
+		&sa.BranchID, &sa.BranchName,
 		&sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("SERVICE_ACCOUNT_NOT_FOUND")
@@ -68,11 +74,14 @@ func (s *Service) GetByUsername(ctx context.Context, username string) (*ServiceA
 	var sa ServiceAccountResponse
 	err := s.pool.QueryRow(ctx, `
 		SELECT sa.id, sa.name, sa.username, sa.profile_id, p.name AS profile_name,
+		       sa.branch_id, b.store_name AS branch_name,
 		       sa.token_expiry_hours, sa.is_active, sa.created_at_utc, sa.updated_at_utc
 		FROM service_accounts sa
 		JOIN profiles p ON p.id = sa.profile_id
+		JOIN branches b ON b.id = sa.branch_id
 		WHERE sa.username = $1 AND sa.deleted_at_utc IS NULL
 	`, username).Scan(&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.ProfileName,
+		&sa.BranchID, &sa.BranchName,
 		&sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC)
 	if err == pgx.ErrNoRows {
 		return nil, nil
@@ -113,11 +122,11 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*CreateResult,
 	now := time.Now().UTC()
 	var sa ServiceAccountResponse
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO service_accounts (id, name, username, password_hash, profile_id, token_expiry_hours, is_active, created_at_utc, updated_at_utc)
-		VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7)
-		RETURNING id, name, username, profile_id, token_expiry_hours, is_active, created_at_utc, updated_at_utc
-	`, uuid.New(), req.Name, req.Username, passwordHash, req.ProfileID, tokenExpiry, now).Scan(
-		&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC,
+		INSERT INTO service_accounts (id, name, username, password_hash, profile_id, branch_id, token_expiry_hours, is_active, created_at_utc, updated_at_utc)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $8)
+		RETURNING id, name, username, profile_id, branch_id, token_expiry_hours, is_active, created_at_utc, updated_at_utc
+	`, uuid.New(), req.Name, req.Username, passwordHash, req.ProfileID, req.BranchID, tokenExpiry, now).Scan(
+		&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.BranchID, &sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create service account: %w", err)
@@ -126,6 +135,10 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*CreateResult,
 	var profileName string
 	s.pool.QueryRow(ctx, `SELECT name FROM profiles WHERE id = $1`, req.ProfileID).Scan(&profileName)
 	sa.ProfileName = profileName
+
+	var branchName string
+	s.pool.QueryRow(ctx, `SELECT store_name FROM branches WHERE id = $1`, req.BranchID).Scan(&branchName)
+	sa.BranchName = branchName
 
 	return &CreateResult{
 		ServiceAccountResponse: sa,
@@ -151,11 +164,11 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (
 	var sa ServiceAccountResponse
 	err := s.pool.QueryRow(ctx, `
 		UPDATE service_accounts
-		SET name = $2, is_active = $3, profile_id = $4, token_expiry_hours = $5, updated_at_utc = now()
+		SET name = $2, is_active = $3, profile_id = $4, branch_id = $5, token_expiry_hours = $6, updated_at_utc = now()
 		WHERE id = $1 AND deleted_at_utc IS NULL
-		RETURNING id, name, username, profile_id, token_expiry_hours, is_active, created_at_utc, updated_at_utc
-	`, id, req.Name, isActive, req.ProfileID, tokenExpiry).Scan(
-		&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC,
+		RETURNING id, name, username, profile_id, branch_id, token_expiry_hours, is_active, created_at_utc, updated_at_utc
+	`, id, req.Name, isActive, req.ProfileID, req.BranchID, tokenExpiry).Scan(
+		&sa.ID, &sa.Name, &sa.Username, &sa.ProfileID, &sa.BranchID, &sa.TokenExpiryHours, &sa.IsActive, &sa.CreatedAtUTC, &sa.UpdatedAtUTC,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("SERVICE_ACCOUNT_NOT_FOUND")
@@ -167,6 +180,10 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (
 	var profileName string
 	s.pool.QueryRow(ctx, `SELECT name FROM profiles WHERE id = $1`, req.ProfileID).Scan(&profileName)
 	sa.ProfileName = profileName
+
+	var branchName string
+	s.pool.QueryRow(ctx, `SELECT store_name FROM branches WHERE id = $1`, req.BranchID).Scan(&branchName)
+	sa.BranchName = branchName
 
 	return &sa, nil
 }

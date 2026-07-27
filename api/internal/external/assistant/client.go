@@ -9,88 +9,34 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
-	username   string
-	password   string
-	tokenTTL   time.Duration
-	token      string
-	expiresAt  time.Time
-	mu         sync.RWMutex
+	tokenMgr   *TokenManager
 }
 
-func NewClient(baseURL, username, password string, tokenTTLMin int) *Client {
+func NewClient(baseURL string, tokenMgr *TokenManager) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		baseURL:    strings.TrimRight(baseURL, "/"),
-		username:   username,
-		password:   password,
-		tokenTTL:   time.Duration(tokenTTLMin) * time.Minute,
+		tokenMgr:   tokenMgr,
 	}
 }
 
-func (c *Client) ensureToken(ctx context.Context) error {
-	c.mu.RLock()
-	if c.token != "" && time.Now().Before(c.expiresAt) {
-		c.mu.RUnlock()
-		return nil
-	}
-	c.mu.RUnlock()
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.token != "" && time.Now().Before(c.expiresAt) {
-		return nil
-	}
-
-	body, _ := json.Marshal(map[string]string{
-		"username": c.username,
-		"password": c.password,
-	})
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/external/v1/auth/token/", strings.NewReader(string(body)))
+func (c *Client) doRequest(ctx context.Context, accountID uuid.UUID, method, path string, params url.Values) ([]byte, int, error) {
+	token, err := c.tokenMgr.GetToken(ctx, accountID)
 	if err != nil {
-		return fmt.Errorf("create auth request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("execute auth request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("auth failed (%d): %s", resp.StatusCode, string(respBody))
-	}
-
-	var authResp authResponse
-	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
-		return fmt.Errorf("decode auth response: %w", err)
-	}
-
-	c.token = authResp.Access
-	c.expiresAt = time.Now().Add(c.tokenTTL)
-	return nil
-}
-
-func (c *Client) doRequest(ctx context.Context, method, path string, params url.Values) ([]byte, int, error) {
-	if err := c.ensureToken(ctx); err != nil {
 		return nil, 0, err
 	}
-
-	return c.doRequestWithToken(ctx, method, path, params, c.token)
+	return c.doRequestWithToken(ctx, accountID, method, path, params, token)
 }
 
-func (c *Client) doRequestWithToken(ctx context.Context, method, path string, params url.Values, token string) ([]byte, int, error) {
+func (c *Client) doRequestWithToken(ctx context.Context, accountID uuid.UUID, method, path string, params url.Values, token string) ([]byte, int, error) {
 	reqURL := c.baseURL + path
 	if params != nil && len(params) > 0 {
 		reqURL += "?" + params.Encode()
@@ -114,28 +60,26 @@ func (c *Client) doRequestWithToken(ctx context.Context, method, path string, pa
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		c.mu.Lock()
-		c.token = ""
-		c.expiresAt = time.Time{}
-		c.mu.Unlock()
-
-		if err := c.ensureToken(ctx); err != nil {
+		c.tokenMgr.InvalidateToken(accountID)
+		newToken, err := c.tokenMgr.GetToken(ctx, accountID)
+		if err != nil {
 			return nil, 0, err
 		}
-		return c.doRequestWithToken(ctx, method, path, params, c.token)
+		return c.doRequestWithToken(ctx, accountID, method, path, params, newToken)
 	}
 
 	return respBody, resp.StatusCode, nil
 }
 
-func (c *Client) doPost(ctx context.Context, path string, body interface{}) ([]byte, int, error) {
-	if err := c.ensureToken(ctx); err != nil {
+func (c *Client) doPost(ctx context.Context, accountID uuid.UUID, path string, body interface{}) ([]byte, int, error) {
+	token, err := c.tokenMgr.GetToken(ctx, accountID)
+	if err != nil {
 		return nil, 0, err
 	}
-	return c.doPostWithToken(ctx, path, body, c.token)
+	return c.doPostWithToken(ctx, accountID, path, body, token)
 }
 
-func (c *Client) doPostWithToken(ctx context.Context, path string, body interface{}, token string) ([]byte, int, error) {
+func (c *Client) doPostWithToken(ctx context.Context, accountID uuid.UUID, path string, body interface{}, token string) ([]byte, int, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
@@ -167,25 +111,22 @@ func (c *Client) doPostWithToken(ctx context.Context, path string, body interfac
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		c.mu.Lock()
-		c.token = ""
-		c.expiresAt = time.Time{}
-		c.mu.Unlock()
-
-		if err := c.ensureToken(ctx); err != nil {
+		c.tokenMgr.InvalidateToken(accountID)
+		newToken, err := c.tokenMgr.GetToken(ctx, accountID)
+		if err != nil {
 			return nil, 0, err
 		}
-		return c.doPostWithToken(ctx, path, body, c.token)
+		return c.doPostWithToken(ctx, accountID, path, body, newToken)
 	}
 
 	return respBody, resp.StatusCode, nil
 }
 
-func (c *Client) GetLeadByIdentification(ctx context.Context, identification string) (*Lead, error) {
+func (c *Client) GetLeadByIdentification(ctx context.Context, accountID uuid.UUID, identification string) (*Lead, error) {
 	params := url.Values{}
 	params.Set("user_identification", identification)
 
-	body, status, err := c.doRequest(ctx, http.MethodGet, "/external/v1/leads/", params)
+	body, status, err := c.doRequest(ctx, accountID, http.MethodGet, "/external/v1/leads/", params)
 	if err != nil {
 		return nil, err
 	}
@@ -203,11 +144,11 @@ func (c *Client) GetLeadByIdentification(ctx context.Context, identification str
 	return &result.Results[0], nil
 }
 
-func (c *Client) ChangeOrderStatus(ctx context.Context, orderID string, status string) error {
+func (c *Client) ChangeOrderStatus(ctx context.Context, accountID uuid.UUID, orderID string, status string) error {
 	path := fmt.Sprintf("/external/v1/orders/%s/change_status/", orderID)
 	reqBody := map[string]string{"status": status}
 
-	respBody, statusCode, err := c.doPost(ctx, path, reqBody)
+	respBody, statusCode, err := c.doPost(ctx, accountID, path, reqBody)
 	if err != nil {
 		return err
 	}
@@ -217,10 +158,10 @@ func (c *Client) ChangeOrderStatus(ctx context.Context, orderID string, status s
 	return nil
 }
 
-func (c *Client) MarkOrderProcessed(ctx context.Context, orderID string) error {
+func (c *Client) MarkOrderProcessed(ctx context.Context, accountID uuid.UUID, orderID string) error {
 	path := fmt.Sprintf("/external/v1/orders/%s/mark_processed/", orderID)
 
-	respBody, statusCode, err := c.doPost(ctx, path, nil)
+	respBody, statusCode, err := c.doPost(ctx, accountID, path, nil)
 	if err != nil {
 		return err
 	}
@@ -230,7 +171,7 @@ func (c *Client) MarkOrderProcessed(ctx context.Context, orderID string) error {
 	return nil
 }
 
-func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, error) {
+func (c *Client) ListLeads(ctx context.Context, accountID uuid.UUID, f ListFilter) ([]Lead, int, error) {
 	params := url.Values{}
 	if f.Search != nil && *f.Search != "" {
 		params.Set("search", *f.Search)
@@ -251,7 +192,7 @@ func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, erro
 	}
 	params.Set("page", strconv.Itoa(page))
 
-	body, status, err := c.doRequest(ctx, http.MethodGet, "/external/v1/leads/", params)
+	body, status, err := c.doRequest(ctx, accountID, http.MethodGet, "/external/v1/leads/", params)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -272,7 +213,7 @@ func (c *Client) ListLeads(ctx context.Context, f ListFilter) ([]Lead, int, erro
 	return result.Results, result.Count, nil
 }
 
-func (c *Client) ListOrders(ctx context.Context, f ListFilter) ([]Order, int, error) {
+func (c *Client) ListOrders(ctx context.Context, accountID uuid.UUID, f ListFilter) ([]Order, int, error) {
 	params := url.Values{}
 	if f.Search != nil && *f.Search != "" {
 		params.Set("search", *f.Search)
@@ -290,7 +231,7 @@ func (c *Client) ListOrders(ctx context.Context, f ListFilter) ([]Order, int, er
 	}
 	params.Set("page", strconv.Itoa(page))
 
-	body, status, err := c.doRequest(ctx, http.MethodGet, "/external/v1/orders/", params)
+	body, status, err := c.doRequest(ctx, accountID, http.MethodGet, "/external/v1/orders/", params)
 	if err != nil {
 		return nil, 0, err
 	}

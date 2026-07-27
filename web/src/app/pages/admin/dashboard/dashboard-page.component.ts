@@ -65,7 +65,7 @@ export class DashboardPageComponent implements OnInit {
       labels,
       datasets: [
         {
-          label: 'Revenue',
+          label: 'Ganancias',
           data: data.map((d) => d.revenue),
           fill: true,
           borderColor: '#f7931a',
@@ -138,7 +138,7 @@ export class DashboardPageComponent implements OnInit {
         callbacks: {
           label: (ctx: any) => {
             const val = ctx.parsed.y;
-            if (ctx.dataset.label === 'Revenue') return ` $${val.toFixed(2)}`;
+            if (ctx.dataset.label === 'Ganancias') return ` $${val.toFixed(2)}`;
             return ` ${val} ordenes`;
           },
         },
@@ -147,7 +147,7 @@ export class DashboardPageComponent implements OnInit {
     scales: {
       y: {
         beginAtZero: true,
-        title: { display: true, text: 'Revenue ($)' },
+        title: { display: true, text: 'Ganancias ($)' },
       },
       y1: {
         position: 'right' as const,

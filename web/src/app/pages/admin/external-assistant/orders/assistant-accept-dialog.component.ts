@@ -19,6 +19,7 @@ import { PriceCategoryApiService } from '../../../../core/services/price-categor
 import { PersonApiService } from '../../../../core/services/person-api.service';
 import { OrderApiService } from '../../../../core/services/order-api.service';
 import { ExternalAssistantApiService } from '../../../../core/services/external-assistant-api.service';
+import { AssistantSessionStore } from '../../../../core/stores/assistant-session.store';
 import { AssistantOrder } from '../../../../core/models/external-assistant.model';
 import { Product } from '../../../../core/models/product.model';
 import { PriceCategory } from '../../../../core/models/price-category.model';
@@ -73,6 +74,7 @@ export class AssistantAcceptDialogComponent implements OnChanges {
   private readonly personApi = inject(PersonApiService);
   private readonly orderApi = inject(OrderApiService);
   private readonly assistantApi = inject(ExternalAssistantApiService);
+  private readonly sessionStore = inject(AssistantSessionStore);
   private readonly messageService = inject(MessageService);
 
   protected readonly saving = signal(false);
@@ -268,14 +270,17 @@ export class AssistantAcceptDialogComponent implements OnChanges {
         let phone = '';
         let address = this.order.address;
 
-        try {
-          const lead = await this.assistantApi.getLeadByIdentification(identification).toPromise();
-          if (lead) {
-            phone = lead.phone || '';
-            address = lead.address || address;
+        const sessionId = this.sessionStore.selectedSessionId();
+        if (sessionId) {
+          try {
+            const lead = await this.assistantApi.getLeadByIdentification(sessionId, identification).toPromise();
+            if (lead) {
+              phone = lead.phone || '';
+              address = lead.address || address;
+            }
+          } catch {
+            // Lead not found — use order data
           }
-        } catch {
-          // Lead not found — use order data
         }
 
         const person = await this.personApi.createClient({
@@ -309,15 +314,18 @@ export class AssistantAcceptDialogComponent implements OnChanges {
       }).toPromise();
 
       // 4. Notify SmartWorker
-      try {
-        await this.assistantApi.acceptOrder(this.order.id).toPromise();
-      } catch {
-        // If SmartWorker notification fails, log but don't fail the whole flow
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Advertencia',
-          detail: 'La orden se creo localmente pero no se pudo notificar a SmartWorker',
-        });
+      const sessionId = this.sessionStore.selectedSessionId();
+      if (sessionId) {
+        try {
+          await this.assistantApi.acceptOrder(sessionId, this.order.id).toPromise();
+        } catch {
+          // If SmartWorker notification fails, log but don't fail the whole flow
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Advertencia',
+            detail: 'La orden se creo localmente pero no se pudo notificar a SmartWorker',
+          });
+        }
       }
 
       this.messageService.add({ severity: 'success', summary: 'Exito', detail: 'Orden creada correctamente' });

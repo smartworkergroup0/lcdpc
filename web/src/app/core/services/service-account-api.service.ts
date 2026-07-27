@@ -21,6 +21,8 @@ interface ServiceAccountGoData {
   username: string;
   profile_id: string;
   profile_name: string;
+  branch_id: string;
+  branch_name: string;
   token_expiry_hours: number;
   is_active: boolean;
   created_at_utc: string;
@@ -86,6 +88,8 @@ export class ServiceAccountApiService {
       username: raw.username,
       profileId: raw.profile_id,
       profileName: raw.profile_name,
+      branchId: raw.branch_id,
+      branchName: raw.branch_name,
       tokenExpiryHours: raw.token_expiry_hours,
       isActive: raw.is_active,
       createdAtUtc: raw.created_at_utc,

@@ -4,6 +4,8 @@ export interface ServiceAccount {
   username: string;
   profileId: string;
   profileName: string;
+  branchId: string;
+  branchName: string;
   tokenExpiryHours: number;
   isActive: boolean;
   createdAtUtc: string;
@@ -15,6 +17,7 @@ export interface CreateServiceAccountRequest {
   username: string;
   password: string;
   profile_id: string;
+  branch_id: string;
   token_expiry_hours?: number;
 }
 
@@ -26,5 +29,6 @@ export interface UpdateServiceAccountRequest {
   name: string;
   is_active: boolean;
   profile_id: string;
+  branch_id: string;
   token_expiry_hours?: number;
 }
