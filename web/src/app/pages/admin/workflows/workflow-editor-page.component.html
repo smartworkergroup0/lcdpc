@@ -320,6 +320,32 @@
             </p-floatlabel>
           </div>
 
+          @if (edge.data.rules.triggerType === 'automatic') {
+            <div class="config-field">
+              <label class="config-field-label">Tiempo de espera</label>
+              <div class="delay-inputs">
+                <input
+                  pInputText
+                  type="number"
+                  [(ngModel)]="autoDelayValue"
+                  (ngModelChange)="onAutoDelayChange()"
+                  placeholder="Valor"
+                  class="delay-value-input"
+                  min="1"
+                />
+                <p-select
+                  [(ngModel)]="autoDelayUnit"
+                  (ngModelChange)="onAutoDelayChange()"
+                  [options]="delayUnitOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  appendTo="body"
+                  class="delay-unit-select"
+                />
+              </div>
+            </div>
+          }
+
           <div class="config-field">
             <label class="config-field-label">Roles requeridos</label>
             <p-multiSelect

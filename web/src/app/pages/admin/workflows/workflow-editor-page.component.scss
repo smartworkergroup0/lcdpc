@@ -356,6 +356,23 @@
   min-width: 0;
 }
 
+// ── Auto delay ───────────────────────────────
+.delay-inputs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.delay-value-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.delay-unit-select {
+  width: 130px;
+  flex-shrink: 0;
+}
+
 // ── Actions ───────────────────────────────────
 .actions-list {
   display: flex;

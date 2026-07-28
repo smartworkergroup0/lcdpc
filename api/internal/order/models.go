@@ -21,6 +21,7 @@ type Order struct {
 	Notes              *string     `json:"notes"`
 	SmartworkerOrderID *string     `json:"smartworker_order_id"`
 	DeletedAt          *time.Time  `json:"deleted_at"`
+	StatusChangedAt    time.Time   `json:"status_changed_at"`
 	CreatedAtUtc       time.Time   `json:"created_at_utc"`
 	UpdatedAtUtc       time.Time   `json:"updated_at_utc"`
 	Items              []OrderItem `json:"items,omitempty"`

@@ -14,6 +14,7 @@ import (
 	"github.com/lcdpc/lcdpc-go/configs"
 	"github.com/lcdpc/lcdpc-go/internal/apitoken"
 	"github.com/lcdpc/lcdpc-go/internal/auth"
+	"github.com/lcdpc/lcdpc-go/internal/autoscheduler"
 	"github.com/lcdpc/lcdpc-go/internal/branch"
 	"github.com/lcdpc/lcdpc-go/internal/brand"
 	"github.com/lcdpc/lcdpc-go/internal/category"
@@ -59,7 +60,7 @@ func main() {
 		return
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	cfg := configs.Load()
 
 	if err := os.MkdirAll("static/img", 0755); err != nil {
@@ -157,6 +158,7 @@ func main() {
 	rbacSvc := rbac.NewService(pool, rbacStore)
 	workflowSvc := workflow.NewService(pool)
 	orderSvc := order.NewService(pool, systemConfigSvc, workflowSvc, workflowSvc)
+	autoSchedulerSvc := autoscheduler.NewService(pool, workflowSvc, orderSvc)
 	personSvc := person.NewService(pool)
 	userSvc := user.NewService(pool)
 	dashboardSvc := dashboard.NewService(pool)
@@ -177,13 +179,16 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	go autoSchedulerSvc.Start(ctx)
+
 	go func() {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
 		slog.Info("shutting down...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+		cancel()
+		shutdownCtx, cancelTimeout := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancelTimeout()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			slog.Error("server shutdown error", "error", err)
 		}

@@ -193,6 +193,15 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     { label: 'No está vacío', value: 'is_not_empty' },
   ];
 
+  protected readonly delayUnitOptions = [
+    { label: 'Minutos', value: 'minutes' },
+    { label: 'Horas', value: 'hours' },
+    { label: 'Días', value: 'days' },
+  ];
+
+  protected autoDelayValue: number | null = null;
+  protected autoDelayUnit: string = 'hours';
+
   protected readonly actionTypes = [
     { label: 'Enviar email', value: 'send_email' },
     { label: 'Webhook', value: 'webhook' },
@@ -518,6 +527,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     this.selectedNode.set(null);
     this.showEdgePanel.set(true);
     this.showNodePanel.set(false);
+    this.loadAutoDelayFromEdge(edge);
   }
 
   private onPaneClick(): void {
@@ -573,6 +583,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
               trigger_type: e.data.rules.triggerType,
               required_roles: e.data.rules.requiredRoles,
               conditions: e.data.rules.conditions,
+              auto_delay_minutes: e.data.rules.autoDelayMinutes,
             },
             actions: e.data.actions,
           },
@@ -659,6 +670,18 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
           nodeNames: unreachable.map((n) => n.data.label),
         });
       }
+    }
+
+    // Validate automatic transitions have a delay configured
+    const autoEdgesWithoutDelay = currentEdges.filter(
+      (e) => e.data.rules.triggerType === 'automatic' && (!e.data.rules.autoDelayMinutes || e.data.rules.autoDelayMinutes <= 0)
+    );
+    if (autoEdgesWithoutDelay.length > 0) {
+      errors.push({
+        field: 'autoDelay',
+        fieldLabel: 'Tiempo de espera faltante',
+        detail: `${autoEdgesWithoutDelay.length} transición(es) automática(s) sin tiempo de espera configurado`,
+      });
     }
 
     return errors;
@@ -1232,7 +1255,52 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     const edge = this.selectedEdge();
     if (!edge) return;
     const updatedRules = { ...edge.data.rules, triggerType: triggerType as 'manual' | 'automatic' | 'webhook' };
+    if (triggerType !== 'automatic') {
+      updatedRules.autoDelayMinutes = undefined;
+      this.autoDelayValue = null;
+      this.autoDelayUnit = 'hours';
+    }
     this.updateEdgeData('rules', updatedRules);
+  }
+
+  protected onAutoDelayChange(): void {
+    const edge = this.selectedEdge();
+    if (!edge) return;
+    let minutes: number | undefined = undefined;
+    if (this.autoDelayValue != null && this.autoDelayValue > 0) {
+      switch (this.autoDelayUnit) {
+        case 'minutes':
+          minutes = this.autoDelayValue;
+          break;
+        case 'hours':
+          minutes = this.autoDelayValue * 60;
+          break;
+        case 'days':
+          minutes = this.autoDelayValue * 1440;
+          break;
+      }
+    }
+    const updatedRules = { ...edge.data.rules, autoDelayMinutes: minutes };
+    this.updateEdgeData('rules', updatedRules);
+  }
+
+  private loadAutoDelayFromEdge(edge: WorkflowEdge | null): void {
+    if (!edge?.data.rules.autoDelayMinutes || edge.data.rules.autoDelayMinutes <= 0) {
+      this.autoDelayValue = null;
+      this.autoDelayUnit = 'hours';
+      return;
+    }
+    const minutes = edge.data.rules.autoDelayMinutes;
+    if (minutes % 1440 === 0) {
+      this.autoDelayValue = minutes / 1440;
+      this.autoDelayUnit = 'days';
+    } else if (minutes % 60 === 0) {
+      this.autoDelayValue = minutes / 60;
+      this.autoDelayUnit = 'hours';
+    } else {
+      this.autoDelayValue = minutes;
+      this.autoDelayUnit = 'minutes';
+    }
   }
 
   protected onRequiredRolesChange(roles: string[]): void {

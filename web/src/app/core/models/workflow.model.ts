@@ -30,6 +30,7 @@ export interface TransitionRules {
   triggerType: 'manual' | 'automatic' | 'webhook';
   requiredRoles: string[];
   conditions: TransitionCondition[];
+  autoDelayMinutes?: number;
 }
 
 export interface WorkflowEdgeData {

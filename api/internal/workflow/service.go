@@ -246,12 +246,13 @@ func (s *Service) GetActiveWorkflow(ctx context.Context, entityType string) (*Wo
 			}
 		}
 		result.Edges = append(result.Edges, WorkflowEdgeInfo{
-			SourceCode:   sourceNode.Data.Code,
-			TargetCode:   targetNode.Data.Code,
-			TriggerType:  edge.Data.Rules.TriggerType,
-			RequiredRoles: edge.Data.Rules.RequiredRoles,
-			Conditions:   conditions,
-			Actions:      actions,
+			SourceCode:       sourceNode.Data.Code,
+			TargetCode:       targetNode.Data.Code,
+			TriggerType:      edge.Data.Rules.TriggerType,
+			RequiredRoles:    edge.Data.Rules.RequiredRoles,
+			Conditions:       conditions,
+			Actions:          actions,
+			AutoDelayMinutes: edge.Data.Rules.AutoDelayMinutes,
 		})
 	}
 	return result, nil
@@ -544,7 +545,7 @@ func (s *Service) DeactivateStatus(ctx context.Context, code string) (*Deactivat
 
 			// Update order status
 			_, err = tx.Exec(ctx, `
-				UPDATE orders SET status = $2, updated_at_utc = now() WHERE id = $1
+				UPDATE orders SET status = $2, updated_at_utc = now(), status_changed_at = now() WHERE id = $1
 			`, orderID, prevStatus)
 			if err != nil {
 				return nil, fmt.Errorf("update order status: %w", err)
