@@ -63,7 +63,7 @@ export class AdminLayoutComponent {
     this.authStore.hasPermission('module:asistente:view')
   );
   protected readonly canViewAssistantSessions = computed(() =>
-    this.authStore.hasPermission('assistant_session:view')
+    this.authStore.hasPermission('module:assistant_session:view')
   );
 
   protected readonly canViewSales = computed(() =>

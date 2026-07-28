@@ -59,7 +59,7 @@ export const routes: Routes = [
 				children: [
 					{ path: 'leads', component: AssistantLeadsPageComponent },
 					{ path: 'orders', component: AssistantOrdersPageComponent },
-					{ path: 'sessions', component: AssistantSessionsPageComponent, canActivate: [permissionGuard('assistant_session:view')] },
+					{ path: 'sessions', component: AssistantSessionsPageComponent, canActivate: [permissionGuard('module:assistant_session:view')] },
 					{ path: '', redirectTo: 'leads', pathMatch: 'full' },
 				],
 			},

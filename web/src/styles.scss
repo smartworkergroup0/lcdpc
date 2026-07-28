@@ -71,6 +71,24 @@ input {
 		gap: 0.5rem;
 		align-items: center;
 	}
+
+	@media (max-width: 576px) {
+		.p-toolbar-start,
+		.p-toolbar-end {
+			flex-wrap: wrap;
+			width: 100%;
+		}
+
+		p-iconfield {
+			flex: 1 1 100%;
+			min-width: 0;
+
+			input {
+				width: 100%;
+				min-width: 0;
+			}
+		}
+	}
 }
 
 .admin-table {

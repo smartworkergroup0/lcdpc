@@ -212,7 +212,7 @@
 
   <ng-template pTemplate="footer">
     <div class="footer-left">
-      @if (!showSearch) {
+      @if (!isEditMode && !showSearch) {
         <p-button label="Nueva busqueda" icon="pi pi-search" severity="secondary" size="small" (onClick)="resetSearch()" />
       }
     </div>

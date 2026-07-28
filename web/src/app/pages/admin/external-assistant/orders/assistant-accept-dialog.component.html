@@ -40,19 +40,25 @@
               </div>
             }
             <div class="item-fields">
-              <p-select class="product-field" [options]="products()" [(ngModel)]="item.product_id"
-                        optionLabel="name" optionValue="productId"
-                        placeholder="Producto" (onChange)="onProductSelect(i)" appendTo="body" />
-              <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="0.01"
-                             [maxFractionDigits]="3" placeholder="Cant." />
-              <p-select class="price-field" [options]="item.priceOptions"
-                        [(ngModel)]="item.selectedPriceId" optionLabel="label" optionValue="id"
-                        (onChange)="onPriceOptionSelect(i, $event.value)"
-                        [disabled]="item.priceOptions.length === 0"
-                        placeholder="Precio" appendTo="body" />
-              <span class="item-subtotal">{{ (item.quantity * item.unit_price) | currency:'USD' }}</span>
-              <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
-                        (onClick)="removeItem(i)" />
+              <div class="item-fields-row">
+                <p-select class="product-field" [options]="products()" [(ngModel)]="item.product_id"
+                          optionLabel="name" optionValue="productId"
+                          placeholder="Producto" (onChange)="onProductSelect(i)" appendTo="body" />
+                <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="0.01"
+                               [maxFractionDigits]="3" placeholder="Cant." />
+              </div>
+              <div class="item-fields-row item-fields-row--bottom">
+                <p-select class="price-field" [options]="item.priceOptions"
+                          [(ngModel)]="item.selectedPriceId" optionLabel="label" optionValue="id"
+                          (onChange)="onPriceOptionSelect(i, $event.value)"
+                          [disabled]="item.priceOptions.length === 0"
+                          placeholder="Precio" appendTo="body" />
+                <div class="item-actions">
+                  <span class="item-subtotal">{{ (item.quantity * item.unit_price) | currency:'USD' }}</span>
+                  <p-button class="remove-btn" icon="pi pi-times" [text]="true" severity="danger" [rounded]="true"
+                            (onClick)="removeItem(i)" />
+                </div>
+              </div>
             </div>
           </div>
         } @empty {

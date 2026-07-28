@@ -29,7 +29,7 @@ import { AssistantSession } from '../../../core/models/assistant-session.model';
         </div>
       </div>
       <nav class="assistant-nav">
-        <a routerLink="/admin/external-assistant/leads" routerLinkActive="active">Leads</a>
+        <a routerLink="/admin/external-assistant/leads" routerLinkActive="active">Prospectos</a>
         <a routerLink="/admin/external-assistant/orders" routerLinkActive="active">Ordenes</a>
         @if (canViewSessions()) {
           <a routerLink="/admin/external-assistant/sessions" routerLinkActive="active">Sesiones</a>
@@ -105,7 +105,7 @@ export class ExternalAssistantLayoutComponent implements OnInit {
   private readonly sessionApi = inject(AssistantSessionApiService);
   private readonly sessionStore = inject(AssistantSessionStore);
 
-  protected readonly canViewSessions = computed(() => this.authStore.hasPermission('assistant_session:view'));
+  protected readonly canViewSessions = computed(() => this.authStore.hasPermission('module:assistant_session:view'));
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
 
