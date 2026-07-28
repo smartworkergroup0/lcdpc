@@ -29,6 +29,7 @@ export interface TransitionAction {
 export interface TransitionRules {
   triggerType: 'manual' | 'automatic' | 'webhook';
   requiredRoles: string[];
+  requiredPermissions: string[];
   conditions: TransitionCondition[];
   autoDelayMinutes?: number;
 }

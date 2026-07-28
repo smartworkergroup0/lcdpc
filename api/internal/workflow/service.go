@@ -245,14 +245,21 @@ func (s *Service) GetActiveWorkflow(ctx context.Context, entityType string) (*Wo
 				URL:        a.URL,
 			}
 		}
+		// Map RequiredPermissions with fallback to RequiredRoles (backward compat)
+		permissions := edge.Data.Rules.RequiredPermissions
+		if len(permissions) == 0 && len(edge.Data.Rules.RequiredRoles) > 0 {
+			permissions = edge.Data.Rules.RequiredRoles
+		}
+
 		result.Edges = append(result.Edges, WorkflowEdgeInfo{
-			SourceCode:       sourceNode.Data.Code,
-			TargetCode:       targetNode.Data.Code,
-			TriggerType:      edge.Data.Rules.TriggerType,
-			RequiredRoles:    edge.Data.Rules.RequiredRoles,
-			Conditions:       conditions,
-			Actions:          actions,
-			AutoDelayMinutes: edge.Data.Rules.AutoDelayMinutes,
+			SourceCode:          sourceNode.Data.Code,
+			TargetCode:          targetNode.Data.Code,
+			TriggerType:         edge.Data.Rules.TriggerType,
+			RequiredRoles:       edge.Data.Rules.RequiredRoles,
+			RequiredPermissions: permissions,
+			Conditions:          conditions,
+			Actions:             actions,
+			AutoDelayMinutes:    edge.Data.Rules.AutoDelayMinutes,
 		})
 	}
 	return result, nil

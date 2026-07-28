@@ -79,7 +79,7 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
   workflowNodes = signal<WorkflowNodeEntry[]>([]);
   workflowFinalCodes = signal<Set<string>>(new Set());
 
-  private workflowEdges = new Map<string, Set<string>>();
+  private workflowEdges = new Map<string, Map<string, string[]>>();
   private workflowIncoming = new Map<string, Set<string>>();
 
   orders = signal<OrderWithHistory[]>([]);
@@ -209,7 +209,7 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
 
         const finalCodes = new Set(nodes.filter((n) => n.isFinal).map((n) => n.code));
 
-        const edges = new Map<string, Set<string>>();
+        const edges = new Map<string, Map<string, string[]>>();
         const incoming = new Map<string, Set<string>>();
         const nodeIdToCode = new Map<string, string>();
         for (const node of workflow.nodes) {
@@ -219,8 +219,8 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
           const srcCode = nodeIdToCode.get(edge.source);
           const tgtCode = nodeIdToCode.get(edge.target);
           if (!srcCode || !tgtCode) continue;
-          if (!edges.has(srcCode)) edges.set(srcCode, new Set());
-          edges.get(srcCode)!.add(tgtCode);
+          if (!edges.has(srcCode)) edges.set(srcCode, new Map());
+          edges.get(srcCode)!.set(tgtCode, edge.data.rules.requiredPermissions ?? []);
           if (!incoming.has(tgtCode)) incoming.set(tgtCode, new Set());
           incoming.get(tgtCode)!.add(srcCode);
         }
@@ -446,7 +446,22 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
   }
 
   private getValidTargets(currentStatus: string): Set<string> {
-    return this.workflowEdges.get(currentStatus) ?? new Set();
+    const targets = this.workflowEdges.get(currentStatus);
+    if (!targets) return new Set();
+
+    const result = new Set<string>();
+    for (const [targetCode, requiredPermissions] of targets) {
+      if (requiredPermissions.length === 0) {
+        result.add(targetCode);
+      } else {
+        // OR logic: any one permission is enough
+        const hasPermission = requiredPermissions.some((p) => this.authStore.hasPermission(p));
+        if (hasPermission) {
+          result.add(targetCode);
+        }
+      }
+    }
+    return result;
   }
 
   private getRevertedStatuses(history: StatusHistoryEntry[]): Set<string> {

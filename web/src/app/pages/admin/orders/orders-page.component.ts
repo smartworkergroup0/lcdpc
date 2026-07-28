@@ -172,7 +172,14 @@ export class OrdersPageComponent implements OnInit {
 
     this.orderApi.getValidTransitions(order.id).subscribe({
       next: (res) => {
-        this.nextStatusOptions.set(res.statuses.map((s) => ({ label: s.label, value: s.code })));
+        // Backend already filters by user permissions, but also filter in frontend for extra safety
+        const options = res.statuses
+          .filter((s) => {
+            if (!s.requiredPermissions || s.requiredPermissions.length === 0) return true;
+            return s.requiredPermissions.some((p) => this.authStore.hasPermission(p));
+          })
+          .map((s) => ({ label: s.label, value: s.code }));
+        this.nextStatusOptions.set(options);
         this.statusDialogVisible.set(true);
       },
       error: () => {

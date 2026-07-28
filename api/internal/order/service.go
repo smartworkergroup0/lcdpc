@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lcdpc/lcdpc-go/internal/rbac"
 	"github.com/lcdpc/lcdpc-go/internal/shared"
 	"github.com/lcdpc/lcdpc-go/internal/workflow"
 )
@@ -25,10 +26,11 @@ type Service struct {
 	sysCfg    SystemConfigReader
 	transRepo TransitionReader
 	wfReader  workflow.WorkflowReader
+	rbacStore *rbac.Store
 }
 
-func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader, transRepo TransitionReader, wfReader workflow.WorkflowReader) *Service {
-	return &Service{pool: pool, sysCfg: sysCfg, transRepo: transRepo, wfReader: wfReader}
+func NewService(pool *pgxpool.Pool, sysCfg SystemConfigReader, transRepo TransitionReader, wfReader workflow.WorkflowReader, rbacStore *rbac.Store) *Service {
+	return &Service{pool: pool, sysCfg: sysCfg, transRepo: transRepo, wfReader: wfReader, rbacStore: rbacStore}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateOrderRequest, changedByUserID *uuid.UUID) (*Order, error) {
@@ -630,9 +632,9 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID, changedByUserID uuid
 	return tx.Commit(ctx)
 }
 
-func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChangeRequest, changedByUserID uuid.UUID) (*Order, error) {
+func (s *Service) ChangeStatus(ctx context.Context, id uuid.UUID, req StatusChangeRequest, changedByUserID uuid.UUID, profileID uuid.UUID) (*Order, error) {
 	// Validate transition using centralized method
-	valid, err := s.GetValidTransitions(ctx, id)
+	valid, err := s.GetValidTransitions(ctx, id, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -776,7 +778,7 @@ func (s *Service) AutoChangeStatus(ctx context.Context, orderID uuid.UUID, toSta
 	return tx.Commit(ctx)
 }
 
-func (s *Service) GetValidTransitions(ctx context.Context, orderID uuid.UUID) (*ValidTransitionsResponse, error) {
+func (s *Service) GetValidTransitions(ctx context.Context, orderID uuid.UUID, profileID uuid.UUID) (*ValidTransitionsResponse, error) {
 	o, err := s.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -799,7 +801,7 @@ func (s *Service) GetValidTransitions(ctx context.Context, orderID uuid.UUID) (*
 				Statuses:      []StatusOption{},
 			}, nil
 		}
-		return s.getWorkflowTransitions(ctx, o, wf, activeStatusMap)
+		return s.getWorkflowTransitions(ctx, o, wf, activeStatusMap, profileID)
 	}
 
 	// No workflow active — treat as non-terminal with no transitions
@@ -830,7 +832,7 @@ func (s *Service) loadActiveStatusMap(ctx context.Context) (map[string]StatusOpt
 	return m, nil
 }
 
-func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *workflow.WorkflowInfo, activeMap map[string]StatusOption) (*ValidTransitionsResponse, error) {
+func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *workflow.WorkflowInfo, activeMap map[string]StatusOption, profileID uuid.UUID) (*ValidTransitionsResponse, error) {
 	result := &ValidTransitionsResponse{
 		CurrentStatus:     o.Status,
 		IsTerminal:        false,
@@ -851,6 +853,23 @@ func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *work
 			})
 			continue
 		}
+		// Check required permissions (OR logic — any one permission is enough)
+		if len(edge.RequiredPermissions) > 0 {
+			hasPermission := false
+			for _, perm := range edge.RequiredPermissions {
+				if s.rbacStore.HasPermission(profileID, perm) {
+					hasPermission = true
+					break
+				}
+			}
+			if !hasPermission {
+				result.SkippedTransition = append(result.SkippedTransition, SkippedTransition{
+					TargetCode: edge.TargetCode,
+					Reason:     fmt.Sprintf("permisos requeridos: %s", strings.Join(edge.RequiredPermissions, ", ")),
+				})
+				continue
+			}
+		}
 		// Evaluate conditions — skip transition if conditions not met
 		if len(edge.Conditions) > 0 {
 			if err := s.evaluateConditions(ctx, o, edge.Conditions); err != nil {
@@ -861,7 +880,12 @@ func (s *Service) getWorkflowTransitions(ctx context.Context, o *Order, wf *work
 				continue
 			}
 		}
-		result.Statuses = append(result.Statuses, targetOpt)
+		result.Statuses = append(result.Statuses, StatusOption{
+			Code:               targetOpt.Code,
+			Label:              targetOpt.Label,
+			Color:              targetOpt.Color,
+			RequiredPermissions: edge.RequiredPermissions,
+		})
 	}
 
 	return result, nil

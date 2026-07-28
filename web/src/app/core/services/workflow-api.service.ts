@@ -201,6 +201,7 @@ export class WorkflowApiService {
         rules: {
           triggerType: rules.trigger_type ?? rules.triggerType ?? 'manual',
           requiredRoles: rules.required_roles ?? rules.requiredRoles ?? [],
+          requiredPermissions: rules.required_permissions ?? rules.requiredPermissions ?? [],
           conditions: rules.conditions ?? [],
           autoDelayMinutes: rules.auto_delay_minutes ?? rules.autoDelayMinutes ?? undefined,
         },

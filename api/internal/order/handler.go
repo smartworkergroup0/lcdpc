@@ -237,7 +237,14 @@ func (h *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.ChangeStatus(r.Context(), id, req, changedBy)
+	profileIDStr := middleware.GetProfileID(r.Context())
+	profileID, err := uuid.Parse(profileIDStr)
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	result, err := h.svc.ChangeStatus(r.Context(), id, req, changedBy, profileID)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return
@@ -253,7 +260,14 @@ func (h *Handler) GetValidTransitions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.GetValidTransitions(r.Context(), id)
+	profileIDStr := middleware.GetProfileID(r.Context())
+	profileID, err := uuid.Parse(profileIDStr)
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	result, err := h.svc.GetValidTransitions(r.Context(), id, profileID)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, err.Error())
 		return

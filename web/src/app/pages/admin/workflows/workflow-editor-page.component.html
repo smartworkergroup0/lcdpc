@@ -347,14 +347,14 @@
           }
 
           <div class="config-field">
-            <label class="config-field-label">Roles requeridos</label>
+            <label class="config-field-label">Permisos requeridos</label>
             <p-multiSelect
-              [options]="roleOptions()"
+              [options]="permissionOptions()"
               optionLabel="label"
               optionValue="value"
-              [ngModel]="edge.data.rules.requiredRoles"
-              (ngModelChange)="onRequiredRolesChange($event)"
-              placeholder="Seleccionar roles..."
+              [ngModel]="edge.data.rules.requiredPermissions"
+              (ngModelChange)="onRequiredPermissionsChange($event)"
+              placeholder="Sin restricción"
               display="chip"
               [filter]="true"
               [style]="{ width: '100%' }"

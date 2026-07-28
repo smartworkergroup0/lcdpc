@@ -63,6 +63,7 @@ export interface StatusOption {
   code: string;
   label: string;
   color: string;
+  requiredPermissions?: string[];
 }
 
 export interface SkippedTransition {

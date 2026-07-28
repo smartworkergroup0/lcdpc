@@ -73,9 +73,10 @@ type StatusChangeRequest struct {
 }
 
 type StatusOption struct {
-	Code  string `json:"code"`
-	Label string `json:"label"`
-	Color string `json:"color"`
+	Code               string   `json:"code"`
+	Label              string   `json:"label"`
+	Color              string   `json:"color"`
+	RequiredPermissions []string `json:"required_permissions,omitempty"`
 }
 
 type SkippedTransition struct {

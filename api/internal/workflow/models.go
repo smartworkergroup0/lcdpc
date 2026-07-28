@@ -103,10 +103,11 @@ type WorkflowEdgeData struct {
 }
 
 type TransitionRules struct {
-	TriggerType      string                `json:"trigger_type"`
-	RequiredRoles    []string              `json:"required_roles"`
-	Conditions       []TransitionCondition `json:"conditions"`
-	AutoDelayMinutes *int                  `json:"auto_delay_minutes,omitempty"`
+	TriggerType        string                `json:"trigger_type"`
+	RequiredRoles      []string              `json:"required_roles"`
+	RequiredPermissions []string             `json:"required_permissions"`
+	Conditions         []TransitionCondition `json:"conditions"`
+	AutoDelayMinutes   *int                  `json:"auto_delay_minutes,omitempty"`
 }
 
 type WorkflowMetadata struct {
@@ -176,13 +177,14 @@ type WorkflowActionInfo struct {
 }
 
 type WorkflowEdgeInfo struct {
-	SourceCode       string
-	TargetCode       string
-	TriggerType      string
-	RequiredRoles    []string
-	Conditions       []WorkflowConditionInfo
-	Actions          []WorkflowActionInfo
-	AutoDelayMinutes *int
+	SourceCode          string
+	TargetCode          string
+	TriggerType         string
+	RequiredRoles       []string
+	RequiredPermissions []string
+	Conditions          []WorkflowConditionInfo
+	Actions             []WorkflowActionInfo
+	AutoDelayMinutes    *int
 }
 
 type WorkflowInfo struct {

@@ -137,7 +137,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     }))
   );
 
-  protected readonly roleOptions = signal<RoleOption[]>([]);
+  protected readonly permissionOptions = signal<RoleOption[]>([]);
 
   protected readonly canCreate = computed(() =>
     this.authStore.hasPermission('workflow:create')
@@ -210,7 +210,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
 
   ngOnInit(): void {
     this.loadOrderData();
-    this.loadRoles();
+    this.loadPermissions();
   }
 
   ngAfterViewInit(): void {
@@ -357,11 +357,11 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     this.syncEdgesFromGraph();
   }
 
-  private loadRoles(): void {
-    this.rbacApi.listRoles().subscribe({
-      next: (roles) => {
-        this.roleOptions.set(
-          roles.map((r) => ({ label: r.name || r.code, value: r.code }))
+  private loadPermissions(): void {
+    this.rbacApi.listResources().subscribe({
+      next: (resources) => {
+        this.permissionOptions.set(
+          resources.map((r) => ({ label: r.code, value: r.code }))
         );
       },
     });
@@ -582,6 +582,7 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
             rules: {
               trigger_type: e.data.rules.triggerType,
               required_roles: e.data.rules.requiredRoles,
+              required_permissions: e.data.rules.requiredPermissions,
               conditions: e.data.rules.conditions,
               auto_delay_minutes: e.data.rules.autoDelayMinutes,
             },
@@ -1303,10 +1304,10 @@ export class WorkflowEditorPageComponent implements OnInit, AfterViewInit, OnDes
     }
   }
 
-  protected onRequiredRolesChange(roles: string[]): void {
+  protected onRequiredPermissionsChange(permissions: string[]): void {
     const edge = this.selectedEdge();
     if (!edge) return;
-    const updatedRules = { ...edge.data.rules, requiredRoles: roles };
+    const updatedRules = { ...edge.data.rules, requiredPermissions: permissions };
     this.updateEdgeData('rules', updatedRules);
   }
 

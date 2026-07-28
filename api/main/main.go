@@ -157,7 +157,7 @@ func main() {
 	syncSvc := sync.NewService(pool, systemConfigSvc)
 	rbacSvc := rbac.NewService(pool, rbacStore)
 	workflowSvc := workflow.NewService(pool)
-	orderSvc := order.NewService(pool, systemConfigSvc, workflowSvc, workflowSvc)
+	orderSvc := order.NewService(pool, systemConfigSvc, workflowSvc, workflowSvc, rbacStore)
 	autoSchedulerSvc := autoscheduler.NewService(pool, workflowSvc, orderSvc)
 	personSvc := person.NewService(pool)
 	userSvc := user.NewService(pool)
