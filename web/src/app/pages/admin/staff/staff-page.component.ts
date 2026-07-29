@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -34,12 +36,14 @@ import { StaffFormDialogComponent } from './staff-form-dialog.component';
   templateUrl: './staff-page.component.html',
   styleUrl: './staff-page.component.scss'
 })
-export class StaffPageComponent implements OnInit {
+export class StaffPageComponent implements OnInit, OnDestroy {
   private readonly authStore = inject(AuthStore);
   private readonly staffApi = inject(StaffApiService);
   private readonly branchApi = inject(BranchApiService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
+  private readonly destroy$ = new Subject<void>();
+  private readonly searchSubject = new Subject<void>();
 
   protected readonly canCreate = computed(() => this.authStore.hasPermission('staff:create'));
   protected readonly canUpdate = computed(() => this.authStore.hasPermission('staff:update'));
@@ -51,6 +55,7 @@ export class StaffPageComponent implements OnInit {
   protected readonly loading = signal(false);
   protected readonly totalCount = signal(0);
   protected readonly pageSize = 10;
+  private readonly branchesLoaded = signal(false);
 
   protected search = '';
   protected selectedBranch: string | null = null;
@@ -62,7 +67,22 @@ export class StaffPageComponent implements OnInit {
   protected readonly branches = signal<{ id: string; name: string }[]>([]);
 
   ngOnInit(): void {
+    this.searchSubject.pipe(
+      debounceTime(1000),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.applyFilters());
+
     this.loadBranches();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.searchSubject.complete();
+  }
+
+  onSearchChange(): void {
+    this.searchSubject.next();
   }
 
   private loadBranches(): void {
@@ -77,12 +97,18 @@ export class StaffPageComponent implements OnInit {
             this.selectedBranch = branches[0].id;
           }
         }
+        this.branchesLoaded.set(true);
+        this.applyFilters();
       },
-      error: () => {},
+      error: () => {
+        this.branchesLoaded.set(true);
+      },
     });
   }
 
   loadItems(event: TableLazyLoadEvent): void {
+    if (!this.branchesLoaded()) return;
+
     const offset = event.first ?? 0;
     const limit = event.rows ?? this.pageSize;
 

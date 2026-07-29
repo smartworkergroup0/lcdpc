@@ -10,9 +10,9 @@
     <ng-template pTemplate="start">
       <p-iconfield>
         <p-inputicon><i class="pi pi-search"></i></p-inputicon>
-        <input pInputText type="text" placeholder="Buscar por nombre..." [(ngModel)]="filterName" (keyup.enter)="applyFilters()" />
+        <input pInputText type="text" placeholder="Buscar por nombre..." [(ngModel)]="filterName" (ngModelChange)="onSearchChange()" (keyup.enter)="applyFilters()" />
       </p-iconfield>
-      <input pInputText type="text" placeholder="Codigo..." [(ngModel)]="filterCode" (keyup.enter)="applyFilters()" style="width: 120px" />
+      <input pInputText type="text" placeholder="Codigo..." [(ngModel)]="filterCode" (ngModelChange)="onSearchChange()" (keyup.enter)="applyFilters()" style="width: 120px" />
     </ng-template>
     <ng-template pTemplate="end">
       @if (canViewAllBranches()) {

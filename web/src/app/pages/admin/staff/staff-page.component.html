@@ -7,7 +7,7 @@
     <ng-template pTemplate="start">
       <p-iconfield>
         <p-inputicon><i class="pi pi-search"></i></p-inputicon>
-        <input pInputText type="text" placeholder="Buscar por nombre, email o cedula..." [(ngModel)]="search" (keyup.enter)="applyFilters()" />
+        <input pInputText type="text" placeholder="Buscar por nombre, email o cedula..." [(ngModel)]="search" (ngModelChange)="onSearchChange()" (keyup.enter)="applyFilters()" />
       </p-iconfield>
     </ng-template>
     <ng-template pTemplate="end">

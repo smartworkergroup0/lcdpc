@@ -7,14 +7,13 @@
     <ng-template pTemplate="start">
       <p-iconfield>
         <p-inputicon><i class="pi pi-search"></i></p-inputicon>
-        <input pInputText type="text" placeholder="Buscar por nombre, cédula o teléfono..." [(ngModel)]="search" (keyup.enter)="applyFilters()" />
+        <input pInputText type="text" placeholder="Buscar por nombre, cédula o teléfono..." [(ngModel)]="search" (ngModelChange)="onSearchChange()" (keyup.enter)="applyFilters()" />
       </p-iconfield>
     </ng-template>
     <ng-template pTemplate="end">
       @if (canCreate()) {
-        <p-button label="Nuevo Cliente" icon="pi pi-plus" (onClick)="openCreate()" styleClass="mr-2" />
+        <p-button label="Nuevo Cliente" icon="pi pi-plus" (onClick)="openCreate()" />
       }
-      <p-button label="Buscar" icon="pi pi-search" severity="secondary" (onClick)="applyFilters()" />
     </ng-template>
   </p-toolbar>
 

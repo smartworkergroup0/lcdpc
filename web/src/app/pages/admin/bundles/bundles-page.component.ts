@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -33,13 +35,15 @@ import { BundleFormDialogComponent } from './bundle-form-dialog.component';
   templateUrl: './bundles-page.component.html',
   styleUrl: './bundles-page.component.scss'
 })
-export class BundlesPageComponent implements OnInit {
+export class BundlesPageComponent implements OnInit, OnDestroy {
   private readonly authStore = inject(AuthStore);
   private readonly bundleApi = inject(BundleApiService);
   private readonly branchApi = inject(BranchApiService);
   readonly categoryStore = inject(CategoryStore);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
+  private readonly destroy$ = new Subject<void>();
+  private readonly searchSubject = new Subject<void>();
 
   protected readonly canCreate = computed(() => this.authStore.hasPermission('bundle:create'));
   protected readonly canUpdate = computed(() => this.authStore.hasPermission('bundle:update'));
@@ -68,6 +72,11 @@ export class BundlesPageComponent implements OnInit {
   protected readonly selectedBundle = signal<Bundle | null>(null);
 
   ngOnInit(): void {
+    this.searchSubject.pipe(
+      debounceTime(1000),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.applyFilters());
+
     this.categoryStore.load();
     this.branchApi.listAdmin().subscribe({
       next: (branches) => {
@@ -83,6 +92,16 @@ export class BundlesPageComponent implements OnInit {
       },
       error: () => {},
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.searchSubject.complete();
+  }
+
+  onSearchChange(): void {
+    this.searchSubject.next();
   }
 
   loadBundles(event: any): void {

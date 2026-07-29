@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -32,11 +34,13 @@ import { ClientFormDialogComponent } from './client-form-dialog.component';
   templateUrl: './clients-page.component.html',
   styleUrl: './clients-page.component.scss'
 })
-export class ClientsPageComponent implements OnInit {
+export class ClientsPageComponent implements OnInit, OnDestroy {
   private readonly authStore = inject(AuthStore);
   private readonly clientApi = inject(ClientApiService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
+  private readonly destroy$ = new Subject<void>();
+  private readonly searchSubject = new Subject<void>();
 
   protected readonly canCreate = computed(() => this.authStore.hasPermission('client:create'));
   protected readonly canUpdate = computed(() => this.authStore.hasPermission('client:update'));
@@ -54,7 +58,22 @@ export class ClientsPageComponent implements OnInit {
   protected readonly editItem = signal<Client | null>(null);
 
   ngOnInit(): void {
+    this.searchSubject.pipe(
+      debounceTime(1000),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.applyFilters());
+
     this.loadItems({ first: 0, rows: this.pageSize });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.searchSubject.complete();
+  }
+
+  onSearchChange(): void {
+    this.searchSubject.next();
   }
 
   loadItems(event: TableLazyLoadEvent): void {

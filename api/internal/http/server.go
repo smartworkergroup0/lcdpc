@@ -450,8 +450,12 @@ func NewServer(
 
 	// Staff
 	r.Route("/api/v1/staff", func(r chi.Router) {
-		r.Get("/", staffH.List)
-		r.Get("/{id}", staffH.GetByID)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+			r.Use(middleware.RequireAuth())
+			r.Get("/", staffH.List)
+			r.Get("/{id}", staffH.GetByID)
+		})
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
