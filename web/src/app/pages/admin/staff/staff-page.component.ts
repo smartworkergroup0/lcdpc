@@ -53,6 +53,7 @@ export class StaffPageComponent implements OnInit {
   protected readonly pageSize = 10;
 
   protected search = '';
+  protected selectedBranch: string | null = null;
 
   protected readonly detailVisible = signal(false);
   protected readonly selectedItem = signal<StaffMember | null>(null);
@@ -74,11 +75,20 @@ export class StaffPageComponent implements OnInit {
   loadItems(event: TableLazyLoadEvent): void {
     const offset = event.first ?? 0;
     const limit = event.rows ?? this.pageSize;
+
+    if (!this.canViewAllBranches() && !this.userBranchId()) {
+      this.items.set([]);
+      this.totalCount.set(0);
+      return;
+    }
+
     this.loading.set(true);
 
     const filters: Record<string, string> = {};
     if (this.search.trim()) filters['search'] = this.search.trim();
-    if (!this.canViewAllBranches() && this.userBranchId()) {
+    if (this.selectedBranch) {
+      filters['branch_id'] = this.selectedBranch;
+    } else if (!this.canViewAllBranches() && this.userBranchId()) {
       filters['branch_id'] = this.userBranchId()!;
     }
 

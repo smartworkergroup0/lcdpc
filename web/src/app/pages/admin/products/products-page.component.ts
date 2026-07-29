@@ -14,6 +14,7 @@ import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { BranchApiService } from '../../../core/services/branch-api.service';
 import { ProductApiService } from '../../../core/services/product-api.service';
 import { CategoryStore } from '../../../core/stores/category.store';
 import { Product } from '../../../core/models/product.model';
@@ -35,6 +36,7 @@ import { ProductFormDialogComponent } from './product-form-dialog.component';
 export class ProductsPageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly productApi = inject(ProductApiService);
+  private readonly branchApi = inject(BranchApiService);
   readonly categoryStore = inject(CategoryStore);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
@@ -53,7 +55,9 @@ export class ProductsPageComponent implements OnInit {
   protected filterName = '';
   protected filterCategoryId: string | null = null;
   protected filterIsActive: boolean | null = null;
+  protected selectedBranch: string | null = null;
 
+  protected readonly branches = signal<{ id: string; name: string }[]>([]);
   protected readonly activeOptions = [
     { label: 'Activo', value: true },
     { label: 'Inactivo', value: false },
@@ -64,18 +68,31 @@ export class ProductsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.categoryStore.load();
+    this.branchApi.listAdmin().subscribe({
+      next: (branches) => this.branches.set(branches.map(b => ({ id: b.id, name: b.storeName }))),
+      error: () => {},
+    });
   }
 
   loadProducts(event: any): void {
     const offset = event.first ?? 0;
     const limit = event.rows ?? this.pageSize;
+
+    if (!this.canViewAllBranches() && !this.userBranchId()) {
+      this.products.set([]);
+      this.totalCount.set(0);
+      return;
+    }
+
     this.loading.set(true);
 
     const filter: Record<string, any> = { limit, offset };
     if (this.filterName) filter['name'] = this.filterName;
     if (this.filterCategoryId) filter['category_id'] = this.filterCategoryId;
     if (this.filterIsActive !== null) filter['is_active'] = this.filterIsActive;
-    if (!this.canViewAllBranches() && this.userBranchId()) {
+    if (this.selectedBranch) {
+      filter['branch_id'] = this.selectedBranch;
+    } else if (!this.canViewAllBranches() && this.userBranchId()) {
       filter['branch_id'] = this.userBranchId();
     }
 

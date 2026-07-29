@@ -55,7 +55,28 @@ export class ProductApiService {
     if (filter?.branch_id) params['branch_id'] = filter.branch_id;
 
     return this.http
-      .get<JsendEnvelope<PaginatedGoData<ProductGoData>>>(`${this.baseUrl}/api/v1/products/`, { params })
+      .get<JsendEnvelope<PaginatedGoData<ProductGoData>>>(`${this.baseUrl}/api/v1/admin/products/`, { params })
+      .pipe(
+        map((res) => ({
+          items: res.data.items.map((p) => this.map(p)),
+          totalCount: res.data.total_count,
+          limit: res.data.limit,
+          offset: res.data.offset,
+        }))
+      );
+  }
+
+  listCatalog(filter?: ProductListFilter): Observable<PaginatedResponse<Product>> {
+    const params: Record<string, string> = {};
+    if (filter?.limit != null) params['limit'] = String(filter.limit);
+    if (filter?.offset != null) params['offset'] = String(filter.offset);
+    if (filter?.category_id) params['category_id'] = filter.category_id;
+    if (filter?.name) params['name'] = filter.name;
+    if (filter?.sku) params['sku'] = filter.sku;
+    if (filter?.branch_id) params['branch_id'] = filter.branch_id;
+
+    return this.http
+      .get<JsendEnvelope<PaginatedGoData<ProductGoData>>>(`${this.baseUrl}/api/v1/catalog/products/`, { params })
       .pipe(
         map((res) => ({
           items: res.data.items.map((p) => this.map(p)),

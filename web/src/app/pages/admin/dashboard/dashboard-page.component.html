@@ -81,7 +81,7 @@
           <h3>Tendencia de Ventas (30 dias)</h3>
           <div class="chart-container chart-tall">
             @if (salesTrend().length > 0) {
-              <p-chart type="line" [data]="salesTrendChartData()" [options]="lineOptions" />
+              <p-chart type="line" [data]="salesTrendChartData()" [options]="lineOptions" height="250px" />
             } @else {
               <div class="empty-chart">Sin datos de ventas</div>
             }

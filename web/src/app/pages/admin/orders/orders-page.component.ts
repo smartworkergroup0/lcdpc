@@ -77,6 +77,13 @@ export class OrdersPageComponent implements OnInit {
   loadOrders(event: any): void {
     const offset = event.first ?? 0;
     const limit = event.rows ?? this.pageSize;
+
+    if (!this.canViewAllBranches() && !this.userBranchId()) {
+      this.orders.set([]);
+      this.totalCount.set(0);
+      return;
+    }
+
     this.loading.set(true);
 
     const filter: Record<string, any> = { limit, offset };

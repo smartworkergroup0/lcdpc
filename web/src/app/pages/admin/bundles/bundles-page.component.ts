@@ -14,6 +14,7 @@ import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { BranchApiService } from '../../../core/services/branch-api.service';
 import { BundleApiService } from '../../../core/services/bundle-api.service';
 import { CategoryStore } from '../../../core/stores/category.store';
 import { Bundle } from '../../../core/models/bundle.model';
@@ -35,6 +36,7 @@ import { BundleFormDialogComponent } from './bundle-form-dialog.component';
 export class BundlesPageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly bundleApi = inject(BundleApiService);
+  private readonly branchApi = inject(BranchApiService);
   readonly categoryStore = inject(CategoryStore);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
@@ -54,7 +56,9 @@ export class BundlesPageComponent implements OnInit {
   protected filterCode = '';
   protected filterStatus: string | null = null;
   protected filterCategoryId: string | null = null;
+  protected selectedBranch: string | null = null;
 
+  protected readonly branches = signal<{ id: string; name: string }[]>([]);
   protected readonly statusOptions = [
     { label: 'Activo', value: 'Active' },
     { label: 'Inactivo', value: 'Inactive' },
@@ -65,11 +69,22 @@ export class BundlesPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.categoryStore.load();
+    this.branchApi.listAdmin().subscribe({
+      next: (branches) => this.branches.set(branches.map(b => ({ id: b.id, name: b.storeName }))),
+      error: () => {},
+    });
   }
 
   loadBundles(event: any): void {
     const offset = event.first ?? 0;
     const limit = event.rows ?? this.pageSize;
+
+    if (!this.canViewAllBranches() && !this.userBranchId()) {
+      this.bundles.set([]);
+      this.totalCount.set(0);
+      return;
+    }
+
     this.loading.set(true);
 
     const filter: Record<string, any> = { limit, offset };
@@ -77,7 +92,9 @@ export class BundlesPageComponent implements OnInit {
     if (this.filterCode) filter['code'] = this.filterCode;
     if (this.filterStatus) filter['status'] = this.filterStatus;
     if (this.filterCategoryId) filter['category_id'] = this.filterCategoryId;
-    if (!this.canViewAllBranches() && this.userBranchId()) {
+    if (this.selectedBranch) {
+      filter['branch_id'] = this.selectedBranch;
+    } else if (!this.canViewAllBranches() && this.userBranchId()) {
       filter['branch_id'] = this.userBranchId();
     }
 

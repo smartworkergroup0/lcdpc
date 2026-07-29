@@ -21,17 +21,29 @@ export class BranchStore {
   readonly selectedBranchId = this._selectedBranchId.asReadonly();
   readonly loading = this._loading.asReadonly();
 
-  load(): void {
-    if (this._branches().length > 0) return;
+  load(preferredBranchId?: string | null): void {
+    if (this._branches().length > 0) {
+      if (preferredBranchId && this._branches().some((b) => b.id === preferredBranchId)) {
+        this._selectedBranchId.set(preferredBranchId);
+      }
+      return;
+    }
+
     this._loading.set(true);
 
     this.branchApi.list().subscribe({
       next: (branchList) => {
         const mapped = branchList.map((b) => ({ id: b.id, name: b.storeName, code: b.code, address: b.address, phone: b.contactPhone }));
         this._branches.set(mapped);
-        if (mapped.length > 0 && !this._selectedBranchId()) {
-          this._selectedBranchId.set(mapped[0].id);
+
+        if (mapped.length > 0) {
+          if (preferredBranchId && mapped.some((b) => b.id === preferredBranchId)) {
+            this._selectedBranchId.set(preferredBranchId);
+          } else {
+            this._selectedBranchId.set(mapped[0].id);
+          }
         }
+
         this._loading.set(false);
       },
       error: () => {

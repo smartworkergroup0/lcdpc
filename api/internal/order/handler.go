@@ -105,10 +105,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	// Auto-filter by assigned branch if user lacks view:branch:all
 	if !middleware.HasPermission(r.Context(), h.rbacStore, "view:branch:all") {
 		branchIDStr := middleware.GetBranchID(r.Context())
-		if branchIDStr != "" {
-			if id, err := uuid.Parse(branchIDStr); err == nil {
-				filter.BranchID = &id
-			}
+		if branchIDStr == "" {
+			// No branch assigned and no view:branch:all → empty results
+			response.Paginated(w, []interface{}{}, 0, filter.GetLimit(), filter.GetOffset())
+			return
+		}
+		if id, err := uuid.Parse(branchIDStr); err == nil {
+			filter.BranchID = &id
 		}
 	}
 
@@ -157,10 +160,13 @@ func (h *Handler) ListMatrix(w http.ResponseWriter, r *http.Request) {
 	// Auto-filter by assigned branch if user lacks view:branch:all
 	if !middleware.HasPermission(r.Context(), h.rbacStore, "view:branch:all") {
 		branchIDStr := middleware.GetBranchID(r.Context())
-		if branchIDStr != "" {
-			if id, err := uuid.Parse(branchIDStr); err == nil {
-				filter.BranchID = &id
-			}
+		if branchIDStr == "" {
+			// No branch assigned and no view:branch:all → empty results
+			response.Paginated(w, []interface{}{}, 0, filter.GetLimit(), filter.GetOffset())
+			return
+		}
+		if id, err := uuid.Parse(branchIDStr); err == nil {
+			filter.BranchID = &id
 		}
 	}
 

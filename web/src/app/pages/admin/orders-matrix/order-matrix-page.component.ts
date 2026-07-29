@@ -244,6 +244,12 @@ export class OrderMatrixPageComponent implements OnInit, OnDestroy {
   }
 
   loadMatrix(): void {
+    if (!this.canViewAllBranches() && !this.userBranchId()) {
+      this.orders.set([]);
+      this.totalCount.set(0);
+      return;
+    }
+
     this.loading.set(true);
     const date = this.selectedDate();
     const utcMidnight = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));

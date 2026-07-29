@@ -164,9 +164,30 @@ func NewServer(
 		})
 	})
 
+	// Catalog (public, no auth)
+	r.Route("/api/v1/catalog/products", func(r chi.Router) {
+		r.Get("/", productH.ListCatalog)
+	})
+
+	r.Route("/api/v1/catalog/bundles", func(r chi.Router) {
+		r.Get("/", bundleH.ListCatalog)
+	})
+
+	// Admin list (auth required)
+	r.Route("/api/v1/admin/products", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+		r.Get("/", productH.List)
+	})
+
+	r.Route("/api/v1/admin/bundles", func(r chi.Router) {
+		r.Use(middleware.PASETOAuth(keySvc.Key(), cfg.OAuth2Issuer, cfg.OAuth2Audience))
+		r.Use(middleware.RequireAuth())
+		r.Get("/", bundleH.List)
+	})
+
 	// Products
 	r.Route("/api/v1/products", func(r chi.Router) {
-		r.Get("/", productH.List)
 		r.Get("/{id}", productH.GetByID)
 
 		r.Group(func(r chi.Router) {
@@ -192,7 +213,6 @@ func NewServer(
 
 	// Bundles
 	r.Route("/api/v1/bundles", func(r chi.Router) {
-		r.Get("/", bundleH.List)
 		r.Get("/{id}", bundleH.GetByID)
 
 		r.Group(func(r chi.Router) {

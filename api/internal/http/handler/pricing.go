@@ -113,16 +113,37 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, result)
 }
 
+func (h *ProductHandler) ListCatalog(w http.ResponseWriter, r *http.Request) {
+	f := pricing.ParseProductFilter(r)
+
+	if f.BranchID == nil {
+		response.Error(w, http.StatusBadRequest, "branch_id is required")
+		return
+	}
+
+	isActive := true
+	f.IsActive = &isActive
+
+	items, total, err := h.svc.ListProducts(r.Context(), f)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Paginated(w, items, total, f.GetLimit(), f.GetOffset())
+}
+
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	f := pricing.ParseProductFilter(r)
 
-	// Auto-filter by assigned branch if user lacks view:branch:all
 	if !middleware.HasPermission(r.Context(), h.rbacStore, "view:branch:all") {
 		branchIDStr := middleware.GetBranchID(r.Context())
-		if branchIDStr != "" {
-			if id, err := uuid.Parse(branchIDStr); err == nil {
-				f.BranchID = &id
-			}
+		if branchIDStr == "" {
+			response.Paginated(w, []interface{}{}, 0, f.GetLimit(), f.GetOffset())
+			return
+		}
+		if id, err := uuid.Parse(branchIDStr); err == nil {
+			f.BranchID = &id
 		}
 	}
 
@@ -349,16 +370,37 @@ func (h *BundleHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, result)
 }
 
+func (h *BundleHandler) ListCatalog(w http.ResponseWriter, r *http.Request) {
+	f := pricing.ParseBundleFilter(r)
+
+	if f.BranchID == nil {
+		response.Error(w, http.StatusBadRequest, "branch_id is required")
+		return
+	}
+
+	status := "Active"
+	f.Status = &status
+
+	items, total, err := h.svc.ListBundles(r.Context(), f)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Paginated(w, items, total, f.GetLimit(), f.GetOffset())
+}
+
 func (h *BundleHandler) List(w http.ResponseWriter, r *http.Request) {
 	f := pricing.ParseBundleFilter(r)
 
-	// Auto-filter by assigned branch if user lacks view:branch:all
 	if !middleware.HasPermission(r.Context(), h.rbacStore, "view:branch:all") {
 		branchIDStr := middleware.GetBranchID(r.Context())
-		if branchIDStr != "" {
-			if id, err := uuid.Parse(branchIDStr); err == nil {
-				f.BranchID = &id
-			}
+		if branchIDStr == "" {
+			response.Paginated(w, []interface{}{}, 0, f.GetLimit(), f.GetOffset())
+			return
+		}
+		if id, err := uuid.Parse(branchIDStr); err == nil {
+			f.BranchID = &id
 		}
 	}
 

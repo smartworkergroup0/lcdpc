@@ -156,6 +156,9 @@ export class DashboardPageComponent implements OnInit {
         grid: { drawOnChartArea: false },
       },
     },
+    elements: {
+      point: { radius: 6, hoverRadius: 8 },
+    },
   };
 
   protected readonly barOptions = {

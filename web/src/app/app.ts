@@ -44,7 +44,8 @@ export class App implements OnInit {
   }
 
   ngOnInit(): void {
-    this.branchStore.load();
+    const userBranchId = this.authStore.currentUser()?.branchId;
+    this.branchStore.load(userBranchId);
   }
 
   protected selectBranch(branchId: string | null): void {

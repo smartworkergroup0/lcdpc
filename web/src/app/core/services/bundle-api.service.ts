@@ -70,7 +70,28 @@ export class BundleApiService {
     if (filter?.branch_id) params['branch_id'] = filter.branch_id;
 
     return this.http
-      .get<JsendEnvelope<PaginatedGoData<BundleGoData>>>(`${this.baseUrl}/api/v1/bundles/`, { params })
+      .get<JsendEnvelope<PaginatedGoData<BundleGoData>>>(`${this.baseUrl}/api/v1/admin/bundles/`, { params })
+      .pipe(
+        map((res) => ({
+          items: res.data.items.map((b) => this.map(b)),
+          totalCount: res.data.total_count,
+          limit: res.data.limit,
+          offset: res.data.offset,
+        }))
+      );
+  }
+
+  listCatalog(filter?: BundleListFilter): Observable<PaginatedResponse<Bundle>> {
+    const params: Record<string, string> = {};
+    if (filter?.limit != null) params['limit'] = String(filter.limit);
+    if (filter?.offset != null) params['offset'] = String(filter.offset);
+    if (filter?.category_id) params['category_id'] = filter.category_id;
+    if (filter?.name) params['name'] = filter.name;
+    if (filter?.code) params['code'] = filter.code;
+    if (filter?.branch_id) params['branch_id'] = filter.branch_id;
+
+    return this.http
+      .get<JsendEnvelope<PaginatedGoData<BundleGoData>>>(`${this.baseUrl}/api/v1/catalog/bundles/`, { params })
       .pipe(
         map((res) => ({
           items: res.data.items.map((b) => this.map(b)),

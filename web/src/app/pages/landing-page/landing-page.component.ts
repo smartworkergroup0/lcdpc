@@ -334,10 +334,10 @@ export class LandingPageComponent implements OnInit, OnDestroy {
 
     const calls: { products?: Observable<any>; bundles?: Observable<any> } = {};
     if (this.hasMoreProducts()) {
-      calls.products = this.productApi.list({ ...productParams, offset: this.productsOffset() });
+      calls.products = this.productApi.listCatalog({ ...productParams, offset: this.productsOffset() });
     }
     if (this.hasMoreBundles()) {
-      calls.bundles = this.bundleApi.list({ ...bundleParams, offset: this.bundlesOffset(), status: 'Active' });
+      calls.bundles = this.bundleApi.listCatalog({ ...bundleParams, offset: this.bundlesOffset() });
     }
 
     if (!calls.products && !calls.bundles) {
