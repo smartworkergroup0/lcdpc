@@ -69,7 +69,17 @@ export class ProductsPageComponent implements OnInit {
   ngOnInit(): void {
     this.categoryStore.load();
     this.branchApi.listAdmin().subscribe({
-      next: (branches) => this.branches.set(branches.map(b => ({ id: b.id, name: b.storeName }))),
+      next: (branches) => {
+        this.branches.set(branches.map(b => ({ id: b.id, name: b.storeName })));
+        if (this.canViewAllBranches() && !this.selectedBranch) {
+          const preferred = this.userBranchId();
+          if (preferred && branches.some(b => b.id === preferred)) {
+            this.selectedBranch = preferred;
+          } else if (branches.length > 0) {
+            this.selectedBranch = branches[0].id;
+          }
+        }
+      },
       error: () => {},
     });
   }

@@ -14,7 +14,9 @@
       </p-iconfield>
     </ng-template>
     <ng-template pTemplate="end">
-      <p-select [options]="branches()" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="id" placeholder="Todas las sucursales" [showClear]="true" (onChange)="applyFilters()"></p-select>
+      @if (canViewAllBranches()) {
+        <p-select [options]="branches()" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="id" placeholder="Todas las sucursales" [showClear]="true" (onChange)="applyFilters()"></p-select>
+      }
       <p-select [options]="categoryStore.categoryOptions()" [(ngModel)]="filterCategoryId" optionLabel="label" optionValue="value" placeholder="Todas las categorias" [showClear]="true" (onChange)="applyFilters()"></p-select>
       <p-select [options]="activeOptions" [(ngModel)]="filterIsActive" optionLabel="label" optionValue="value" placeholder="Todos" [showClear]="true" (onChange)="applyFilters()"></p-select>
     </ng-template>

@@ -11,11 +11,12 @@
       </p-iconfield>
     </ng-template>
     <ng-template pTemplate="end">
-      <p-select [options]="branches()" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="id" placeholder="Todas las sucursales" [showClear]="true" (onChange)="applyFilters()"></p-select>
-      @if (canCreate()) {
-        <p-button label="Nuevo Personal" icon="pi pi-plus" (onClick)="openCreate()" styleClass="mr-2" />
+      @if (canViewAllBranches()) {
+        <p-select [options]="branches()" [(ngModel)]="selectedBranch" optionLabel="name" optionValue="id" placeholder="Todas las sucursales" [showClear]="true" (onChange)="applyFilters()"></p-select>
       }
-      <p-button label="Buscar" icon="pi pi-search" severity="secondary" (onClick)="applyFilters()" />
+      @if (canCreate()) {
+        <p-button label="Nuevo Personal" icon="pi pi-plus" (onClick)="openCreate()" />
+      }
     </ng-template>
   </p-toolbar>
 
