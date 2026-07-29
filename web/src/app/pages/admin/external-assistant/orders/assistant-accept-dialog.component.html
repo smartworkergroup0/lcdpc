@@ -1,4 +1,4 @@
-<p-dialog header="Atender Orden de SmartWorker"
+<p-dialog header="Atender Orden"
           [visible]="visible" (visibleChange)="visibleChange.emit($event)"
           [modal]="true" [dismissableMask]="true" [draggable]="false"
           [style]="{width: 'min(1100px, 95vw)'}"
@@ -43,7 +43,8 @@
               <div class="item-fields-row">
                 <p-select class="product-field" [options]="products()" [(ngModel)]="item.product_id"
                           optionLabel="name" optionValue="productId"
-                          placeholder="Producto" (onChange)="onProductSelect(i)" appendTo="body" />
+                          placeholder="Producto" (onChange)="onProductSelect(i)" appendTo="body"
+                          [filter]="true" filterPlaceholder="Buscar producto..." />
                 <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="0.01"
                                [maxFractionDigits]="3" placeholder="Cant." />
               </div>
