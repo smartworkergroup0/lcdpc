@@ -1,12 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputGroupModule } from 'primeng/inputgroup';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
+import { ToolbarModule } from 'primeng/toolbar';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
@@ -25,19 +29,22 @@ import { OrderItemsDialogComponent } from './order-items-dialog.component';
   standalone: true,
   imports: [
     CommonModule, FormsModule, ButtonModule, TableModule, TagModule,
-    SelectModule, InputTextModule, InputGroupModule, DialogModule, ConfirmDialogModule,
+    SelectModule, InputTextModule, IconFieldModule, InputIconModule,
+    ToolbarModule, DialogModule, ConfirmDialogModule,
     ToastModule, TooltipModule, OrderDetailDialogComponent, OrderFormDialogComponent, OrderItemsDialogComponent
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './orders-page.component.html',
   styleUrl: './orders-page.component.scss'
 })
-export class OrdersPageComponent implements OnInit {
+export class OrdersPageComponent implements OnInit, OnDestroy {
   private readonly authStore = inject(AuthStore);
   private readonly orderApi = inject(OrderApiService);
   private readonly branchApi = inject(BranchApiService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
+  private readonly destroy$ = new Subject<void>();
+  private readonly searchSubject = new Subject<void>();
 
   protected readonly canView = computed(() => this.authStore.hasPermission('order:view'));
   protected readonly canCreate = computed(() => this.authStore.hasPermission('order:create'));
@@ -69,9 +76,34 @@ export class OrdersPageComponent implements OnInit {
   protected statusNotes = '';
 
   ngOnInit(): void {
+    this.searchSubject.pipe(
+      debounceTime(1000),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.applyFilters());
+
     this.branchApi.listAdmin().subscribe({
-      next: (branches) => this.branches.set(branches.map((b) => ({ id: b.id, name: b.storeName }))),
+      next: (branches) => {
+        this.branches.set(branches.map((b) => ({ id: b.id, name: b.storeName })));
+        if (this.canViewAllBranches() && !this.selectedBranch) {
+          const preferred = this.userBranchId();
+          if (preferred && branches.some((b) => b.id === preferred)) {
+            this.selectedBranch = preferred;
+          } else if (branches.length > 0) {
+            this.selectedBranch = branches[0].id;
+          }
+        }
+      },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.searchSubject.complete();
+  }
+
+  onSearchChange(): void {
+    this.searchSubject.next();
   }
 
   loadOrders(event: any): void {

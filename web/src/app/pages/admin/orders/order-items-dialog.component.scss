@@ -222,29 +222,22 @@
 
 /* === RESPONSIVE === */
 
-@media (max-width: 700px) {
+@media (max-width: 600px) {
   .item-row {
-    grid-template-columns: minmax(140px, 1fr) 60px 150px 80px 32px;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
   }
 
   .product-field,
-  .item-name {
-    grid-column: 1 / -1;
+  .item-name     { grid-column: 1; grid-row: 1; }
+  .qty-field,
+  .item-qty      { grid-column: 2; grid-row: 1; }
+  .price-field,
+  .item-price    { grid-column: 1; grid-row: 2; text-align: center; }
+  .item-subtotal { grid-column: 2; grid-row: 2; justify-self: center; }
+  .remove-btn    { grid-column: 2; grid-row: 2; justify-self: end; }
+
+  .items-total {
+    justify-content: center;
   }
-}
-
-@media (max-width: 500px) {
-  .item-row {
-    grid-template-columns: 60px 1fr 32px;
-  }
-
-  .product-field { grid-column: 1 / -1; }
-  .qty-field     { grid-column: 1; }
-  .price-field   { grid-column: 2; }
-  .item-subtotal { grid-column: 1 / -1; text-align: left; padding-top: 0.25rem; }
-  .remove-btn    { grid-column: 3; grid-row: 2; align-self: center; }
-
-  .item-name  { grid-column: 1 / -1; }
-  .item-qty   { grid-column: 1; }
-  .item-price { grid-column: 2; }
 }

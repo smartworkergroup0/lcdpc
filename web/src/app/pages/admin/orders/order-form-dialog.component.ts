@@ -192,6 +192,14 @@ export class OrderFormDialogComponent implements OnChanges {
       if (!this.canViewAllBranches() && this.userBranchId()) {
         this.form.branch_id = this.userBranchId()!;
         this.loadProducts(this.form.branch_id);
+      } else if (this.canViewAllBranches() && !this.form.branch_id && this.branches.length > 0) {
+        const preferred = this.userBranchId();
+        if (preferred && this.branches.some((b) => b.id === preferred)) {
+          this.form.branch_id = preferred;
+        } else {
+          this.form.branch_id = this.branches[0].id;
+        }
+        this.loadProducts(this.form.branch_id);
       }
     }
   }

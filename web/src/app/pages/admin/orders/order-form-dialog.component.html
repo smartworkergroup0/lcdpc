@@ -5,15 +5,17 @@
           (onHide)="close()">
   <div class="order-form" [style]="{marginTop: '25px'}">
 
-    <div class="field-row">
-      <div class="field">
-        <p-select id="branch" [options]="branches" [(ngModel)]="form.branch_id"
-                  optionLabel="name" optionValue="id" placeholder="Sucursal *"
-                  [showClear]="false" [style]="{'width':'100%'}"
-                  [class.ng-invalid]="submitted && !form.branch_id"
-                  (onChange)="onBranchChange()" />
+    @if (canViewAllBranches()) {
+      <div class="field-row">
+        <div class="field">
+          <p-select id="branch" [options]="branches" [(ngModel)]="form.branch_id"
+                    optionLabel="name" optionValue="id" placeholder="Sucursal *"
+                    [showClear]="false" [style]="{'width':'100%'}"
+                    [class.ng-invalid]="submitted && !form.branch_id"
+                    (onChange)="onBranchChange()" />
+        </div>
       </div>
-    </div>
+    }
 
     <div class="field">
       <label class="field-label">Cliente *</label>
