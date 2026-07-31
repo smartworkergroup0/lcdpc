@@ -375,3 +375,23 @@
     display: none;
   }
 }
+
+@media (max-width: 550px) {
+  .product-image-frame {
+    width: 25%;
+  }
+
+  .product-clickable {
+    margin-left: 25%;
+
+    .product-copy {
+      padding: 0.5rem;
+    }
+  }
+
+  .product-actions {
+    margin-left: 25%;
+    gap: 0.5rem;
+    padding: 0 0.5rem 0.5rem;
+  }
+}
