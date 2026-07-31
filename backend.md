@@ -199,3 +199,19 @@ if !middleware.HasPermission(r.Context(), s.rbac, "view:branch:all") && branchID
 - Routes: `/api/v1/external/{service-name}/{resource}` (e.g., `/api/v1/external/assistant/leads`)
 - RBAC: permission code `{service-name}:view` (e.g., `assistant:view`)
 - Client handles JWT auth token caching and refresh automatically
+
+### Timezone policy (backend)
+
+The system stores and transmits all timestamps in UTC. This is enforced at three levels:
+
+1. **Go process**: `time.Local = time.UTC` is set at the start of `main()` (`api/main/main.go`). All `time.Time` marshaling produces RFC3339 with `Z` suffix, regardless of the host OS timezone.
+2. **DB session**: `timezone=UTC` runtime parameter is set in `api/internal/db/db.go:Connect()`. This ensures `CURRENT_DATE`, `now()`, `TO_CHAR`, and all session-level date functions operate in UTC regardless of the PostgreSQL server's default timezone.
+3. **Docker**: `TZ: UTC` is set on both `api` and `postgres` services in `docker-compose.yml` as a belt-and-suspenders measure.
+
+Rules for new code:
+- Never set `time.Local` to anything other than `time.UTC`.
+- Never use `time.Now()` without `.UTC()` — though with `time.Local = time.UTC` both are equivalent, prefer `time.Now().UTC()` for explicit intent.
+- All `TIMESTAMPTZ` columns use `now()` as default — this is correct and should continue.
+- When returning timestamps to the frontend, always use `time.Time` with JSON tag — the standard marshaler produces the correct UTC RFC3339 format.
+- Date filters (`date_from`, `date_to`) are interpreted as UTC boundaries.
+- Display IDs and counters that depend on "today" use UTC days.

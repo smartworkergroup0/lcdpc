@@ -721,3 +721,14 @@ Full-page cart view with checkout form (person search, contact fields, order con
 - When branch changes, reloads products and bundles with `branch_id` filter
 - `CatalogComponent` emits `increment(productId)`, `decrement(productId)`, `addToCart(productId)` events
 - Cart-to-catalog reload: effect watches `cartStore.lastOrderCreatedAt()` alongside branch changes to reload products
+
+### Timezone policy (frontend)
+
+- All timestamps from the API are UTC (RFC3339 with `Z` suffix).
+- Store and pass them as-is (string) in models, services, and stores — never convert to local time in the data layer.
+- Display: use Angular `date` pipe with format `'d MMM y HH:mm'`. The pipe automatically converts the UTC string to the user's browser-local timezone. Example:
+  - UTC string `2026-07-30T14:00:00Z` → Venezuela browser shows `30 Jul 2026 10:00`
+  - Same string → UTC browser shows `30 Jul 2026 14:00`
+- Never use `toLocaleString()`, `toLocaleDateString()`, or manual offset math for date display in order/admin pages.
+- Date filters (matrix, dashboard) operate on UTC boundaries.
+- New date displays must use the same `'d MMM y HH:mm'` format for consistency.

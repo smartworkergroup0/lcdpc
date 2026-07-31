@@ -50,7 +50,7 @@
         <td><p-tag [value]="orderStatusLabel(order.status)" [severity]="orderStatusSeverity(order.status)" /></td>
         <td>{{ order.priceTotal | currency:order.currency }}</td>
         <td>{{ order.totalItems }}</td>
-        <td>{{ order.createdAtUtc | date:'short' }}</td>
+        <td>{{ order.createdAtUtc | date:'d MMM y HH:mm' }}</td>
         <td>
           <p-button icon="pi pi-eye" [text]="true" [rounded]="true"
                     (onClick)="viewDetail(order)" pTooltip="Ver detalle"></p-button>

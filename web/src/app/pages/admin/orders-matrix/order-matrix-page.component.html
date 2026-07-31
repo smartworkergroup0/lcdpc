@@ -189,7 +189,7 @@
         </div>
         <div class="detail-item">
           <span class="detail-label">Creada</span>
-          <span class="detail-value">{{ order.createdAtUtc | date:'medium' }}</span>
+          <span class="detail-value">{{ order.createdAtUtc | date:'d MMM y HH:mm' }}</span>
         </div>
         @if (order.notes) {
           <div class="detail-item detail-item--full">
@@ -229,7 +229,7 @@
           <div class="timeline-entry">
             <div class="timeline-content">
               <p-tag [value]="getNodeLabel(entry.toStatus)" [severity]="statusSeverity[entry.toStatus]" size="small" />
-              <span class="timeline-date">{{ entry.createdAtUtc | date:'short' }}</span>
+              <span class="timeline-date">{{ entry.createdAtUtc | date:'d MMM y HH:mm' }}</span>
               @if (entry.changedByName) {
                 <span class="timeline-user">{{ entry.changedByName }}</span>
               }

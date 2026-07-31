@@ -28,7 +28,7 @@
         </div>
         <div class="detail-item">
           <span class="detail-label">Creada</span>
-          <span class="detail-value">{{ order.createdAtUtc | date:'medium' }}</span>
+          <span class="detail-value">{{ order.createdAtUtc | date:'d MMM y HH:mm' }}</span>
         </div>
       </div>
 
@@ -48,7 +48,7 @@
                 <p-tag [value]="orderStatusLabel(entry.toStatus)" [severity]="orderStatusSeverity(entry.toStatus)" />
               </div>
               <div class="history-info">
-                <span class="history-date">{{ entry.createdAtUtc | date:'short' }}</span>
+                <span class="history-date">{{ entry.createdAtUtc | date:'d MMM y HH:mm' }}</span>
                 @if (entry.changedByName) {
                   <span class="history-user">{{ entry.changedByName }}</span>
                 }

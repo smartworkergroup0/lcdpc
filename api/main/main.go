@@ -37,6 +37,8 @@ import (
 )
 
 func main() {
+	time.Local = time.UTC
+
 	_ = godotenv.Load()
 	encryptKey := flag.String("encrypt-paseto-key", "", "Encrypt paseto.key with the given master key (64 hex chars) and exit")
 	encryptSAKey := flag.String("encrypt-paseto-sa-key", "", "Encrypt paseto_sa.key with the given master key (64 hex chars) and exit")
