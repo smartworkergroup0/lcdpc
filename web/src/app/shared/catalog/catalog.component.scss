@@ -40,6 +40,8 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  min-width: 0;
+  max-width: 100%;
 
   &::-webkit-scrollbar {
     display: none;
@@ -364,6 +366,12 @@
   }
 
   .stock-info {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .section-head h2 {
     display: none;
   }
 }
