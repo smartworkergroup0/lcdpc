@@ -11,7 +11,7 @@
   margin: calc(var(--header-offset) + var(--main-top-gap)) auto 6rem;
   border: 2px dashed var(--border);
   border-radius: 1.5rem;
-  padding: 1.5rem;
+  padding: 1rem;
   background:
     radial-gradient(circle at top right, rgba(247, 147, 26, 0.12), transparent 30%),
     radial-gradient(circle at top left, rgba(245, 203, 0, 0.16), transparent 24%),
@@ -126,10 +126,16 @@
 
   .landing-shell {
     width: min(100vw - 1rem, 1280px);
-    padding-bottom: 7rem;
+    padding: 0.75rem 0.75rem 7rem;
   }
 
   .mobile-nav {
     display: flex;
+  }
+}
+
+@media (max-width: 550px) {
+  .landing-shell {
+    padding: 0.5rem 0.5rem 7rem;
   }
 }
