@@ -20,7 +20,7 @@ func NewService(pool *pgxpool.Pool) *Service {
 
 func (s *Service) ListOrderStatuses(ctx context.Context, statusFilter string) ([]OrderStatus, error) {
 	query := `
-		SELECT id, code, label, color, is_initial, is_final, description, sort_order, created_at_utc, updated_at_utc
+		SELECT id, code, label, color, is_initial, is_final, positive, description, sort_order, created_at_utc, updated_at_utc
 		FROM order_statuses
 	`
 	if statusFilter != "ALL" {
@@ -38,7 +38,7 @@ func (s *Service) ListOrderStatuses(ctx context.Context, statusFilter string) ([
 	for rows.Next() {
 		var st OrderStatus
 		if err := rows.Scan(&st.ID, &st.Code, &st.Label, &st.Color, &st.IsInitial, &st.IsFinal,
-			&st.Description, &st.SortOrder, &st.CreatedAtUtc, &st.UpdatedAtUtc); err != nil {
+			&st.Positive, &st.Description, &st.SortOrder, &st.CreatedAtUtc, &st.UpdatedAtUtc); err != nil {
 			return nil, fmt.Errorf("scan order status: %w", err)
 		}
 		statuses = append(statuses, st)
@@ -213,13 +213,17 @@ func (s *Service) GetActiveWorkflow(ctx context.Context, entityType string) (*Wo
 	}
 
 	result := &WorkflowInfo{
-		TerminalStatuses: make(map[string]bool),
+		TerminalStatuses:         make(map[string]bool),
+		PositiveTerminalStatuses: make(map[string]bool),
 	}
 
 	// Build terminal statuses from nodes with IsFinal
 	for _, node := range wf.Definition.Nodes {
 		if node.Data.IsFinal {
 			result.TerminalStatuses[node.Data.Code] = true
+			if node.Data.Positive {
+				result.PositiveTerminalStatuses[node.Data.Code] = true
+			}
 		}
 	}
 

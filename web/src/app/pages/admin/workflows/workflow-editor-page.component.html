@@ -20,6 +20,11 @@
       }
       @if (data?.isFinal) {
         <span class="badge badge-final">Final</span>
+        @if (data?.positive) {
+          <span class="badge badge-positive">Positivo</span>
+        } @else {
+          <span class="badge badge-negative">Negativo</span>
+        }
       }
     </div>
   </div>
@@ -241,6 +246,20 @@
               <label for="node-final">Estado final</label>
             </div>
           </div>
+
+          @if (node.data.isFinal) {
+            <div class="config-field-row">
+              <div class="config-checkbox">
+                <p-checkbox
+                  [binary]="true"
+                  [ngModel]="node.data.positive"
+                  (ngModelChange)="updateNodeData('positive', $event)"
+                  inputId="node-positive"
+                />
+                <label for="node-positive">Positivo (baja stock)</label>
+              </div>
+            </div>
+          }
 
           <div class="config-actions">
             <p-button

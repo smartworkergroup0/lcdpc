@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, computed, inject, signal, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, computed, inject, signal, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -67,6 +67,8 @@ export class ProductFormDialogComponent implements OnChanges {
   private readonly unitApi = inject(MeasurementUnitApiService);
   private readonly priceCategoryApi = inject(PriceCategoryApiService);
   readonly categoryStore = inject(CategoryStore);
+
+  @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
 
   protected readonly saving = signal(false);
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
@@ -152,6 +154,9 @@ export class ProductFormDialogComponent implements OnChanges {
       this.submitted = false;
       this.imageFile = null;
       this.conversionError = null;
+      if (this.imageInput) {
+        this.imageInput.nativeElement.value = '';
+      }
       this.retailCategoryId = null;
     }
   }

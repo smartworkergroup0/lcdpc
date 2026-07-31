@@ -6,16 +6,16 @@
     }
   </div>
 
-  <p-toolbar styleClass="admin-toolbar">
-    <ng-template pTemplate="start">
+  <div class="orders-toolbar">
+    <div class="orders-toolbar-search">
       <p-iconfield>
         <p-inputicon><i class="pi pi-search"></i></p-inputicon>
         <input pInputText type="text" placeholder="Buscar por ID..."
                [(ngModel)]="searchDisplayId" (ngModelChange)="onSearchChange()"
                (keyup.enter)="applyFilters()" />
       </p-iconfield>
-    </ng-template>
-    <ng-template pTemplate="end">
+    </div>
+    <div class="orders-toolbar-filters">
       <p-select [options]="statusOptions" [(ngModel)]="selectedStatus"
                 optionLabel="label" optionValue="value"
                 placeholder="Todos los estados" [showClear]="true"
@@ -26,8 +26,8 @@
                   placeholder="Todas las sucursales" [showClear]="true"
                   (onChange)="applyFilters()"></p-select>
       }
-    </ng-template>
-  </p-toolbar>
+    </div>
+  </div>
 
   <p-table [value]="orders()" [lazy]="true" [paginator]="true"
            [rows]="pageSize" [totalRecords]="totalCount()" [loading]="loading()"

@@ -33,7 +33,8 @@
         <div class="field">
           <p-select id="branch" [options]="branches()" [(ngModel)]="form.branch_id"
                     optionLabel="label" optionValue="value" placeholder="Sucursal"
-                    [showClear]="true" [style]="{'width':'100%'}" />
+                    [showClear]="false" [style]="{'width':'100%'}"
+                    (onChange)="onBranchChange()" />
         </div>
       }
     </div>
@@ -56,7 +57,8 @@
     <div class="items-section">
       <div class="items-header">
         <h3>Items del Combo</h3>
-        <p-button label="Agregar Item" icon="pi pi-plus" [text]="true" size="small" (onClick)="addItem()"></p-button>
+        <p-button label="Agregar Item" icon="pi pi-plus" [text]="true" size="small"
+                  [disabled]="!form.branch_id" (onClick)="addItem()"></p-button>
       </div>
 
       @if (submitted && form.items.length === 0) {
@@ -67,7 +69,7 @@
         <div class="item-row" [class.ng-invalid]="submitted && (!item.product_id || item.quantity <= 0)">
           <p-select class="product-field" [options]="availableProducts" [(ngModel)]="item.product_id"
                     optionLabel="name" optionValue="productId"
-                    placeholder="Producto" />
+                    placeholder="Producto" [disabled]="!form.branch_id" />
           <p-inputNumber class="qty-field" [(ngModel)]="item.quantity" [min]="1"
                          [maxFractionDigits]="getItemDecimalStock(i) ? 3 : 0"
                          placeholder="Cant." />
@@ -131,7 +133,7 @@
           <p-button icon="pi pi-times" [text]="true" severity="danger" (onClick)="removeImage()"></p-button>
         </div>
       }
-      <input type="file" accept="image/*" (change)="onFileSelect($event)" />
+      <input #imageInput type="file" accept="image/*" (change)="onFileSelect($event)" />
     </div>
   </div>
 

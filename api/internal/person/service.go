@@ -417,16 +417,12 @@ func (s *Service) GetClientByID(ctx context.Context, id uuid.UUID) (*Person, err
 
 func (s *Service) UpdateClient(ctx context.Context, id uuid.UUID, req UpsertRequest) (*Person, error) {
 	req.Name = strings.TrimSpace(req.Name)
-	req.IdentityDocument = strings.ToUpper(strings.TrimSpace(req.IdentityDocument))
 	req.TaxID = strings.TrimSpace(req.TaxID)
 	req.WhatsAppPhone = strings.TrimSpace(req.WhatsAppPhone)
 	req.FullAddress = strings.TrimSpace(req.FullAddress)
 
 	if req.Name != "" && len(req.Name) > 200 {
 		return nil, fmt.Errorf("name is too long")
-	}
-	if req.IdentityDocument != "" && !identityDocumentPattern.MatchString(req.IdentityDocument) {
-		return nil, fmt.Errorf("invalid identity_document")
 	}
 	if req.WhatsAppPhone != "" && len(req.WhatsAppPhone) > 30 {
 		return nil, fmt.Errorf("whatsapp_phone is too long")
@@ -442,14 +438,13 @@ func (s *Service) UpdateClient(ctx context.Context, id uuid.UUID, req UpsertRequ
 	err := s.pool.QueryRow(ctx, `
 		UPDATE persons SET
 			name = COALESCE(NULLIF($2, ''), name),
-			identity_document = COALESCE(NULLIF($3, ''), identity_document),
-			tax_id = NULLIF($4, ''),
-			whatsapp_phone = COALESCE(NULLIF($5, ''), whatsapp_phone),
-			full_address = COALESCE(NULLIF($6, ''), full_address),
+			tax_id = NULLIF($3, ''),
+			whatsapp_phone = COALESCE(NULLIF($4, ''), whatsapp_phone),
+			full_address = COALESCE(NULLIF($5, ''), full_address),
 			updated_at_utc = now()
 		WHERE id = $1 AND is_client = true
 		RETURNING id, name, identity_document, tax_id, whatsapp_phone, full_address, is_client, is_staff, created_at_utc, updated_at_utc
-	`, id, req.Name, req.IdentityDocument, req.TaxID, req.WhatsAppPhone, req.FullAddress).Scan(
+	`, id, req.Name, req.TaxID, req.WhatsAppPhone, req.FullAddress).Scan(
 		&p.ID, &p.Name, &p.IdentityDocument, &p.TaxID, &p.WhatsAppPhone, &p.FullAddress, &p.IsClient, &p.IsStaff, &p.CreatedAtUtc, &p.UpdatedAtUtc,
 	)
 	if err == pgx.ErrNoRows {

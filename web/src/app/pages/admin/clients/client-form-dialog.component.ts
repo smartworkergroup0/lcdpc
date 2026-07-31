@@ -153,7 +153,6 @@ export class ClientFormDialogComponent implements OnChanges {
       this.saving.set(true);
       const req = {
         name: this.name,
-        identity_document: `${this.documentType}${this.documentNumber}`,
         whatsapp_phone: this.whatsappPhone,
         full_address: this.fullAddress,
       };

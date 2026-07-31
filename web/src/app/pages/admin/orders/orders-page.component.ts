@@ -10,7 +10,6 @@ import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
-import { ToolbarModule } from 'primeng/toolbar';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
@@ -19,7 +18,8 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { OrderApiService } from '../../../core/services/order-api.service';
 import { BranchApiService } from '../../../core/services/branch-api.service';
-import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_SEVERITY, ORDER_TERMINAL_STATUSES } from '../../../core/models/order.model';
+import { WorkflowApiService } from '../../../core/services/workflow-api.service';
+import { Order, ORDER_STATUS_LABELS, ORDER_STATUS_SEVERITY } from '../../../core/models/order.model';
 import { OrderDetailDialogComponent } from './order-detail-dialog.component';
 import { OrderFormDialogComponent } from './order-form-dialog.component';
 import { OrderItemsDialogComponent } from './order-items-dialog.component';
@@ -30,7 +30,7 @@ import { OrderItemsDialogComponent } from './order-items-dialog.component';
   imports: [
     CommonModule, FormsModule, ButtonModule, TableModule, TagModule,
     SelectModule, InputTextModule, IconFieldModule, InputIconModule,
-    ToolbarModule, DialogModule, ConfirmDialogModule,
+    DialogModule, ConfirmDialogModule,
     ToastModule, TooltipModule, OrderDetailDialogComponent, OrderFormDialogComponent, OrderItemsDialogComponent
   ],
   providers: [ConfirmationService, MessageService],
@@ -41,6 +41,7 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
   private readonly authStore = inject(AuthStore);
   private readonly orderApi = inject(OrderApiService);
   private readonly branchApi = inject(BranchApiService);
+  private readonly workflowApi = inject(WorkflowApiService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
   private readonly destroy$ = new Subject<void>();
@@ -57,6 +58,7 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
   protected readonly branches = signal<{ id: string; name: string }[]>([]);
   protected readonly loading = signal(false);
   protected readonly totalCount = signal(0);
+  protected readonly workflowTerminalStatuses = signal<Record<string, boolean>>({});
   protected readonly pageSize = 10;
 
   protected selectedStatus: string | null = null;
@@ -94,6 +96,8 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
         }
       },
     });
+
+    this.loadWorkflowTerminals();
   }
 
   ngOnDestroy(): void {
@@ -154,7 +158,24 @@ export class OrdersPageComponent implements OnInit, OnDestroy {
   }
 
   isTerminal(status: string): boolean {
-    return !!ORDER_TERMINAL_STATUSES[status];
+    return !!this.workflowTerminalStatuses()[status];
+  }
+
+  private loadWorkflowTerminals(): void {
+    this.workflowApi.list({ entity_type: 'order', is_active: true, limit: 1 }).subscribe({
+      next: (res) => {
+        if (res.items.length > 0) {
+          const wf = res.items[0];
+          const terminals: Record<string, boolean> = {};
+          for (const node of wf.nodes) {
+            if (node.data.isFinal) {
+              terminals[node.data.code] = true;
+            }
+          }
+          this.workflowTerminalStatuses.set(terminals);
+        }
+      },
+    });
   }
 
   isInitialStatus(status: string): boolean {

@@ -147,13 +147,6 @@ export const ORDER_STATUS_SEVERITY: Record<string, 'warn' | 'info' | 'success' |
   CANCELLED_BY_CUSTOMER: 'secondary',
 };
 
-export const ORDER_TERMINAL_STATUSES: Record<string, boolean> = {
-  REJECTED_BY_VALIDATION: true,
-  DELIVERY_FAILED: true,
-  COMPLETED: true,
-  CANCELLED_BY_CUSTOMER: true,
-};
-
 export const ORDER_EDITABLE_STATUSES: Record<string, boolean> = {
   PENDING_REVIEW: true,
   UNDER_REVIEW: true,

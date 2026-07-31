@@ -63,7 +63,7 @@
           <p-button icon="pi pi-times" [text]="true" severity="danger" (onClick)="removeImage()"></p-button>
         </div>
       }
-      <input type="file" accept="image/*" (change)="onFileSelect($event)" />
+      <input #imageInput type="file" accept="image/*" (change)="onFileSelect($event)" />
     </div>
 
     <div class="section-divider"></div>

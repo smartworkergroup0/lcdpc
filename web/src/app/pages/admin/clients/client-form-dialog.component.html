@@ -16,12 +16,13 @@
         <div class="field">
           <p-select id="documentType" [options]="documentTypeOptions" [(ngModel)]="documentType"
                     optionLabel="label" optionValue="value"
-                    placeholder="Tipo" [style]="{'width':'100%'}" appendTo="body" />
+                    placeholder="Tipo" [style]="{'width':'100%'}" appendTo="body" [disabled]="true" />
         </div>
         <div class="field">
           <p-floatlabel>
             <input pInputText id="documentNumber" [(ngModel)]="documentNumber"
-                   [class.ng-invalid]="submitted && !documentNumber" style="width: 100%" placeholder=" " />
+                   [class.ng-invalid]="submitted && !documentNumber" style="width: 100%" placeholder=" "
+                   [disabled]="true" />
             <label for="documentNumber">Numero de documento *</label>
           </p-floatlabel>
         </div>

@@ -3,6 +3,7 @@ export interface WorkflowNodeData {
   code: string;
   isInitial: boolean;
   isFinal: boolean;
+  positive: boolean;
   color?: string;
   description?: string;
 }
@@ -110,6 +111,7 @@ export interface OrderStatus {
   color: string;
   isInitial: boolean;
   isFinal: boolean;
+  positive: boolean;
   description: string;
   sortOrder: number;
 }

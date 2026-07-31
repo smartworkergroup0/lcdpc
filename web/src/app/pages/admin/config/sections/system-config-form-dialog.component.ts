@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, inject, signal, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, ViewChild, inject, signal, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -142,6 +142,9 @@ export class SystemConfigFormDialogComponent implements OnChanges {
 
   private readonly systemConfigApi = inject(SystemConfigApiService);
 
+  @ViewChild('logoInput') logoInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('iconInput') iconInput!: ElementRef<HTMLInputElement>;
+
   protected readonly saving = signal(false);
   protected submitted = false;
   protected logoFile: File | null = null;
@@ -175,6 +178,12 @@ export class SystemConfigFormDialogComponent implements OnChanges {
       this.logoFile = null;
       this.iconFile = null;
       this.submitted = false;
+      if (this.logoInput) {
+        this.logoInput.nativeElement.value = '';
+      }
+      if (this.iconInput) {
+        this.iconInput.nativeElement.value = '';
+      }
     }
   }
 

@@ -51,6 +51,7 @@ interface OrderStatusGoData {
   color: string;
   is_initial: boolean;
   is_final: boolean;
+  positive: boolean;
   description: string;
   sort_order: number;
 }
@@ -181,6 +182,7 @@ export class WorkflowApiService {
         code: raw.data.code,
         isInitial: (raw.data as any).is_initial ?? raw.data.isInitial ?? false,
         isFinal: (raw.data as any).is_final ?? raw.data.isFinal ?? false,
+        positive: (raw.data as any).positive ?? false,
         color: raw.data.color,
         description: raw.data.description,
       },
@@ -218,6 +220,7 @@ export class WorkflowApiService {
       color: raw.color,
       isInitial: raw.is_initial,
       isFinal: raw.is_final,
+      positive: raw.positive ?? false,
       description: raw.description,
       sortOrder: raw.sort_order,
     };

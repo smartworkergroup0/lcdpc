@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, OnChanges, Output, signal, SimpleChanges, computed } from '@angular/core';
+import { Component, ElementRef, EventEmitter, inject, Input, OnChanges, Output, signal, SimpleChanges, computed, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -11,7 +11,7 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth.store';
-import { Bundle, BundleItemRequest, CreateBundleRequest } from '../../../core/models/bundle.model';
+import { Bundle, BundleItemRequest } from '../../../core/models/bundle.model';
 import { Product } from '../../../core/models/product.model';
 import { MeasurementUnit } from '../../../core/models/measurement-unit.model';
 import { BundleApiService } from '../../../core/services/bundle-api.service';
@@ -59,6 +59,8 @@ export class BundleFormDialogComponent implements OnChanges {
   private readonly messageService = inject(MessageService);
   readonly categoryStore = inject(CategoryStore);
 
+  @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
+
   protected readonly saving = signal(false);
   protected readonly canViewAllBranches = computed(() => this.authStore.hasPermission('view:branch:all'));
   protected readonly userBranchId = computed(() => this.authStore.currentUser()?.branchId ?? null);
@@ -91,7 +93,6 @@ export class BundleFormDialogComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && this.visible) {
       this.classificationStore.load();
-      this.loadProducts();
       this.loadUnits();
       this.loadBranches();
       this.loadPriceCategories();
@@ -110,11 +111,9 @@ export class BundleFormDialogComponent implements OnChanges {
         };
         this.imagePreview = this.bundleApi.resolveImageUrl(this.bundle.img);
         this.loadBundlePrices();
+        this.loadProducts();
       } else {
         this.form = this.emptyForm();
-        if (!this.canViewAllBranches() && this.userBranchId()) {
-          this.form.branch_id = this.userBranchId();
-        }
         this.form.category_id = this.combosCategoryId();
         this.imagePreview = null;
         this.bundlePricesForm.set([]);
@@ -122,22 +121,52 @@ export class BundleFormDialogComponent implements OnChanges {
       this.submitted = false;
       this.imageFile = null;
       this.retailCategoryId = null;
+      if (this.imageInput) {
+        this.imageInput.nativeElement.value = '';
+      }
     }
   }
 
   private loadBranches(): void {
     this.branchApi.listAdmin().subscribe({
-      next: (branches) => this.branches.set([
-        { label: 'Todas', value: 'all' },
-        ...branches.map((b) => ({ label: b.storeName, value: b.id })),
-      ]),
+      next: (branches) => {
+        this.branches.set(
+          branches.map((b) => ({ label: b.storeName, value: b.id })),
+        );
+        if (!this.isEditMode && !this.form.branch_id) {
+          if (!this.canViewAllBranches() && this.userBranchId()) {
+            this.form.branch_id = this.userBranchId();
+          } else if (this.canViewAllBranches() && this.branches().length > 0) {
+            const preferred = this.userBranchId();
+            if (preferred && this.branches().some((b) => b.value === preferred)) {
+              this.form.branch_id = preferred;
+            } else {
+              this.form.branch_id = this.branches()[0].value;
+            }
+          }
+          if (this.form.branch_id) {
+            this.loadProducts();
+          }
+        }
+      },
     });
   }
 
   private loadProducts(): void {
-    this.productApi.list({ limit: 100 }).subscribe({
+    const filter: Record<string, any> = { limit: 100 };
+    if (this.form.branch_id) {
+      filter['branch_id'] = this.form.branch_id;
+    }
+    this.productApi.list(filter).subscribe({
       next: (res) => this.products.set(res.items),
     });
+  }
+
+  protected onBranchChange(): void {
+    this.form.items = [];
+    if (this.form.branch_id) {
+      this.loadProducts();
+    }
   }
 
   private loadUnits(): void {
@@ -257,11 +286,6 @@ export class BundleFormDialogComponent implements OnChanges {
       blocks_product_stock: this.form.blocks_product_stock,
     };
 
-    if (!this.isEditMode && this.form.branch_id === 'all') {
-      this.createForAllBranches(req);
-      return;
-    }
-
     const operation = this.isEditMode
       ? this.bundleApi.update(this.bundle!.bundleId, req, this.imageFile ?? undefined)
       : this.bundleApi.create(req, this.imageFile ?? undefined);
@@ -277,37 +301,6 @@ export class BundleFormDialogComponent implements OnChanges {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: this.mapBackendError(msg) });
       },
     });
-  }
-
-  private createForAllBranches(baseReq: CreateBundleRequest): void {
-    const realBranches = this.branches().filter((b) => b.value !== 'all');
-    let completed = 0;
-    const total = realBranches.length;
-
-    const finish = () => {
-      this.saving.set(false);
-      this.saved.emit();
-    };
-
-    if (total === 0) {
-      finish();
-      return;
-    }
-
-    for (const branch of realBranches) {
-      const branchReq = { ...baseReq, branch_id: branch.value };
-
-      this.bundleApi.create(branchReq, this.imageFile ?? undefined).subscribe({
-        next: () => {
-          completed++;
-          if (completed === total) finish();
-        },
-        error: () => {
-          completed++;
-          if (completed === total) finish();
-        },
-      });
-    }
   }
 
   close(): void {

@@ -14,6 +14,7 @@ type OrderStatus struct {
 	Color       string    `json:"color"`
 	IsInitial   bool      `json:"is_initial"`
 	IsFinal     bool      `json:"is_final"`
+	Positive    bool      `json:"positive"`
 	Description string    `json:"description"`
 	SortOrder   int       `json:"sort_order"`
 	CreatedAtUtc time.Time `json:"created_at_utc"`
@@ -84,6 +85,7 @@ type WorkflowNodeData struct {
 	Code        string  `json:"code"`
 	IsInitial   bool    `json:"is_initial"`
 	IsFinal     bool    `json:"is_final"`
+	Positive    bool    `json:"positive"`
 	Color       string  `json:"color,omitempty"`
 	Description string  `json:"description,omitempty"`
 }
@@ -188,8 +190,9 @@ type WorkflowEdgeInfo struct {
 }
 
 type WorkflowInfo struct {
-	Edges           []WorkflowEdgeInfo
-	TerminalStatuses map[string]bool
+	Edges                    []WorkflowEdgeInfo
+	TerminalStatuses         map[string]bool
+	PositiveTerminalStatuses map[string]bool
 }
 
 type DeactivateStatusResponse struct {
