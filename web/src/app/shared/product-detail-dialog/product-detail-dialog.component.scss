@@ -209,15 +209,48 @@
   }
 
   .detail-actions {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 0.75rem;
   }
 
-  .detail-actions-right {
-    margin-left: 0;
+  .quantity-control {
     width: 100%;
   }
 
+  .detail-actions-right {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .detail-actions-right ::ng-deep .p-button {
+    width: 100%;
+  }
+
+  .conversion-hint {
+    grid-column: 1 / -1;
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .validation-error {
+    max-width: none;
+    text-align: center;
+  }
+
+  :host ::ng-deep .quantity-control p-inputnumber {
+    flex: 1;
+  }
+
+  :host ::ng-deep .quantity-control .p-inputnumber {
+    flex: 1;
+    min-width: 0;
+  }
+
+  :host ::ng-deep .quantity-control .detail-decimal-qty {
     width: 100%;
   }
 }

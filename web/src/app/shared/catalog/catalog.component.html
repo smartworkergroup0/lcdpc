@@ -25,72 +25,76 @@
       @for (product of products; track product.id) {
         <p-card styleClass="product-card" [class.featured]="product.featured">
           <ng-template pTemplate="content">
-            <div class="product-clickable" (click)="productClick.emit(product.id)">
-              <div class="product-image-frame" [class.featured]="product.featured">
-                <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
+            <div class="product-layout">
+              <div class="product-clickable" (click)="productClick.emit(product.id)">
+                <div class="product-image-frame" [class.featured]="product.featured">
+                  <img [src]="product.imageUrl" [alt]="product.alt" loading="lazy" (error)="onImageError($event)" />
 
-                <div class="product-tags">
-                  <p-tag
-                    styleClass="product-tag"
-                    [value]="product.featured ? 'COMBO' : product.category"
-                    [severity]="product.featured ? 'success' : 'info'"
-                  ></p-tag>
-                  @if (product.badge) {
-                    <p-tag styleClass="product-badge" [value]="product.badge" severity="success"></p-tag>
+                  <div class="product-tags">
+                    <p-tag
+                      styleClass="product-tag"
+                      [value]="product.featured ? 'COMBO' : product.category"
+                      [severity]="product.featured ? 'success' : 'info'"
+                    ></p-tag>
+                    @if (product.badge) {
+                      <p-tag styleClass="product-badge" [value]="product.badge" severity="success"></p-tag>
+                    }
+                  </div>
+
+                </div>
+
+                <div class="product-copy">
+                  <div class="product-title-row">
+                    <h3>{{ product.name }}</h3>
+                    <span class="product-price">{{ product.price }}</span>
+                  </div>
+
+                  @if (product.featured) {
+                    <ul class="product-bullets">
+                      @for (item of product.items; track $index) {
+                        <li>{{ item.quantity }} {{ item.name }}</li>
+                      }
+                    </ul>
+                  } @else {
+                    <p>{{ product.description }}</p>
                   }
                 </div>
-
               </div>
 
-              <div class="product-copy">
-                <div class="product-title-row">
-                  <h3>{{ product.name }}</h3>
-                  <span class="product-price">{{ product.price }}</span>
+              <div class="product-actions">
+                <div class="actions-top">
+                  <div class="quantity-control">
+                    <p-button icon="pi pi-minus" [text]="true"
+                              [disabled]="product.quantity <= 1"
+                              (onClick)="decrement.emit(product.id)"></p-button>
+                    <p-inputNumber [ngModel]="product.quantity" [min]="product.canDecimalStock ? 0.01 : 1"
+                                   [step]="product.canDecimalStock ? 0.1 : 1"
+                                   [max]="negativeStock ? 9999 : product.stockAvailable"
+                                   [maxFractionDigits]="product.canDecimalStock ? 3 : 0" [allowEmpty]="false"
+                                   [style]="{'width': '2.5rem', 'textAlign': 'center'}"
+                                   inputStyleClass="decimal-qty-input"
+                                   (onInput)="quantityChange.emit({ productId: product.id, quantity: $event.value ?? 1 })">
+                    </p-inputNumber>
+                    <p-button icon="pi pi-plus" [text]="true"
+                              [disabled]="!negativeStock && (product.stockAvailable === 0 || (product.quantity >= product.stockAvailable))"
+                              (onClick)="increment.emit(product.id)"></p-button>
+                  </div>
                 </div>
-
-                @if (product.featured) {
-                  <ul class="product-bullets">
-                    @for (item of product.items; track $index) {
-                      <li>{{ item.quantity }} {{ item.name }}</li>
-                    }
-                  </ul>
-                } @else {
-                  <p>{{ product.description }}</p>
-                }
-              </div>
-            </div>
-
-            <div class="product-actions">
-              <div class="actions-top">
-                <div class="quantity-control">
-                  <p-button icon="pi pi-minus" [text]="true"
-                            [disabled]="product.quantity <= 1"
-                            (onClick)="decrement.emit(product.id)"></p-button>
-                  <p-inputNumber [ngModel]="product.quantity" [min]="product.canDecimalStock ? 0.01 : 1"
-                                 [step]="product.canDecimalStock ? 0.1 : 1"
-                                 [max]="negativeStock ? 9999 : product.stockAvailable"
-                                 [maxFractionDigits]="product.canDecimalStock ? 3 : 0" [allowEmpty]="false"
-                                 [style]="{'width': '2.5rem', 'textAlign': 'center'}"
-                                 inputStyleClass="decimal-qty-input"
-                                 (onInput)="quantityChange.emit({ productId: product.id, quantity: $event.value ?? 1 })">
-                  </p-inputNumber>
-                  <p-button icon="pi pi-plus" [text]="true"
-                            [disabled]="!negativeStock && (product.stockAvailable === 0 || (product.quantity >= product.stockAvailable))"
-                            (onClick)="increment.emit(product.id)"></p-button>
+                <div class="actions-bottom">
+                  @if (negativeStock || product.stockAvailable > 0) {
+                    <span class="stock-info">{{ product.stockAvailable }} {{ product.unitSymbol }} disponibles</span>
+                  } @else {
+                    <span class="stock-info out-of-stock">Sin stock</span>
+                  }
+                  <p-button
+                    label="Agregar"
+                    icon="pi pi-shopping-cart"
+                    [severity]="product.featured ? 'secondary' : 'primary'"
+                    [disabled]="!negativeStock && product.stockAvailable === 0"
+                    (onClick)="addToCart.emit(product.id)"
+                  ></p-button>
                 </div>
-                @if (negativeStock || product.stockAvailable > 0) {
-                  <span class="stock-info">{{ product.stockAvailable }} {{ product.unitSymbol }} disponibles</span>
-                } @else {
-                  <span class="stock-info out-of-stock">Sin stock</span>
-                }
               </div>
-              <p-button class="actions-bottom"
-                label="Agregar"
-                icon="pi pi-shopping-cart"
-                [severity]="product.featured ? 'secondary' : 'primary'"
-                [disabled]="!negativeStock && product.stockAvailable === 0"
-                (onClick)="addToCart.emit(product.id)"
-              ></p-button>
             </div>
           </ng-template>
         </p-card>
